@@ -1,0 +1,107 @@
+.chat-fullscreen {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 70px);
+  background: #141414;
+  overflow: hidden;
+}
+
+.chat-fs-header {
+  background: #1a1a1a;
+  border-bottom: 1px solid rgba(201,168,76,0.2);
+  padding: 1rem 1.5rem;
+  flex-shrink: 0;
+}
+
+.chat-fs-avatar {
+  width: 40px;
+  height: 40px;
+  background: rgba(201,168,76,0.15);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  font-size: 1.1rem;
+}
+
+.chat-fs-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 2rem;
+  scroll-behavior: smooth;
+}
+
+.chat-fs-messages::-webkit-scrollbar { width: 4px; }
+.chat-fs-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-fs-messages::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 4px; }
+
+.chat-fs-input {
+  background: #1a1a1a;
+  border-top: 1px solid rgba(201,168,76,0.15);
+  padding: 1rem 2rem;
+  flex-shrink: 0;
+}
+
+.chat-fs-owner-icon {
+  width: 28px;
+  height: 28px;
+  background: rgba(201,168,76,0.12);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gold);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Date separator */
+.chat-date-separator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 1.5rem 0 1rem;
+}
+
+.chat-date-separator span {
+  background: rgba(255,255,255,0.06);
+  color: rgba(240,236,224,0.45);
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 3px 12px;
+  border-radius: 20px;
+  letter-spacing: 0.03em;
+}
+
+/* Message bubbles */
+.chat-bubble {
+  max-width: 65%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 0.9rem;
+  position: relative;
+  word-break: break-word;
+}
+
+.chat-bubble.customer {
+  background: var(--gold);
+  color: #000;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble.owner {
+  background: #242424;
+  border: 1px solid rgba(201,168,76,0.15);
+  color: #f0ece0;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-time {
+  font-size: 0.65rem;
+  opacity: 0.5;
+  text-align: right;
+  margin-top: 4px;
+}

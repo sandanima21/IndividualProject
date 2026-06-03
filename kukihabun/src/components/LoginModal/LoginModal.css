@@ -1,0 +1,91 @@
+.kuki-modal {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 20px !important;
+  overflow: hidden;
+}
+
+.modal-logo { display: flex; flex-direction: column; align-items: center; }
+.modal-brand-name { font-size: 1.3rem; font-weight: 800; color: var(--gold); }
+.modal-brand-tagline { color: var(--text-muted); font-size: 0.85rem; }
+
+.modal-tabs {
+  display: flex;
+  background: var(--surface-2);
+  border-radius: 50px;
+  padding: 4px;
+  gap: 4px;
+  width: fit-content;
+  margin: 0 auto;
+}
+.modal-tab {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 50px;
+  padding: 0.4rem 1.2rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.modal-tab.active { background: var(--gold); color: #000; font-weight: 700; }
+
+.manual-sub-tab {
+  border: none;
+  background: transparent;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.25rem 0.7rem;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.manual-sub-tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+
+.kuki-input {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+  border-radius: 10px !important;
+  height: 44px;
+}
+.kuki-input:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 3px rgba(201,168,76,0.15) !important;
+}
+
+.kuki-submit-btn {
+  height: 46px;
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem;
+  background: var(--gold) !important;
+  border: none !important;
+  color: #000 !important;
+  transition: all 0.25s !important;
+}
+.kuki-submit-btn:hover {
+  background: var(--gold-light) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(201,168,76,0.4);
+}
+
+
+.login-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  margin-bottom: 8px;
+}
+
+.login-brand-text {
+  color: white;
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0.5px;
+}

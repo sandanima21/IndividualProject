@@ -1,0 +1,127 @@
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: radial-gradient(ellipse at 50% 30%, #2a1f0a 0%, #0d0d0d 70%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(1.04);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+.welcome-overlay.welcome-show {
+  opacity: 1;
+  transform: scale(1);
+}
+.welcome-overlay.welcome-exit {
+  opacity: 0;
+  transform: scale(0.96);
+  transition: opacity 0.55s ease, transform 0.55s ease;
+}
+
+/* Floating dish emojis */
+.welcome-float {
+  position: absolute;
+  font-size: 2.4rem;
+  animation: floatUp 4s ease-in forwards;
+  animation-delay: calc(var(--i) * 0.35s + 0.4s);
+  opacity: 0;
+}
+.welcome-float:nth-child(1) { left: 8%;  bottom: 10%; }
+.welcome-float:nth-child(2) { left: 22%; bottom: 5%;  }
+.welcome-float:nth-child(3) { left: 50%; bottom: 8%;  }
+.welcome-float:nth-child(4) { left: 72%; bottom: 6%;  }
+.welcome-float:nth-child(5) { left: 88%; bottom: 12%; }
+
+@keyframes floatUp {
+  0%   { opacity: 0; transform: translateY(0) rotate(-10deg) scale(0.7); }
+  15%  { opacity: 1; }
+  80%  { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(-80vh) rotate(15deg) scale(1.1); }
+}
+
+/* Logo ring */
+.welcome-logo-ring {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 3px solid rgba(201,168,76,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 28px;
+  animation: ringPulse 1.2s ease-out 0.3s both;
+  box-shadow: 0 0 0 0 rgba(201,168,76,0.4);
+}
+.welcome-logo-inner {
+  font-size: 3.2rem;
+  animation: popIn 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.4s both;
+}
+@keyframes ringPulse {
+  0%   { transform: scale(0.5); opacity: 0; box-shadow: 0 0 0 0 rgba(201,168,76,0.5); }
+  60%  { box-shadow: 0 0 0 18px rgba(201,168,76,0); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes popIn {
+  0%   { transform: scale(0) rotate(-30deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0deg);  opacity: 1; }
+}
+
+/* Text */
+.welcome-content {
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  padding: 0 1.5rem;
+}
+.welcome-heading {
+  font-size: clamp(2.2rem, 6vw, 3.8rem);
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.15;
+  margin-bottom: 0.6rem;
+  animation: slideUp 0.6s cubic-bezier(0.34,1.56,0.64,1) 0.7s both;
+}
+.welcome-heading span {
+  color: #c9a84c;
+  display: block;
+}
+.welcome-sub {
+  font-size: 1.05rem;
+  color: rgba(240,236,224,0.75);
+  margin-bottom: 0.3rem;
+  animation: slideUp 0.5s ease 1s both;
+}
+.welcome-tagline {
+  font-size: 0.82rem;
+  color: rgba(201,168,76,0.55);
+  letter-spacing: 0.06em;
+  animation: slideUp 0.5s ease 1.15s both;
+}
+@keyframes slideUp {
+  0%   { opacity: 0; transform: translateY(28px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Scrolling food strip */
+.welcome-strip {
+  position: absolute;
+  bottom: 28px;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 1.6rem;
+  font-size: 1.6rem;
+  animation: scrollStrip 6s linear infinite, fadeInStrip 0.8s ease 1.5s both;
+  white-space: nowrap;
+}
+@keyframes scrollStrip {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-33.33%); }
+}
+@keyframes fadeInStrip {
+  from { opacity: 0; }
+  to   { opacity: 0.45; }
+}

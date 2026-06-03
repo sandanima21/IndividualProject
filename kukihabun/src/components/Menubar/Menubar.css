@@ -1,0 +1,279 @@
+/* ════════════════════════════════════════════════════
+   KukiHabun — Single-Bar Luxury Navigation Header
+   ════════════════════════════════════════════════════ */
+
+.kuki-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: #000;
+  border-bottom: 1px solid rgba(201,168,76,0.15);
+  transition: box-shadow 0.35s ease;
+}
+.kuki-header.scrolled {
+  box-shadow: 0 6px 40px rgba(0,0,0,0.85), 0 1px 0 rgba(201,168,76,0.25);
+}
+
+/* ── Top row: hamburger | logo-center | actions ── */
+.kuki-inner {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0.75rem 0 0.4rem;
+}
+
+/* ── Left: hamburger only (desktop nav moved to center row) ── */
+.kuki-nav-left {
+  display: flex;
+  align-items: center;
+}
+
+/* ── Center nav row (below logo, desktop only) ── */
+.kuki-center-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+  padding-bottom: 0.45rem;
+  border-top: 1px solid rgba(201,168,76,0.08);
+  margin-top: 0.3rem;
+}
+
+/* Desktop nav (hidden on mobile, shown ≥ lg) */
+.kuki-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Nav link */
+.kuki-nav-link {
+  display: block;
+  padding: 0.5rem 1.1rem;
+  color: rgba(240,236,224,0.65);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  transition: color 0.2s;
+}
+.kuki-nav-link::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 1.5px;
+  background: var(--gold);
+  transition: width 0.3s ease;
+}
+.kuki-nav-link:hover,
+.kuki-nav-link.active {
+  color: var(--gold);
+}
+.kuki-nav-link:hover::after,
+.kuki-nav-link.active::after {
+  width: 55%;
+}
+
+/* ── Centre: Brand / Logo ── */
+.kuki-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+}
+.kuki-logo {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  transition: transform 0.3s ease;
+}
+.kuki-brand:hover .kuki-logo {
+  transform: scale(1.06) rotate(-3deg);
+}
+.kuki-brand-name {
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold);
+  line-height: 1;
+}
+
+/* ── Right: Cart + Account ── */
+.kuki-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* ── Icon button (cart, account) ── */
+.kuki-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(201,168,76,0.07);
+  border: 1px solid rgba(201,168,76,0.22);
+  color: rgba(240,236,224,0.8);
+  text-decoration: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  font-size: 1.15rem;
+}
+.kuki-icon-btn:hover {
+  background: rgba(201,168,76,0.16);
+  border-color: rgba(201,168,76,0.55);
+  color: var(--gold);
+  transform: translateY(-2px);
+}
+
+/* Cart item count badge */
+.kuki-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: var(--gold);
+  color: #000;
+  font-size: 0.58rem;
+  font-weight: 800;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 2px solid #000;
+  line-height: 1;
+}
+
+/* User avatar variants */
+.kuki-avatar-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--gold);
+  object-fit: cover;
+}
+.kuki-avatar-letter {
+  width: 34px;
+  height: 34px;
+  background: var(--gold);
+  color: #000;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+
+/* ── Hamburger (mobile) ── */
+.kuki-hamburger {
+  background: none;
+  border: 1px solid rgba(201,168,76,0.22);
+  border-radius: 8px;
+  color: rgba(240,236,224,0.8);
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s, background 0.2s;
+  font-size: 1.3rem;
+}
+.kuki-hamburger:hover {
+  color: var(--gold);
+  background: rgba(201,168,76,0.08);
+}
+
+/* ── Sign In button ── */
+.kuki-signin-btn {
+  background: transparent;
+  border: 1.5px solid rgba(201,168,76,0.55);
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  padding: 0.42rem 1.2rem;
+  border-radius: 50px;
+  text-decoration: none;
+  transition: all 0.25s;
+  white-space: nowrap;
+}
+.kuki-signin-btn:hover {
+  background: var(--gold);
+  color: #000;
+  border-color: var(--gold);
+  box-shadow: 0 0 18px rgba(201,168,76,0.35);
+}
+
+/* ── Mobile nav drawer ── */
+.kuki-mobile-nav {
+  max-height: 0;
+  overflow: hidden;
+  background: #080808;
+  border-top: 1px solid rgba(201,168,76,0.1);
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+}
+.kuki-mobile-nav.is-open {
+  max-height: 400px;
+}
+.kuki-mobile-link {
+  display: block;
+  padding: 0.9rem 1.5rem;
+  color: rgba(240,236,224,0.75);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  background: none;
+  border: none;
+  border-bottom: 1px solid rgba(201,168,76,0.07);
+  cursor: pointer;
+  text-align: left;
+  transition: color 0.2s, background 0.2s;
+  width: 100%;
+}
+.kuki-mobile-link:hover {
+  color: var(--gold);
+  background: rgba(201,168,76,0.05);
+}
+
+/* ════════════════════════════════════════
+   MOBILE RESPONSIVE
+   ════════════════════════════════════════ */
+@media (max-width: 991px) {
+  .kuki-inner { padding: 0.55rem 0 0.45rem; }
+  .kuki-logo { width: 48px; height: 48px; }
+  .kuki-brand-name { font-size: 0.82rem; }
+  .kuki-icon-btn { width: 40px; height: 40px; font-size: 1.08rem; }
+  .kuki-center-nav { display: none !important; }
+}
+
+@media (max-width: 420px) {
+  .kuki-actions { gap: 0.4rem; }
+  .kuki-signin-btn { padding: 0.38rem 0.9rem; font-size: 0.72rem; }
+}

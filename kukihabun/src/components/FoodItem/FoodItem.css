@@ -1,0 +1,22 @@
+.food-item-card { max-width: 320px; }
+.food-item-image { height: 160px; width: 100%; object-fit: cover; }
+
+.customize-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 1050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.customize-prompt {
+  background: #1a1a1a;
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 16px;
+  padding: 1.6rem;
+  max-width: 320px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+}

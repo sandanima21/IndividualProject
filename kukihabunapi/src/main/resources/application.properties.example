@@ -1,0 +1,30 @@
+spring.application.name=kukihabunapi
+
+# Email (Gmail SMTP)
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=${MAIL_USERNAME}
+spring.mail.password=${MAIL_PASSWORD}
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+
+# Stripe Payment Gateway
+stripe.secret-key=${STRIPE_SECRET_KEY}
+stripe.publishable-key=${STRIPE_PUBLISHABLE_KEY}
+stripe.webhook-secret=${STRIPE_WEBHOOK_SECRET}
+
+# MongoDB
+spring.mongodb.uri=mongodb://localhost:27017/KukiHabunDB
+
+# AWS S3
+aws.access.key=${AWS_ACCESS_KEY}
+aws.secret.key=${AWS_SECRET_KEY}
+aws.region=eu-north-1
+aws.s3.bucketname=kukihabun-food
+
+# JWT
+app.jwt.secret=${JWT_SECRET}
+app.jwt.expiration-ms=86400000
+
+# Google OAuth2
+app.google.client-id=${GOOGLE_CLIENT_ID}

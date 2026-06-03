@@ -1,0 +1,33 @@
+.admin-chat-body {
+  background: #141414;
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.conv-item { transition: background 0.15s; border-radius: 8px; }
+.conv-item:hover { background: rgba(201,168,76,0.06); }
+.conv-active { background: rgba(201,168,76,0.1) !important; }
+
+.chat-bubble {
+  max-width: 65%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 0.88rem;
+  word-break: break-word;
+}
+
+.chat-bubble.owner {
+  background: var(--gold);
+  color: #000;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble.customer {
+  background: #242424;
+  border: 1px solid rgba(201,168,76,0.15);
+  color: #f0ece0;
+  border-bottom-left-radius: 4px;
+}
+
+.chat-sender { font-size: 0.7rem; opacity: 0.7; font-weight: 600; }
+.chat-time { font-size: 0.65rem; opacity: 0.55; text-align: right; margin-top: 4px; }

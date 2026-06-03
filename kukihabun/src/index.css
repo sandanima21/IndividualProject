@@ -1,0 +1,217 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --gold: #c9a84c;
+  --gold-light: #e8c86a;
+  --gold-dark: #a07830;
+  --gold-muted: rgba(201, 168, 76, 0.15);
+  --black: #0c0c0c;
+  --surface: #141414;
+  --surface-2: #1e1e1e;
+  --surface-3: #282828;
+  --text: #f0ece0;
+  --text-muted: #8a8070;
+  --border: rgba(201, 168, 76, 0.18);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html, body {
+  background-color: var(--black) !important;
+  color: var(--text) !important;
+  font-family: 'Poppins', sans-serif !important;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  scroll-behavior: smooth;
+}
+
+/* Bootstrap dark overrides with gold accent */
+[data-bs-theme="dark"] {
+  --bs-body-bg: #0c0c0c;
+  --bs-body-color: #f0ece0;
+  --bs-card-bg: #1e1e1e;
+  --bs-border-color: rgba(201,168,76,0.18);
+  --bs-primary: #c9a84c;
+  --bs-primary-rgb: 201,168,76;
+}
+
+.navbar {
+  background: rgba(12, 12, 12, 0.97) !important;
+  border-bottom: 1px solid var(--border) !important;
+  backdrop-filter: blur(12px);
+}
+
+.navbar-brand span { color: var(--gold) !important; }
+.nav-link { color: rgba(240,236,224,0.8) !important; transition: color 0.2s; }
+.nav-link:hover, .nav-link.active { color: var(--gold) !important; }
+
+/* Push reCAPTCHA badge up so it doesn't overlap the floating chat button */
+.grecaptcha-badge { bottom: 100px !important; }
+
+.btn-primary {
+  background: var(--gold) !important;
+  border-color: var(--gold) !important;
+  color: #000 !important;
+  font-weight: 600;
+}
+.btn-primary:hover {
+  background: var(--gold-light) !important;
+  border-color: var(--gold-light) !important;
+  transform: translateY(-1px);
+}
+.btn-outline-primary {
+  border-color: var(--gold) !important;
+  color: var(--gold) !important;
+}
+.btn-outline-primary:hover {
+  background: var(--gold) !important;
+  color: #000 !important;
+}
+
+.card {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+}
+.card:hover { border-color: rgba(201,168,76,0.4) !important; }
+
+.badge.bg-warning { background: var(--gold) !important; color: #000 !important; }
+
+/* Gold text utility */
+.text-gold { color: var(--gold) !important; }
+
+/* Floating chat button */
+.chat-float-wrap {
+  position: fixed;
+  bottom: 28px;
+  right: 28px;
+  z-index: 999;
+}
+.chat-float-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: none;
+  color: #000;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(201,168,76,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.chat-float-btn:hover { transform: scale(1.12); box-shadow: 0 6px 28px rgba(201,168,76,0.7); }
+.chat-float-tooltip {
+  position: absolute;
+  right: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  background: #1a1a1a;
+  border: 1px solid rgba(201,168,76,0.25);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.chat-float-btn:hover .chat-float-tooltip { opacity: 1; }
+
+/* Smooth scroll sections — offset for two-row sticky header */
+section[id] { scroll-margin-top: 120px; }
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.4); }
+  50%       { box-shadow: 0 0 0 12px rgba(201,168,76,0); }
+}
+
+.animate-fade-up { animation: fadeInUp 0.6s ease both; }
+.animate-delay-1 { animation-delay: 0.1s; }
+.animate-delay-2 { animation-delay: 0.2s; }
+.animate-delay-3 { animation-delay: 0.3s; }
+
+/* Gold shimmer text */
+.text-shimmer {
+  background: linear-gradient(90deg, var(--gold-dark), var(--gold-light), var(--gold-dark));
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s linear infinite;
+}
+
+/* Dropdown dark */
+.dropdown-menu {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+}
+.dropdown-item { color: var(--text) !important; }
+.dropdown-item:hover { background: var(--gold-muted) !important; color: var(--gold) !important; }
+.dropdown-divider { border-color: var(--border) !important; }
+
+/* Form controls */
+.form-control, .form-select {
+  background: var(--surface-3) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--gold) !important;
+  box-shadow: 0 0 0 0.2rem rgba(201,168,76,0.2) !important;
+}
+.form-control::placeholder { color: var(--text-muted) !important; }
+
+/* Modal */
+.modal-content {
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+}
+.modal-header { border-bottom-color: var(--border) !important; }
+.modal-footer { border-top-color: var(--border) !important; }
+
+/* Toast */
+.Toastify__toast { background: var(--surface-2) !important; color: var(--text) !important; }
+
+/* Input group */
+.input-group-text {
+  background: var(--surface-3) !important;
+  border-color: var(--border) !important;
+  color: var(--text-muted) !important;
+}
+
+/* Hide Stripe "Powered by Stripe" badge so it doesn't overlap the chat icon */
+a[href*="stripe.com/legal/ssa"],
+.__PrivateStripeElement-input + div,
+.StripeElement--webkit-autofill + div,
+[data-testid="powered-by-stripe-badge"],
+.stripe-footer,
+.PaymentElement + div a[target="_blank"] {
+  display: none !important;
+}
+/* Stripe injects an iframe badge anchored bottom-right; push it out of view */
+body > iframe[name*="stripe"],
+body > iframe[title*="Stripe"],
+body > div[id*="stripe"] > a {
+  display: none !important;
+}
