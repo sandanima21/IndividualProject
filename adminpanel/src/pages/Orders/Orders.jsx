@@ -61,7 +61,7 @@ const LiveTrackModal = ({ order, onClose }) => {
 
   // Fetch initial tracking snapshot
   useEffect(() => {
-    fetch(`http://localhost:8080/api/tracking/order/${order.id}`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/tracking/order/${order.id}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return;
