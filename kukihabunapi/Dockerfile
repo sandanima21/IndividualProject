@@ -10,4 +10,4 @@ FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /app/target/kukihabunapi-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8080
-CMD ["sh", "-c", "java -jar app.jar --server.port=${PORT:-8080} --spring.mongodb.uri=${SPRING_MONGODB_URI}"]
+CMD ["sh", "-c", "java -Djdk.tls.client.protocols=TLSv1.2 -jar app.jar --server.port=${PORT:-8080} --spring.mongodb.uri=${SPRING_MONGODB_URI}"]
