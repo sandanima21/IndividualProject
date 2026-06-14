@@ -1,3 +1,14 @@
+/*
+ * Menubar.css — sticky two-row navigation header.
+ *
+ * Row 1 (.kuki-inner): hamburger icon (mobile) | logo | cart + account icons.
+ * Row 2 (.kuki-center-nav): horizontal nav links — hidden below lg (992px).
+ *
+ * On mobile (< 992px), .kuki-center-nav is hidden and .kuki-mobile-nav slides
+ * down using a max-height transition (avoids the flash of 0 → auto that a
+ * display:none toggle would cause).
+ */
+
 /* ════════════════════════════════════════════════════
    KukiHabun — Single-Bar Luxury Navigation Header
    ════════════════════════════════════════════════════ */

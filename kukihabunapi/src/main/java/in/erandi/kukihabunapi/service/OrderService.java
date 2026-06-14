@@ -12,4 +12,7 @@ public interface OrderService {
     OrderResponse updateOrderStatus(String orderId, String status);
     OrderResponse markPaid(String orderId, String userId);
     void cancelPending(String orderId, String userId);
+    OrderResponse updateRefundStatus(String orderId, String refundStatus, String notes);
+    OrderResponse uploadRefundReceipt(String orderId, org.springframework.web.multipart.MultipartFile file);
+    OrderResponse processPayhereRefund(String orderId);
 }

@@ -12,15 +12,23 @@ import in.erandi.kukihabunapi.io.OrderResponse;
 import in.erandi.kukihabunapi.repository.FoodRepository;
 import in.erandi.kukihabunapi.repository.OfferRepository;
 import in.erandi.kukihabunapi.repository.OrderRepository;
+import in.erandi.kukihabunapi.repository.PaymentRepository;
 import in.erandi.kukihabunapi.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,16 +38,26 @@ public class OrderServiceImpl implements OrderService {
     private final FoodRepository foodRepository;
     private final UserRepository userRepository;
     private final OfferRepository offerRepository;
+    private final PaymentRepository paymentRepository;
     private final SequenceService sequenceService;
+    private final S3Client s3Client;
+    private final PayHereRefundService payhereRefundService;
+
+    @Value("${aws.s3.bucketname}")
+    private String bucketName;
 
     public OrderServiceImpl(OrderRepository orderRepository, FoodRepository foodRepository,
                             UserRepository userRepository, OfferRepository offerRepository,
-                            SequenceService sequenceService) {
+                            PaymentRepository paymentRepository, SequenceService sequenceService,
+                            S3Client s3Client, PayHereRefundService payhereRefundService) {
         this.orderRepository = orderRepository;
         this.foodRepository = foodRepository;
         this.userRepository = userRepository;
         this.offerRepository = offerRepository;
+        this.paymentRepository = paymentRepository;
         this.sequenceService = sequenceService;
+        this.s3Client = s3Client;
+        this.payhereRefundService = payhereRefundService;
     }
 
     private static final double RESTAURANT_LAT = 6.844176631120501;
@@ -99,7 +117,8 @@ public class OrderServiceImpl implements OrderService {
     public List<OrderResponse> getAllOrders() {
         return orderRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
-                .filter(o -> !"PENDING".equals(o.getStatus()))
+                // Exclude PENDING+UNPAID (items still in cart); include PENDING+PAID (awaiting confirm window)
+                .filter(o -> !"PENDING".equals(o.getStatus()) || "PAID".equals(o.getPaymentStatus()))
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -110,6 +129,14 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
         order.setStatus(status);
         order.setUpdatedAt(LocalDateTime.now());
+
+        // If admin moves an order back to a pre-pickup stage, clear the rider assignment
+        // so the order re-appears in the available list and can be accepted again.
+        if ("CONFIRMED".equals(status) || "COOKING".equals(status) || "READY".equals(status)) {
+            order.setDeliveryPersonId(null);
+            order.setDeliveryPersonCurrentLat(null);
+            order.setDeliveryPersonCurrentLng(null);
+        }
 
         // Auto-assign rider in registration order: sort by createdAt, give next order to
         // whoever has the fewest total all-time assignments (ties broken by registration order).
@@ -153,6 +180,59 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public OrderResponse updateRefundStatus(String orderId, String refundStatus, String notes) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        order.setRefundStatus(refundStatus);
+        if (notes != null && !notes.isBlank()) order.setRefundNotes(notes);
+        order.setUpdatedAt(LocalDateTime.now());
+        return toResponse(orderRepository.save(order));
+    }
+
+    @Override
+    public OrderResponse uploadRefundReceipt(String orderId, MultipartFile file) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        String ext = file.getOriginalFilename() != null && file.getOriginalFilename().contains(".")
+                ? file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf('.') + 1) : "jpg";
+        String key = "refund-receipts/" + UUID.randomUUID() + "." + ext;
+        try {
+            s3Client.putObject(
+                    PutObjectRequest.builder().bucket(bucketName).key(key).contentType(file.getContentType()).build(),
+                    RequestBody.fromBytes(file.getBytes()));
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Receipt upload failed: " + e.getMessage());
+        }
+        order.setRefundReceiptUrl("https://" + bucketName + ".s3.amazonaws.com/" + key);
+        order.setUpdatedAt(LocalDateTime.now());
+        return toResponse(orderRepository.save(order));
+    }
+
+    @Override
+    public OrderResponse processPayhereRefund(String orderId) {
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+
+        String payherePaymentId = paymentRepository.findByOrderId(orderId)
+                .map(p -> p.getPayherePaymentId())
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST, "No payment record found for this order"));
+
+        if (payherePaymentId == null || payherePaymentId.isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "PayHere payment ID is missing — the original payment may not have completed");
+
+        // Delegate to PayHereRefundService — handles OAuth token caching and retry on 401
+        payhereRefundService.requestRefund(payherePaymentId);
+
+        order.setRefundStatus("REFUND_INITIATED");
+        order.setRefundNotes("Refund submitted to PayHere at " + LocalDateTime.now()
+                + ". Awaiting settlement confirmation via webhook.");
+        order.setUpdatedAt(LocalDateTime.now());
+        return toResponse(orderRepository.save(order));
+    }
+
+    @Override
     public void cancelPending(String orderId, String userId) {
         orderRepository.findById(orderId).ifPresent(order -> {
             if ("UNPAID".equals(order.getPaymentStatus()) && "PENDING".equals(order.getStatus())) {
@@ -180,6 +260,10 @@ public class OrderServiceImpl implements OrderService {
         UserEntity user = userRepository.findById(order.getUserId()).orElse(null);
         String userName = user != null ? user.getName() : "Unknown";
         String userEmail = user != null ? user.getEmail() : null;
+
+        // Look up the PayHere transaction ID so admin can reference it in the PayHere merchant dashboard
+        String payherePaymentId = paymentRepository.findByOrderId(order.getId())
+                .map(p -> p.getPayherePaymentId()).orElse(null);
 
         UserEntity rider = (order.getDeliveryPersonId() != null)
                 ? userRepository.findById(order.getDeliveryPersonId()).orElse(null) : null;
@@ -227,6 +311,14 @@ public class OrderServiceImpl implements OrderService {
                 .total(order.getTotal())
                 .status(order.getStatus())
                 .paymentStatus(order.getPaymentStatus())
+                .payherePaymentId(payherePaymentId)
+                .refundStatus(order.getRefundStatus())
+                .refundNotes(order.getRefundNotes())
+                .refundBankName(order.getRefundBankName())
+                .refundBankBranch(order.getRefundBankBranch())
+                .refundAccountNumber(order.getRefundAccountNumber())
+                .refundAccountHolderName(order.getRefundAccountHolderName())
+                .refundReceiptUrl(order.getRefundReceiptUrl())
                 .paymentTime(order.getPaymentTime())
                 .cancelableUntil(order.getCancelableUntil())
                 .createdAt(order.getCreatedAt())

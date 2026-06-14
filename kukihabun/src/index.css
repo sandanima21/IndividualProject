@@ -1,3 +1,14 @@
+/*
+ * index.css — global dark-gold theme for the KukiHabun customer app.
+ *
+ * Design tokens are defined in :root so every component can reference
+ * them with var(--gold), var(--surface-2), etc. instead of hard-coding hex values.
+ *
+ * Bootstrap 5 is imported in main.jsx; the overrides below re-skin its
+ * components (buttons, cards, forms, modals, dropdowns) to match the theme
+ * without forking Bootstrap or fighting specificity everywhere else.
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
@@ -48,8 +59,9 @@ html, body {
 .nav-link { color: rgba(240,236,224,0.8) !important; transition: color 0.2s; }
 .nav-link:hover, .nav-link.active { color: var(--gold) !important; }
 
-/* Push reCAPTCHA badge up so it doesn't overlap the floating chat button */
-.grecaptcha-badge { bottom: 100px !important; }
+/* Hide the reCAPTCHA floating badge — disclosure text is shown in the footer instead,
+   which satisfies Google's reCAPTCHA branding requirement. */
+.grecaptcha-badge { visibility: hidden !important; }
 
 .btn-primary {
   background: var(--gold) !important;
@@ -125,8 +137,17 @@ html, body {
 }
 .chat-float-btn:hover .chat-float-tooltip { opacity: 1; }
 
+@media (max-width: 576px) {
+  .chat-float-wrap { bottom: 16px; right: 16px; }
+  .chat-float-btn { width: 48px; height: 48px; }
+}
+
 /* Smooth scroll sections — offset for two-row sticky header */
 section[id] { scroll-margin-top: 120px; }
+
+@media (max-width: 991px) {
+  section[id] { scroll-margin-top: 80px; }
+}
 
 /* Animations */
 @keyframes fadeInUp {
@@ -198,6 +219,61 @@ section[id] { scroll-margin-top: 120px; }
   background: var(--surface-3) !important;
   border-color: var(--border) !important;
   color: var(--text-muted) !important;
+}
+
+/* ── Home page helpers ── */
+.offer-card-single {
+  display: flex;
+  flex-direction: row;
+}
+.offer-card-multi {
+  display: flex;
+  flex-direction: column;
+}
+.offer-img-wide {
+  width: 280px;
+  height: 100%;
+}
+.offer-img-full {
+  width: 100%;
+  height: 160px;
+}
+
+@media (max-width: 576px) {
+  /* Hide decorative hero rings on small screens */
+  .hero-deco { display: none !important; }
+
+  /* Single offer: switch to column on mobile */
+  .offer-card-single {
+    flex-direction: column;
+  }
+  .offer-img-wide {
+    width: 100%;
+    height: 180px;
+  }
+}
+
+/* ── Global mobile improvements ── */
+@media (max-width: 767px) {
+  /* Prevent horizontal overflow on all pages */
+  body { overflow-x: hidden; }
+
+  /* Tighter container padding on mobile */
+  .container { padding-left: 1rem !important; padding-right: 1rem !important; }
+
+  /* Food item cards: 2 per row on mobile */
+  .col-12.col-sm-6.col-md-4.col-lg-3 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Food item cards: 1 per row on very small screens */
+  .col-12.col-sm-6.col-md-4.col-lg-3 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
 }
 
 /* Hide Stripe "Powered by Stripe" badge so it doesn't overlap the chat icon */

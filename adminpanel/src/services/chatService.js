@@ -1,6 +1,6 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
-const API_URL = 'http://localhost:8080/api/chat';
+const API_URL = `${import.meta.env.VITE_API_URL}/api/chat`;
 
 export const getConversations = async () => {
   const response = await axios.get(`${API_URL}/conversations`);
@@ -15,6 +15,10 @@ export const getMessages = async (conversationId) => {
 export const replyMessage = async (conversationId, content) => {
   const response = await axios.post(`${API_URL}/reply`, { conversationId, content });
   return response.data;
+};
+
+export const markConversationRead = async (conversationId) => {
+  await axios.patch(`${API_URL}/${conversationId}/read`);
 };
 
 export const replyWithImage = async (conversationId, file, content = '') => {

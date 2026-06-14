@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const HOURS = [
-  { day: 'Every Day', time: '4:00 PM – 9:30 PM' },
-  { day: 'Last Order', time: 'By 9:30 PM' },
+  { day: 'Every Day', time: '4:00 PM – 10:30 PM' },
+  { day: 'Last Order', time: 'By 10:30 PM' },
   { day: 'Closed', time: 'Before 4:00 PM' },
 ];
 
@@ -64,7 +64,7 @@ const AboutUs = () => {
       {/* Night restaurant badge */}
       <div className="text-center py-3" style={{ background: 'rgba(201,168,76,0.06)', borderBottom: '1px solid rgba(201,168,76,0.15)' }}>
         <span style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 50, padding: '6px 20px', color: 'var(--gold)', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.12em' }}>
-          <i className="bi bi-moon-stars-fill me-2"></i>Night Restaurant · Open 4:00 PM – 9:30 PM
+          <i className="bi bi-moon-stars-fill me-2"></i>Night Restaurant · Open 4:00 PM – 10:30 PM
         </span>
       </div>
 

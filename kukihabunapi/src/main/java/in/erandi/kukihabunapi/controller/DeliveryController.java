@@ -74,7 +74,14 @@ public class DeliveryController {
         List<OrderResponse> orders = orderService.getAllOrders().stream()
                 .filter(o -> "delivery".equalsIgnoreCase(o.getOrderType()))
                 .filter(o -> riderId.equals(o.getDeliveryPersonId()))
-                .filter(o -> o.getCreatedAt() != null && !o.getCreatedAt().isBefore(dayStart))
+                // Active deliveries always show regardless of creation date.
+                // Completed orders use updatedAt (delivery time) for the day boundary — not createdAt —
+                // so an order placed yesterday but delivered today still appears in today's history.
+                .filter(o -> {
+                    if ("OUT_FOR_DELIVERY".equals(o.getStatus())) return true;
+                    LocalDateTime ref = o.getUpdatedAt() != null ? o.getUpdatedAt() : o.getCreatedAt();
+                    return ref != null && !ref.isBefore(dayStart);
+                })
                 .collect(Collectors.toList());
         return ResponseEntity.ok(orders);
     }

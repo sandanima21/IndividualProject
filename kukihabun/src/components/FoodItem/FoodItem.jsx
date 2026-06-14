@@ -1,3 +1,15 @@
+/**
+ * FoodItem — a single food card in the menu grid.
+ *
+ * Add-to-cart behaviour depends on whether the item has customization options:
+ *  - No options → add directly.
+ *  - Has options, first add → show "Customize Now / Continue Anyway" prompt.
+ *  - Has options, subsequent add (already in cart) → "Same customization / Change" prompt.
+ *
+ * The two prompts are kept separate because the second add has different copy
+ * (it references the existing customization rather than introducing the feature).
+ */
+
 import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { StoreContext } from '../../context/StoreContext';
@@ -6,25 +18,29 @@ import './FoodItem.css';
 const FoodItem = ({ food }) => {
   const { increaseQty, decreaseQty, quantities, user } = useContext(StoreContext);
   const navigate = useNavigate();
-  const [showCustomizePrompt, setShowCustomizePrompt] = useState(false);
-  const [showSameCustomPrompt, setShowSameCustomPrompt] = useState(false);
+  const [showCustomizePrompt, setShowCustomizePrompt]     = useState(false);
+  const [showSameCustomPrompt, setShowSameCustomPrompt]   = useState(false);
+
   const hasCustomizations = food.customizationOptions &&
     ((food.customizationOptions.spiceLevels?.length > 0) ||
      (food.customizationOptions.ingredientsToAvoid?.length > 0) ||
      (food.customizationOptions.customizables?.length > 0));
 
   const handleAdd = () => {
+    // Unauthenticated users are sent to /signin first.
     if (!user) { navigate('/signin'); return; }
     if (hasCustomizations) {
+      // Show the "Would you like to customise?" prompt before adding.
       setShowCustomizePrompt(true);
     } else {
       increaseQty(food.id);
     }
   };
 
-  // Called when user clicks + on an item already in cart
+  // Separate handler for the + button when the item is already in the cart.
   const handleIncrease = () => {
     if (hasCustomizations) {
+      // Ask whether they want the same customization or a different one.
       setShowSameCustomPrompt(true);
     } else {
       increaseQty(food.id);
@@ -68,6 +84,7 @@ const FoodItem = ({ food }) => {
         <div className="card-footer d-flex justify-content-between align-items-center bg-transparent border-top">
           <Link className="btn btn-outline-primary btn-sm" to={`/food/${food.id}`}>Details</Link>
           {quantities[food.id] > 0 ? (
+            // Item is in cart — show quantity stepper.
             <div className="d-flex align-items-center gap-2">
               <button className="btn btn-danger btn-sm" onClick={() => decreaseQty(food.id)}>
                 <i className="bi bi-dash-circle"></i>
@@ -85,7 +102,7 @@ const FoodItem = ({ food }) => {
         </div>
       </div>
 
-      {/* Customize prompt (first add) */}
+      {/* ── First-add customization prompt ── */}
       {showCustomizePrompt && (
         <div className="customize-backdrop" onClick={() => setShowCustomizePrompt(false)}>
           <div className="customize-prompt" onClick={e => e.stopPropagation()}>
@@ -119,7 +136,7 @@ const FoodItem = ({ food }) => {
         </div>
       )}
 
-      {/* Same customization prompt (subsequent adds) */}
+      {/* ── Subsequent-add prompt (item already in cart) ── */}
       {showSameCustomPrompt && (
         <div className="customize-backdrop" onClick={() => setShowSameCustomPrompt(false)}>
           <div className="customize-prompt" onClick={e => e.stopPropagation()}>

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+﻿import React, { useContext, useEffect, useState } from 'react';
 import { StoreContext } from '../../context/StoreContext';
 import axios from 'axios';
 import { toast } from 'react-toastify';
@@ -23,7 +23,7 @@ const Reviews = () => {
 
   useEffect(() => {
     if (!user) return;
-    axios.get(`http://localhost:8080/api/reviews/user/${user.id}`, {
+    axios.get(`${import.meta.env.VITE_API_URL}/api/reviews/user/${user.id}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => setReviews(r.data))

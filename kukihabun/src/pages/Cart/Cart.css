@@ -1,13 +1,17 @@
-.cart-item img {
-     max-width: 100px;
-     height: auto;
- }
+.cart-summary {
+  background: var(--surface-2) !important;
+  border-radius: 10px;
+  position: sticky;
+  top: 100px;
+}
 
- .quantity-input {
-     width: 50px;
- }
+/* Order summary stacks below cart items on mobile */
+@media (max-width: 991px) {
+  .cart-summary { position: static; }
+}
 
- .cart-summary {
-     background-color: #f8f9fa;
-     border-radius: 10px;
- }
+/* Title spacing on small screens */
+@media (max-width: 576px) {
+  .container.py-5 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
+  h1.mb-5 { margin-bottom: 1.5rem !important; font-size: 1.5rem; }
+}

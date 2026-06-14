@@ -63,20 +63,35 @@ public class AuthServiceImpl implements AuthService {
         boolean[] isNew = { false };
         UserEntity user = userRepository.findByGoogleId(googleId)
                 .map(existing -> {
+                    // Known Google account — refresh display fields only
                     existing.setName(name);
                     existing.setPicture(picture);
                     return userRepository.save(existing);
                 })
                 .orElseGet(() -> {
-                    isNew[0] = true;
-                    return userRepository.save(
-                            UserEntity.builder()
-                                    .googleId(googleId)
-                                    .email(email)
-                                    .name(name)
-                                    .picture(picture)
-                                    .build()
-                    );
+                    // No document linked to this googleId yet.
+                    // Check whether a manual-signup account with the same email exists:
+                    // if so, link the Google ID to it instead of creating a duplicate.
+                    return userRepository.findFirstByEmail(email)
+                            .map(existingEmailUser -> {
+                                existingEmailUser.setGoogleId(googleId);
+                                existingEmailUser.setPicture(picture);
+                                if (existingEmailUser.getName() == null || existingEmailUser.getName().isBlank())
+                                    existingEmailUser.setName(name);
+                                return userRepository.save(existingEmailUser);
+                            })
+                            .orElseGet(() -> {
+                                // Genuinely new user — create the document
+                                isNew[0] = true;
+                                return userRepository.save(
+                                        UserEntity.builder()
+                                                .googleId(googleId)
+                                                .email(email)
+                                                .name(name)
+                                                .picture(picture)
+                                                .build()
+                                );
+                            });
                 });
 
         if (isNew[0] && email != null) {
@@ -89,7 +104,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse signupManual(ManualSignupRequest request) {
-        if (userRepository.findByEmail(request.getEmail()).isPresent()) {
+        if (userRepository.findFirstByEmail(request.getEmail()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered.");
         }
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
@@ -123,7 +138,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse loginManual(ManualLoginRequest request) {
         UserEntity user = userRepository.findByUsername(request.getUsernameOrEmail())
-                .or(() -> userRepository.findByEmail(request.getUsernameOrEmail()))
+                .or(() -> userRepository.findFirstByEmail(request.getUsernameOrEmail()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found."));
 
         if (user.getPassword() == null || !user.isPasswordSet()) {

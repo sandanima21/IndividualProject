@@ -1,4 +1,5 @@
-import React, { useContext, useEffect, useRef, useState } from 'react';
+﻿import React, { useContext, useEffect, useRef, useState } from 'react';
+import './DeliveryDashboard.css';
 import { StoreContext } from '../../context/StoreContext';
 import { toast } from 'react-toastify';
 import axios from 'axios';
@@ -19,7 +20,7 @@ const restaurantIcon = L.divIcon({ className: '', html: '<div style="font-size:2
 const riderIcon      = L.divIcon({ className: '', html: '<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))">🛵</div>', iconSize: [32, 32], iconAnchor: [16, 32] });
 const destIcon       = L.divIcon({ className: '', html: '<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))">🏠</div>', iconSize: [32, 32], iconAnchor: [16, 32] });
 
-const API = 'http://localhost:8080';
+const API = `${import.meta.env.VITE_API_URL}`;
 
 // ── OSRM routing hook (free, no API key) ────────────────────────────────────
 // Fetches a road route between two GPS points. Falls back gracefully if offline.
@@ -52,8 +53,10 @@ const useOsrmRoute = (from, to) => {
 const FitBounds = ({ positions }) => {
   const map = useMap();
   useEffect(() => {
-    if (positions.length > 1) map.fitBounds(positions, { padding: [40, 40] });
-    else if (positions.length === 1) map.setView(positions[0], 15);
+    try {
+      if (positions.length > 1) map.fitBounds(positions, { padding: [40, 40], animate: false });
+      else if (positions.length === 1) map.setView(positions[0], 15, { animate: false });
+    } catch (_) {}
   }, [positions.map(p => p.join(',')).join('|')]);
   return null;
 };
@@ -81,7 +84,7 @@ const ActiveDeliveryMap = ({ order, riderPos, eta }) => {
           <i className="bi bi-clock me-1"></i>ETA ~{eta} min
         </div>
       )}
-      <MapContainer center={center} zoom={14} style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={center} zoom={14} zoomAnimation={false} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {positions.length > 1 && <FitBounds positions={positions} />}
         {route && <Polyline positions={route} color="#a78bfa" weight={4} opacity={0.75} />}
@@ -115,7 +118,7 @@ const DestinationMap = ({ order }) => {
 
   return (
     <div style={{ height: 150, borderRadius: 8, overflow: 'hidden', marginBottom: '0.75rem', border: '1px solid rgba(201,168,76,0.15)' }}>
-      <MapContainer center={[order.deliveryLat, order.deliveryLng]} zoom={13} style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={[order.deliveryLat, order.deliveryLng]} zoom={13} zoomAnimation={false} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {positions.length > 1 && <FitBounds positions={positions} />}
         {order.restaurantLat && order.restaurantLng && (
@@ -212,7 +215,7 @@ const NAV = [
 
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 const DeliveryDashboard = () => {
-  const { user, token, login } = useContext(StoreContext);
+  const { user, token, login, logout } = useContext(StoreContext);
 
   const [myOrders, setMyOrders]             = useState([]);   // assigned to me today
   const [availableOrders, setAvailableOrders] = useState([]); // READY, unassigned
@@ -238,21 +241,24 @@ const DeliveryDashboard = () => {
 
   const mustChange = user?.mustChangePassword === true;
 
+  // ── Session expiry handler ────────────────────────────────────────────────
+  const handle401 = () => {
+    toast.error('Your session has expired. Please sign in again.');
+    logout();
+  };
+
   // ── Data loading ────────────────────────────────────────────────────────────
   const loadMyOrders = async () => {
-    try {
-      const res = await fetch(`${API}/api/delivery/orders/today`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) setMyOrders(await res.json());
-    } catch { /* silent */ }
+    const res = await fetch(`${API}/api/delivery/orders/today`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401) { handle401(); return; }
+    if (res.ok) setMyOrders(await res.json());
   };
 
   const loadAvailableOrders = async () => {
-    try {
-      const res = await fetch(`${API}/api/delivery/orders/available`);
-      if (res.ok) setAvailableOrders(await res.json());
-    } catch { /* silent */ }
+    const res = await fetch(`${API}/api/delivery/orders/available`);
+    if (res.ok) setAvailableOrders(await res.json());
   };
 
   const loadReviews = async () => {
@@ -260,15 +266,28 @@ const DeliveryDashboard = () => {
       const res = await fetch(`${API}/api/delivery-reviews/mine`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) { handle401(); return; }
       if (res.ok) setMyReviews(await res.json());
     } catch { /* silent */ }
   };
 
   useEffect(() => {
-    loadMyOrders();
-    loadAvailableOrders();
+    let consecutiveFails = 0;
+    let iv;
+
+    const safePoll = async () => {
+      try {
+        await Promise.all([loadMyOrders(), loadAvailableOrders()]);
+        consecutiveFails = 0;
+      } catch {
+        if (++consecutiveFails >= 5) clearInterval(iv);
+      }
+    };
+
+    loadMyOrders().catch(() => {});
+    loadAvailableOrders().catch(() => {});
     loadReviews();
-    const iv = setInterval(() => { loadMyOrders(); loadAvailableOrders(); }, 15000);
+    iv = setInterval(safePoll, 15000);
     return () => clearInterval(iv);
   }, [token]);
 
@@ -276,11 +295,13 @@ const DeliveryDashboard = () => {
   const toggleOnline = async () => {
     const next = !online;
     try {
-      await fetch(`${API}/api/delivery/rider/status`, {
+      const res = await fetch(`${API}/api/delivery/rider/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ online: next }),
       });
+      if (res.status === 401) { handle401(); return; }
+      if (!res.ok) { toast.error('Failed to update status.'); return; }
       setOnline(next);
       toast.success(next ? 'You are now online.' : 'You are now offline.');
     } catch {
@@ -295,6 +316,7 @@ const DeliveryDashboard = () => {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) { handle401(); return; }
       if (res.status === 409) { toast.error('Order already taken by another rider.'); return; }
       if (!res.ok) { toast.error('Failed to accept order.'); return; }
       toast.success('Order accepted! GPS tracking started.');
@@ -314,6 +336,7 @@ const DeliveryDashboard = () => {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (res.status === 401) { handle401(); return; }
       if (!res.ok) { toast.error('Failed to mark as delivered.'); return; }
       stopSharing();
       toast.success('Delivery completed! Great job 🎉');
@@ -566,14 +589,35 @@ const DeliveryDashboard = () => {
         />
       )}
 
-      <div style={{ display: 'flex', minHeight: 'calc(100vh - 80px)' }}>
+      {/* ── Mobile top bar ── */}
+      <div className="delivery-mobile-topbar">
+        <div className="d-flex align-items-center gap-2">
+          {user?.picture
+            ? <img src={user.picture} alt="" width={32} height={32} className="rounded-circle" style={{ objectFit: 'cover' }} referrerPolicy="no-referrer" />
+            : <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: '0.9rem' }}>{user?.name?.charAt(0)}</div>
+          }
+          <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{user?.name?.split(' ')[0]}</span>
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>🛵 Rider</span>
+        </div>
+        <button
+          onClick={toggleOnline}
+          style={{
+            padding: '0.35rem 0.9rem', borderRadius: 20, cursor: 'pointer',
+            fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '0.78rem',
+            background: online ? 'rgba(62,207,142,0.15)' : 'rgba(200,196,188,0.08)',
+            color: online ? '#3ecf8e' : 'rgba(240,236,224,0.5)',
+            border: `1px solid ${online ? 'rgba(62,207,142,0.35)' : 'rgba(255,255,255,0.1)'}`,
+          }}
+        >
+          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: online ? '#3ecf8e' : '#666', marginRight: 6, verticalAlign: 'middle' }}></span>
+          {online ? 'Online' : 'Go Online'}
+        </button>
+      </div>
 
-        {/* ── Sidebar ── */}
-        <aside style={{
-          width: 220, flexShrink: 0,
-          background: 'var(--surface)', borderRight: '1px solid var(--border)',
-          padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: 4,
-        }}>
+      <div className="delivery-layout">
+
+        {/* ── Sidebar (desktop only) ── */}
+        <aside className="delivery-sidebar">
           {/* Profile card */}
           <div style={{ padding: '0.9rem', background: 'rgba(201,168,76,0.08)', borderRadius: 12, border: '1px solid rgba(201,168,76,0.15)', marginBottom: '1rem' }}>
             <div className="d-flex align-items-center gap-2">
@@ -593,7 +637,7 @@ const DeliveryDashboard = () => {
             <button
               onClick={toggleOnline}
               style={{
-                width: '100%', padding: '0.55rem 1rem', borderRadius: 10, border: 'none',
+                width: '100%', padding: '0.55rem 1rem', borderRadius: 10,
                 cursor: 'pointer', fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '0.82rem',
                 background: online ? 'rgba(62,207,142,0.15)' : 'rgba(200,196,188,0.08)',
                 color: online ? '#3ecf8e' : 'rgba(240,236,224,0.5)',
@@ -642,7 +686,7 @@ const DeliveryDashboard = () => {
         </aside>
 
         {/* ── Main content ── */}
-        <main style={{ flex: 1, padding: '2rem', overflowY: 'auto' }}>
+        <main className="delivery-main">
 
           {/* Active deliveries */}
           {activeSection === 'orders' && (
@@ -851,7 +895,36 @@ const DeliveryDashboard = () => {
           )}
 
         </main>
-      </div>
+
+      </div>{/* /delivery-layout */}
+
+      {/* ── Mobile GPS strip ── */}
+      {sharing && (
+        <div className="delivery-gps-strip">
+          <i className="bi bi-broadcast-pin me-1"></i>GPS Broadcasting
+          {eta != null && <span className="ms-2">· ETA ~{eta} min</span>}
+        </div>
+      )}
+
+      {/* ── Mobile bottom tab bar ── */}
+      <nav className="delivery-mobile-nav">
+        {NAV.map(item => (
+          <button
+            key={item.id}
+            className={`delivery-mob-btn ${activeSection === item.id ? 'active' : ''}`}
+            onClick={() => setActiveSection(item.id)}
+          >
+            <i className={`bi ${item.icon}`}></i>
+            <span>{item.label}</span>
+            {item.id === 'orders' && activeOrders.length > 0 && (
+              <span className="mob-badge">{activeOrders.length}</span>
+            )}
+            {item.id === 'available' && availableOrders.length > 0 && (
+              <span className="mob-badge green">{availableOrders.length}</span>
+            )}
+          </button>
+        ))}
+      </nav>
 
       {/* Phone verification modal */}
       {showPhoneModal && (

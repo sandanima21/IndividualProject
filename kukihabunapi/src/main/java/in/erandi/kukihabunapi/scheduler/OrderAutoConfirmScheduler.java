@@ -24,16 +24,27 @@ public class OrderAutoConfirmScheduler {
     // Runs every 60 seconds; promotes PAID+PENDING orders past their 15-min cancel window to CONFIRMED
     @Scheduled(fixedDelay = 60_000)
     public void autoConfirmExpiredPendingOrders() {
+        LocalDateTime now = LocalDateTime.now();
+
+        // Normal path: cancelableUntil is set and has expired
         List<OrderEntity> eligible = orderRepository
-                .findByStatusAndPaymentStatusAndCancelableUntilBefore("PENDING", "PAID", LocalDateTime.now());
+                .findByStatusAndPaymentStatusAndCancelableUntilBefore("PENDING", "PAID", now);
 
-        if (eligible.isEmpty()) return;
+        // Legacy path: cancelableUntil was never set (orders paid before the fix); use paymentTime as fallback
+        List<OrderEntity> legacy = orderRepository
+                .findByStatusAndPaymentStatusAndCancelableUntilIsNullAndPaymentTimeBefore(
+                        "PENDING", "PAID", now.minusMinutes(15));
 
-        for (OrderEntity order : eligible) {
+        List<OrderEntity> allEligible = new java.util.ArrayList<>(eligible);
+        allEligible.addAll(legacy);
+
+        if (allEligible.isEmpty()) return;
+
+        for (OrderEntity order : allEligible) {
             order.setStatus("CONFIRMED");
-            order.setUpdatedAt(LocalDateTime.now());
+            order.setUpdatedAt(now);
         }
-        orderRepository.saveAll(eligible);
-        log.info("Auto-confirmed {} order(s)", eligible.size());
+        orderRepository.saveAll(allEligible);
+        log.info("Auto-confirmed {} order(s)", allEligible.size());
     }
 }

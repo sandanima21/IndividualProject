@@ -1,3 +1,16 @@
+/*
+ * index.css — global dark-gold theme for the KukiHabun admin panel.
+ *
+ * Layout:
+ *  #wrapper (d-flex) contains .sidebar-wrapper (220px fixed) and
+ *  #page-content-wrapper (flex:1). On mobile (≤768px), the sidebar
+ *  becomes a position:fixed overlay drawer and a .sidebar-mobile-overlay
+ *  backdrop appears behind it (see bottom of this file).
+ *
+ * Bootstrap 5 dark-theme overrides target tables, forms, modals, and
+ * dropdowns so they match the black/gold palette without needing inline styles.
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 
 :root {
@@ -107,3 +120,43 @@ a { color: var(--gold); }
 /* Placeholder input style */
 input::placeholder, textarea::placeholder { color: rgba(200,196,188,0.45) !important; }
 select option { background: #1e1e1e !important; }
+
+/* ── Mobile responsive sidebar ── */
+@media (max-width: 768px) {
+  /* Sidebar becomes a fixed overlay drawer on mobile */
+  .sidebar-wrapper {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1050;
+    overflow-y: auto;
+    /* Sidebar is in-flow on desktop; on mobile it overlays without taking space */
+  }
+
+  /* Content area takes full width when sidebar is overlay */
+  #page-content-wrapper {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* Semi-transparent backdrop behind the sidebar drawer */
+  .sidebar-mobile-overlay {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1040;
+    backdrop-filter: blur(2px);
+  }
+
+  /* Tighter admin menubar on mobile */
+  .navbar .container-fluid {
+    gap: 0.5rem;
+  }
+}
+
+/* Overlay hidden by default (desktop) */
+.sidebar-mobile-overlay {
+  display: none;
+}

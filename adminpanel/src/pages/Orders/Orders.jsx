@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import './Orders.css';
 import { toast } from 'react-toastify';
 import { getAllOrders, updateOrderStatus } from '../../services/orderService';
@@ -73,7 +73,7 @@ const LiveTrackModal = ({ order, onClose }) => {
 
   useEffect(() => {
     const client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+      webSocketFactory: () => new SockJS(`${import.meta.env.VITE_API_URL}/ws`),
       onConnect: () => {
         client.subscribe(`/topic/order/${order.id}/tracking`, (msg) => {
           const data = JSON.parse(msg.body);
@@ -339,9 +339,14 @@ const Orders = () => {
 
   useEffect(() => {
     getAllOrders()
-      .then(setOrders)
-      .catch(() => toast.error('Failed to load orders.'))
-      .finally(() => setLoading(false));
+      .then(data => { setOrders(data); setLoading(false); })
+      .catch(() => { toast.error('Failed to load orders.'); setLoading(false); });
+
+    const iv = setInterval(() =>
+      getAllOrders().then(setOrders).catch(() => {}),
+      20_000
+    );
+    return () => clearInterval(iv);
   }, []);
 
   const handleStatusMove = async (orderId, status) => {
@@ -392,8 +397,9 @@ const Orders = () => {
   const colOrders = (col) => orders.filter(o => {
     if (!col.displayKeys.includes(o.status)) return false;
     if (o.paymentStatus !== 'PAID') return false;
-    // Delivered column: today only
-    if (col.key === 'DELIVERED' && new Date(o.createdAt) < todayStart) return false;
+    // Delivered column: today only — compare by updatedAt (delivery time), not createdAt,
+    // so an order placed yesterday but delivered today stays visible until midnight.
+    if (col.key === 'DELIVERED' && new Date(o.updatedAt || o.createdAt) < todayStart) return false;
     if (search && !o.userName?.toLowerCase().includes(search.toLowerCase()) && !o.id.includes(search)) return false;
     return true;
   });

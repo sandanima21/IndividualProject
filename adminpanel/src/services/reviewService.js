@@ -1,5 +1,5 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
-const API = 'http://localhost:8080/api/reviews';
+const API = `${import.meta.env.VITE_API_URL}/api/reviews`;
 
 export const getAllReviews = () => axios.get(API).then(r => r.data);

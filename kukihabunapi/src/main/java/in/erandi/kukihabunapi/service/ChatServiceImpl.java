@@ -76,6 +76,15 @@ public class ChatServiceImpl implements ChatService {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public void markConversationRead(String conversationId) {
+        List<MessageEntity> unread = messageRepository
+                .findByConversationIdAndSenderRoleAndReadFalse(conversationId, "CUSTOMER");
+        if (unread.isEmpty()) return;
+        unread.forEach(m -> m.setRead(true));
+        messageRepository.saveAll(unread);
+    }
+
     private MessageResponse toResponse(MessageEntity m) {
         return MessageResponse.builder()
                 .id(m.getId())

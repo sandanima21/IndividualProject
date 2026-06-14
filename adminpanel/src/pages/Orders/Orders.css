@@ -1,7 +1,18 @@
+/*
+ * Orders.css — Kanban board layout for admin order management.
+ *
+ * Each status column (PENDING → CONFIRMED → COOKING → READY → OUT_FOR_DELIVERY → DELIVERED)
+ * is a flex child that grows equally on desktop. On mobile (≤768px) columns get a
+ * fixed 200px width and the board scrolls horizontally so cards remain readable.
+ *
+ * Drag-and-drop is handled in JavaScript; CSS provides the visual feedback
+ * (.is-dragging, .drag-over) and the scrollable container.
+ */
+
 .kanban-board {
   display: flex;
   gap: 0.6rem;
-  overflow-x: hidden;
+  overflow-x: auto;
   padding-bottom: 1.5rem;
   align-items: flex-start;
   width: 100%;
@@ -129,4 +140,18 @@
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 20px;
+}
+
+/* ── Mobile responsive kanban ── */
+@media (max-width: 768px) {
+  .kanban-board {
+    /* Allow horizontal scroll, each column has min width */
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .kanban-column {
+    flex: 0 0 200px;
+    min-width: 200px;
+    max-height: calc(100vh - 200px);
+  }
 }

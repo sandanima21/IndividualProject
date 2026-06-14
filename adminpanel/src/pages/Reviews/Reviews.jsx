@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { getFoodList } from '../../services/foodService';
 import { toast } from 'react-toastify';
@@ -24,7 +24,7 @@ const FoodReviewsTab = () => {
 
   useEffect(() => {
     Promise.all([
-      axios.get('http://localhost:8080/api/reviews').then(r => r.data),
+      axios.get(`${import.meta.env.VITE_API_URL}/api/reviews`).then(r => r.data),
       getFoodList().catch(() => []),
     ])
       .then(([reviewsData, foods]) => {
@@ -92,8 +92,8 @@ const DeliveryReviewsTab = () => {
 
   useEffect(() => {
     Promise.all([
-      axios.get('http://localhost:8080/api/delivery-reviews').then(r => r.data),
-      axios.get('http://localhost:8080/api/auth/delivery/personnel').then(r => r.data).catch(() => []),
+      axios.get(`${import.meta.env.VITE_API_URL}/api/delivery-reviews`).then(r => r.data),
+      axios.get(`${import.meta.env.VITE_API_URL}/api/auth/delivery/personnel`).then(r => r.data).catch(() => []),
     ])
       .then(([reviewsData, riders]) => {
         setReviews(reviewsData);

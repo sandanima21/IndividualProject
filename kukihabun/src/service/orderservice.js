@@ -1,6 +1,6 @@
-import axios from "axios";
+﻿import axios from "axios";
 
-const API_URL = "http://localhost:8080/api/orders";
+const API_URL = `${import.meta.env.VITE_API_URL}/api/orders`;
 const authHeader = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
 
 export const placeOrder = (orderData, token) =>
@@ -23,25 +23,25 @@ export const markOrderPaid = (orderId, token) =>
 export const cancelPendingOrder = (orderId, token) =>
     axios.delete(`${API_URL}/${orderId}/cancel-pending`, authHeader(token));
 
-// Cancel a CONFIRMED order for refund (within the cancellation window)
-export const cancelOrder = (orderId, token) =>
-    axios.post(`http://localhost:8080/api/payments/cancel/${orderId}`, {}, authHeader(token)).then(r => r.data);
+// Cancel a PAID+PENDING order — bankDetails are saved so admin can process the manual transfer
+export const cancelOrder = (orderId, token, bankDetails) =>
+    axios.post(`${import.meta.env.VITE_API_URL}/api/payments/cancel/${orderId}`, bankDetails ?? {}, authHeader(token)).then(r => r.data);
 
 // PayHere payment initiation — returns hash + all params needed by payhere.startPayment()
 export const initiatePayment = (orderId, token) =>
-    axios.post(`http://localhost:8080/api/payments/initiate/${orderId}`, {}, authHeader(token)).then(r => r.data);
+    axios.post(`${import.meta.env.VITE_API_URL}/api/payments/initiate/${orderId}`, {}, authHeader(token)).then(r => r.data);
 
 export const sendOtp = (phone, token) =>
-    axios.post('http://localhost:8080/api/otp/send', { phone }, authHeader(token)).then(r => r.data);
+    axios.post(`${import.meta.env.VITE_API_URL}/api/otp/send`, { phone }, authHeader(token)).then(r => r.data);
 
 export const verifyOtp = (phone, code, token) =>
-    axios.post('http://localhost:8080/api/otp/verify', { phone, code }, authHeader(token)).then(r => r.data);
+    axios.post(`${import.meta.env.VITE_API_URL}/api/otp/verify`, { phone, code }, authHeader(token)).then(r => r.data);
 
 // Delivery reviews
 export const submitDeliveryReview = (data, token) =>
-    axios.post('http://localhost:8080/api/delivery-reviews', data, authHeader(token)).then(r => r.data);
+    axios.post(`${import.meta.env.VITE_API_URL}/api/delivery-reviews`, data, authHeader(token)).then(r => r.data);
 
 export const getDeliveryReviewByOrder = (orderId) =>
-    axios.get(`http://localhost:8080/api/delivery-reviews/order/${orderId}`)
+    axios.get(`${import.meta.env.VITE_API_URL}/api/delivery-reviews/order/${orderId}`)
         .then(r => r.data)
         .catch(err => err.response?.status === 404 ? null : Promise.reject(err));

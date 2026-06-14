@@ -73,12 +73,9 @@ public class EmailService {
 
             helper.setText(html, true);
             mailSender.send(message);
-            System.out.println("[EMAIL] Signup OTP sent to " + toEmail);
             return true;
 
         } catch (Exception e) {
-            System.err.println("[EMAIL] Failed to send signup OTP to " + toEmail + ": " + e.getMessage());
-            System.out.println("[DEV] OTP for " + toEmail + " → " + code);
             return false;
         }
     }
@@ -101,8 +98,6 @@ public class EmailService {
             mailSender.send(msg);
             return true;
         } catch (Exception e) {
-            System.err.println("[EMAIL] OTP email failed (" + toEmail + "): " + e.getMessage());
-            System.out.println("[DEV] OTP for " + phone + " → " + code);
             return false;
         }
     }
@@ -148,9 +143,8 @@ public class EmailService {
                 """.formatted(name, username, password);
             helper.setText(html, true);
             mailSender.send(message);
-            System.out.println("[EMAIL] Delivery credentials sent to " + toEmail);
         } catch (Exception e) {
-            System.err.println("[EMAIL] Delivery credentials email failed for " + toEmail + ": " + e.getMessage());
+            // silent — delivery email failure is non-critical
         }
     }
 
@@ -169,7 +163,7 @@ public class EmailService {
             );
             mailSender.send(msg);
         } catch (Exception e) {
-            System.err.println("[EMAIL] Welcome email failed for " + toEmail + ": " + e.getMessage());
+            // silent — welcome email failure is non-critical
         }
     }
 }

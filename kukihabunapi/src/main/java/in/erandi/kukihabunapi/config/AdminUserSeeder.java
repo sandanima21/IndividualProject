@@ -29,7 +29,6 @@ public class AdminUserSeeder implements ApplicationRunner {
                     .role("ADMIN")
                     .passwordSet(true)
                     .build());
-            System.out.println("[AdminSeeder] Admin user created.");
         }
     }
 }

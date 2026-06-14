@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+﻿import { useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from 'axios';
@@ -9,7 +9,7 @@ import { googleSignIn } from '../../service/authservice';
 import { assets } from '../../assets/assets';
 import './SignIn.css';
 
-const API = 'http://localhost:8080/api/auth';
+const API = `${import.meta.env.VITE_API_URL}/api/auth`;
 const BG  = 'https://wallpapers.com/images/hd/noodles-3840-x-2160-background-agkp9dw91qxqxy8j.jpg';
 
 const validatePassword = (pw) => {
@@ -125,7 +125,6 @@ const SignIn = () => {
 
     const container = document.getElementById('kk-recaptcha');
     if (!container) {
-      console.error('[PhoneVerify/SignIn] #kk-recaptcha not found in DOM');
       return;
     }
 
@@ -147,8 +146,7 @@ const SignIn = () => {
       });
 
       verifierRef.current = verifier;
-      verifier.render().catch((err) => {
-        console.error('[PhoneVerify/SignIn] render() failed:', err.code ?? err.message);
+      verifier.render().catch(() => {
         setPhoneError('reCAPTCHA failed to load. Please refresh the page.');
       });
     };
@@ -316,15 +314,12 @@ const SignIn = () => {
       return;
     }
 
-    console.log('[PhoneVerify/SignIn] signInWithPhoneNumber →', formatted);
     setLoading(true);
     try {
       const result = await signInWithPhoneNumber(auth, formatted, verifierRef.current);
-      console.log('[PhoneVerify/SignIn] OTP sent — waiting for user input');
       setConfirmResult(result);
       setPhoneOtpSent(true);
     } catch (e) {
-      console.error('[PhoneVerify/SignIn]', e.code, e.message);
       setPhoneError(
         e.code === 'auth/invalid-phone-number'   ? 'Invalid phone number format.' :
         e.code === 'auth/too-many-requests'      ? 'Too many attempts. Try again later.' :
@@ -353,7 +348,6 @@ const SignIn = () => {
       // Include the now-verified phone so App.jsx doesn't open a second phone modal
       finish({ ...signupAuthData, phone: verifiedPhone, phoneVerified: true }, true);
     } catch (e) {
-      console.error('[PhoneVerify]', e.code, e.message);
       setPhoneError(
         e.code === 'auth/invalid-verification-code' ? 'Wrong code. Please check and try again.' :
         e.code === 'auth/code-expired'              ? 'Code expired. Request a new one.' :

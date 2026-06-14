@@ -2,8 +2,6 @@ package in.erandi.kukihabunapi.service;
 
 import org.springframework.stereotype.Service;
 
-import java.util.Base64;
-
 /**
  * Prototype implementation of {@link FirebasePhoneService}.
  *
@@ -58,25 +56,11 @@ public class FirebasePhoneServiceImpl implements FirebasePhoneService {
     @Override
     public String verifyToken(String idToken) {
         if (idToken == null || idToken.isBlank()) {
-            System.out.println("[FIREBASE-MOCK] No token received.");
             return null;
         }
 
-        // Attempt to decode the JWT payload (base64url) for logging only.
-        // This does NOT verify the signature — it is purely informational in prototype mode.
-        try {
-            String[] parts = idToken.split("\\.");
-            if (parts.length == 3) {
-                String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
-                System.out.println("[FIREBASE-MOCK] Token payload (unverified): " + payload);
-            }
-        } catch (Exception ignored) { }
-
-        System.out.println("[FIREBASE-MOCK] Prototype mode — skipping server-side token " +
-                           "verification. Trusting client-verified phone from request body.");
-
         // Return null → controller falls back to the phone from the request body.
-        // In production: return the phone extracted from the verified token above.
+        // In production: decode and verify the Firebase ID token with firebase-admin SDK.
         return null;
     }
 }

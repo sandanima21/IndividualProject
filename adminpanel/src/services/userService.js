@@ -1,6 +1,6 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
-const BASE = 'http://localhost:8080/api/users';
+const BASE = `${import.meta.env.VITE_API_URL}/api/users`;
 
 export const getAllUsers = () => axios.get(BASE).then(r => r.data);
 export const getUsersByRole = (role) => axios.get(`${BASE}/role/${role}`).then(r => r.data);

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useRef, useState } from 'react';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { auth } from '../../firebase';
 import axios from 'axios';
 
-const API = 'http://localhost:8080/api/auth';
+const API = `${import.meta.env.VITE_API_URL}/api/auth`;
 
 const toE164 = (raw) => {
   const digits = raw.replace(/\D/g, '');
@@ -33,25 +33,12 @@ const PhoneVerificationModal = ({ token, onVerified, onSkip }) => {
   }, []);
 
   // ── RecaptchaVerifier lifecycle ───────────────────────────────────────────
-  //
-  // Rules:
-  //  1. Created exactly once on mount.
-  //  2. render() called exactly once here — sets _widgetId on the verifier.
-  //  3. signInWithPhoneNumber → verify() checks _widgetId first. Because it
-  //     is already set, verify() calls grecaptcha.execute() to fetch a fresh
-  //     token WITHOUT calling render() again. This is how "already rendered"
-  //     is permanently prevented.
-  //  4. The same verifier instance is reused for every OTP send attempt.
-  //  5. Cleanup runs only when the modal actually unmounts.
 
   useEffect(() => {
     const container = document.getElementById('kk-recaptcha');
     if (!container) {
-      console.error('[PhoneVerify] #kk-recaptcha not found — add <div id="kk-recaptcha"></div> outside #root in index.html');
       return;
     }
-
-    console.log('[PhoneVerify] Mount — creating RecaptchaVerifier');
 
     const createVerifier = () => {
       const el = document.getElementById('kk-recaptcha');
@@ -71,8 +58,7 @@ const PhoneVerificationModal = ({ token, onVerified, onSkip }) => {
       });
 
       verifierRef.current = verifier;
-      verifier.render().catch((err) => {
-        console.error('[PhoneVerify] render() failed:', err.code ?? err.message);
+      verifier.render().catch(() => {
         setError('reCAPTCHA failed to load. Please refresh the page.');
       });
     };
@@ -80,8 +66,7 @@ const PhoneVerificationModal = ({ token, onVerified, onSkip }) => {
     createVerifier();
 
     return () => {
-      console.log('[PhoneVerify] Unmount — clearing RecaptchaVerifier');
-      try { v.clear(); } catch (_) {}
+      try { verifierRef.current?.clear(); } catch (_) {}
       verifierRef.current = null;
       const el = document.getElementById('kk-recaptcha');
       if (el) el.innerHTML = '';
@@ -102,15 +87,12 @@ const PhoneVerificationModal = ({ token, onVerified, onSkip }) => {
       return;
     }
 
-    console.log('[PhoneVerify] signInWithPhoneNumber →', formatted);
     setLoading(true);
     try {
       const result = await signInWithPhoneNumber(auth, formatted, verifierRef.current);
-      console.log('[PhoneVerify] OTP sent — waiting for user input');
       setConfirmResult(result);
       setStep('otp');
     } catch (e) {
-      console.error('[PhoneVerify] OTP send error:', e.code, e.message);
       setError(
         e.code === 'auth/invalid-phone-number'   ? 'Invalid phone number format.' :
         e.code === 'auth/too-many-requests'      ? 'Too many attempts. Please try again later.' :
@@ -130,12 +112,10 @@ const PhoneVerificationModal = ({ token, onVerified, onSkip }) => {
     setError('');
     if (otp.length !== 6) { setError('Enter the 6-digit code.'); return; }
 
-    console.log('[PhoneVerify] confirmResult.confirm() →', otp);
     setLoading(true);
     try {
       const credential    = await confirmResult.confirm(otp);
       const firebaseToken = await credential.user.getIdToken();
-      console.log('[PhoneVerify] Firebase OTP confirmed — calling backend');
 
       await axios.post(
         `${API}/verify-phone`,
@@ -143,10 +123,8 @@ const PhoneVerificationModal = ({ token, onVerified, onSkip }) => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      console.log('[PhoneVerify] Backend accepted — invoking onVerified');
       onVerified(toE164(phone));
     } catch (e) {
-      console.error('[PhoneVerify] OTP confirm error:', e.code, e.message);
       setError(
         e.code === 'auth/invalid-verification-code' ? 'Wrong code. Please check and try again.' :
         e.code === 'auth/code-expired'              ? 'Code expired. Please request a new one.' :

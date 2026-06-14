@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-const API = 'http://localhost:8080/api/auth';
+const API = `${import.meta.env.VITE_API_URL}/api/auth`;
 
 const DeliveryPersonnel = () => {
   const [personnel, setPersonnel] = useState([]);

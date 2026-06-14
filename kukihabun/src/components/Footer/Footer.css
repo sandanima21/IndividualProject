@@ -249,6 +249,18 @@
 }
 .kuki-footer-bottom-inner a:hover { color: var(--gold); }
 
+.kuki-footer-recaptcha {
+  margin: 0.4rem 0 0;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.18);
+  text-align: center;
+}
+.kuki-footer-recaptcha a {
+  color: rgba(255,255,255,0.28);
+  text-decoration: none;
+}
+.kuki-footer-recaptcha a:hover { color: rgba(255,255,255,0.5); }
+
 @media (max-width: 768px) {
   .kuki-footer-map iframe { height: 240px; }
   .kuki-social-grid { grid-template-columns: 1fr 1fr; }

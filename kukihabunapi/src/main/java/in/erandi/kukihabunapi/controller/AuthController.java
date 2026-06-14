@@ -64,7 +64,7 @@ public class AuthController {
         if (email == null || email.isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Email is required."));
         }
-        if (userRepository.findByEmail(email).isPresent()) {
+        if (userRepository.findFirstByEmail(email).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(Map.of("error", "This email is already registered. Please sign in."));
         }
@@ -168,7 +168,6 @@ public class AuthController {
                     user.setPhone(phone);
                     user.setPhoneVerified(true);
                     userRepository.save(user);
-                    System.out.println("[PHONE-VERIFY] Saved phone " + phone + " for user " + userId);
                     return ResponseEntity.ok(Map.<String, Object>of(
                             "message", "Phone number verified and saved successfully.",
                             "phone",   phone,
@@ -226,7 +225,7 @@ public class AuthController {
         String username = body.get("username");
         String name = body.get("name");
 
-        if (userRepository.findByEmail(email).isPresent()) {
+        if (userRepository.findFirstByEmail(email).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Email already exists."));
         }
         if (userRepository.findByUsername(username).isPresent()) {

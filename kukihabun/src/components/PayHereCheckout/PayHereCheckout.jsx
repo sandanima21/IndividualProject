@@ -52,7 +52,6 @@ const PayHereCheckout = ({ paymentData, onSuccess, onDismissed }) => {
       const ph = window.payhere;
 
       if (!ph || typeof ph.startPayment !== 'function') {
-        console.warn('[PayHere] SDK unavailable — using form POST redirect');
         formPostPayment(paymentData);
         return;
       }
@@ -69,8 +68,7 @@ const PayHereCheckout = ({ paymentData, onSuccess, onDismissed }) => {
         onDismissed();
       };
 
-      ph.onError = (error) => {
-        console.error('[PayHere] popup error:', error);
+      ph.onError = () => {
         toast.info('Redirecting to PayHere checkout...');
         formPostPayment(paymentData);
       };
@@ -78,7 +76,6 @@ const PayHereCheckout = ({ paymentData, onSuccess, onDismissed }) => {
       try {
         ph.startPayment(paymentData);
       } catch (e) {
-        console.error('[PayHere] startPayment threw:', e);
         toast.info('Redirecting to PayHere checkout...');
         formPostPayment(paymentData);
       }
@@ -95,7 +92,6 @@ const PayHereCheckout = ({ paymentData, onSuccess, onDismissed }) => {
     script.async = true;
     script.onload = launch;
     script.onerror = () => {
-      console.warn('[PayHere] checkout.js failed to load — using form POST');
       toast.info('Redirecting to PayHere checkout...');
       formPostPayment(paymentData);
     };

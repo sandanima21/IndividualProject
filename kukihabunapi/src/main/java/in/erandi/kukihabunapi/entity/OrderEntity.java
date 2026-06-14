@@ -55,6 +55,19 @@ public class OrderEntity {
     @Builder.Default
     private String paymentStatus = "UNPAID"; // UNPAID | PAID | CANCELLED | REFUNDED
 
+    // Refund lifecycle: set to PENDING_REFUND on cancellation, updated by admin
+    private String refundStatus; // PENDING_REFUND | REFUND_INITIATED | REFUNDED | REFUND_FAILED
+    private String refundNotes;
+
+    // Bank details provided by customer at cancellation time so admin can process the manual transfer
+    private String refundBankName;
+    private String refundBankBranch;
+    private String refundAccountNumber;
+    private String refundAccountHolderName;
+
+    // S3 URL of the refund receipt photo uploaded by admin
+    private String refundReceiptUrl;
+
     private LocalDateTime paymentTime;
     private LocalDateTime cancelableUntil; // paymentTime + 15 mins
 

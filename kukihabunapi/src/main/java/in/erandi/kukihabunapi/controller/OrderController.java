@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.web.multipart.MultipartFile;
+
 import java.util.List;
 import java.util.Map;
 
@@ -68,6 +70,44 @@ public class OrderController {
         String userId = extractUserId(authHeader);
         if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         return ResponseEntity.ok(orderService.markPaid(id, userId));
+    }
+
+    @PatchMapping("/{id}/refund-status")
+    public ResponseEntity<OrderResponse> updateRefundStatus(
+            @PathVariable String id,
+            @RequestBody Map<String, String> body) {
+        OrderResponse updated = orderService.updateRefundStatus(id, body.get("refundStatus"), body.get("refundNotes"));
+        // Push refund status update to customer in real time
+        if (updated.getUserId() != null) {
+            messaging.convertAndSend("/topic/order-status/" + updated.getUserId(), updated);
+        }
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{id}/refund-receipt")
+    public ResponseEntity<OrderResponse> uploadRefundReceipt(
+            @PathVariable String id,
+            @RequestParam("file") MultipartFile file) {
+        OrderResponse updated = orderService.uploadRefundReceipt(id, file);
+        // Notify the customer in real time so they see the receipt immediately
+        if (updated.getUserId() != null) {
+            messaging.convertAndSend("/topic/order-status/" + updated.getUserId(), updated);
+        }
+        return ResponseEntity.ok(updated);
+    }
+
+    @PostMapping("/{id}/payhere-refund")
+    public ResponseEntity<?> processPayhereRefund(@PathVariable String id) {
+        try {
+            OrderResponse updated = orderService.processPayhereRefund(id);
+            if (updated.getUserId() != null)
+                messaging.convertAndSend("/topic/order-status/" + updated.getUserId(), updated);
+            return ResponseEntity.ok(updated);
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", e.getReason()));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 
     @DeleteMapping("/{id}/cancel-pending")

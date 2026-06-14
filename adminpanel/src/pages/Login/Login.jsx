@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -10,7 +10,7 @@ const Login = ({ onLogin }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data } = await axios.post('http://localhost:8080/api/auth/login', {
+      const { data } = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
         usernameOrEmail: form.username,
         password: form.password,
       });

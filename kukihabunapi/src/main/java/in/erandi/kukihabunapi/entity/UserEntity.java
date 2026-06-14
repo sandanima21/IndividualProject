@@ -19,9 +19,10 @@ public class UserEntity {
     @Id
     private String id;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, sparse = true)
     private String googleId;
 
+    @Indexed(unique = true, sparse = true)
     private String email;
     private String name;
     private String picture;

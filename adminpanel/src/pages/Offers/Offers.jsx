@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
-const API = 'http://localhost:8080/api/offers';
+const API = `${import.meta.env.VITE_API_URL}/api/offers`;
 const EMPTY = { title: '', description: '', startDate: '', endDate: '', price: '' };
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';

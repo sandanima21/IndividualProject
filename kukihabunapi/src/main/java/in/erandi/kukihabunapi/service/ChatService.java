@@ -9,4 +9,5 @@ public interface ChatService {
     MessageResponse sendMessage(String senderId, String senderName, String senderRole, String conversationId, String content, String imageUrl);
     List<MessageResponse> getMessages(String conversationId);
     List<ConversationSummary> getAllConversations();
+    void markConversationRead(String conversationId);
 }

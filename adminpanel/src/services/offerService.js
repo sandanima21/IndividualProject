@@ -1,6 +1,6 @@
-import axios from 'axios';
+﻿import axios from 'axios';
 
-const API = 'http://localhost:8080/api/offers';
+const API = `${import.meta.env.VITE_API_URL}/api/offers`;
 
 export const getOffers = () => axios.get(API).then(r => r.data);
 

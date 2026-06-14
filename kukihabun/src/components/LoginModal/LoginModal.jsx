@@ -1,4 +1,4 @@
-import { useContext, useRef, useState } from 'react';
+﻿import { useContext, useRef, useState } from 'react';
 import { GoogleLogin } from '@react-oauth/google';
 import { toast } from 'react-toastify';
 import { StoreContext } from '../../context/StoreContext';
@@ -7,7 +7,7 @@ import './LoginModal.css';
 import { assets } from '../../assets/assets';
 import axios from 'axios';
 
-const API = 'http://localhost:8080/api/auth';
+const API = `${import.meta.env.VITE_API_URL}/api/auth`;
 
 const LoginModal = ({ onLoginSuccess }) => {
   const { login } = useContext(StoreContext);

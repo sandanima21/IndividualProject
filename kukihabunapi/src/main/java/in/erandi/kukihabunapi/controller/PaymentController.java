@@ -31,7 +31,13 @@ public class PaymentController {
     @Value("${payhere.sandbox:true}")
     private boolean sandbox;
 
-    private final PaymentRepository paymentRepository;
+    @Value("${payhere.webhook-base-url:}")
+    private String webhookBaseUrl;
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
+
+private final PaymentRepository paymentRepository;
     private final OrderRepository orderRepository;
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
@@ -92,27 +98,30 @@ public class PaymentController {
         );
 
         String baseUrl   = sandbox ? "https://sandbox.payhere.lk" : "https://www.payhere.lk";
-        String notifyUrl = "http://localhost:8080/api/payments/notify"; // replace with production URL on deploy
+        String notifyBase = (webhookBaseUrl != null && !webhookBaseUrl.isBlank())
+                ? webhookBaseUrl.stripTrailing()
+                : "http://localhost:8080";
+        String notifyUrl = notifyBase + "/api/payments/notify";
 
-        return ResponseEntity.ok(Map.ofEntries(
-            Map.entry("sandbox",      sandbox),
-            Map.entry("merchant_id",  merchantId),
-            Map.entry("return_url",   "http://localhost:5173/orders"),
-            Map.entry("cancel_url",   "http://localhost:5173/cart"),
-            Map.entry("notify_url",   notifyUrl),
-            Map.entry("order_id",     orderId),
-            Map.entry("items",        "KukiHabun Food Order"),
-            Map.entry("amount",       amountStr),
-            Map.entry("currency",     currency),
-            Map.entry("hash",         hash),
-            Map.entry("first_name",   firstName),
-            Map.entry("last_name",    lastName),
-            Map.entry("email",        email),
-            Map.entry("phone",        phone),
-            Map.entry("address",      address),
-            Map.entry("city",         "Colombo"),
-            Map.entry("country",      "Sri Lanka")
-        ));
+        var entries = new java.util.LinkedHashMap<String, Object>();
+        entries.put("sandbox",     sandbox);
+        entries.put("merchant_id", merchantId);
+        entries.put("return_url",  frontendUrl + "/orders");
+        entries.put("cancel_url",  frontendUrl + "/cart");
+        entries.put("notify_url",  notifyUrl);
+        entries.put("order_id",    orderId);
+        entries.put("items",       "KukiHabun Food Order");
+        entries.put("amount",      amountStr);
+        entries.put("currency",    currency);
+        entries.put("hash",        hash);
+        entries.put("first_name",  firstName);
+        entries.put("last_name",   lastName);
+        entries.put("email",       email);
+        entries.put("phone",       phone);
+        entries.put("address",     address);
+        entries.put("city",        "Colombo");
+        entries.put("country",     "Sri Lanka");
+        return ResponseEntity.ok(entries);
     }
 
     // PayHere server-to-server notification (no auth — PayHere's server calls this)
@@ -145,6 +154,7 @@ public class PaymentController {
             orderRepository.findById(orderId).ifPresent(order -> {
                 order.setPaymentStatus("PAID");
                 order.setPaymentTime(now);
+                order.setCancelableUntil(now.plusMinutes(15));
                 orderRepository.save(order);
             });
             paymentRepository.findByOrderId(orderId).ifPresent(p -> {
@@ -168,11 +178,12 @@ public class PaymentController {
         return ResponseEntity.ok("OK");
     }
 
-    // Cancel a PENDING order (user dismissed payment)
+    // Cancel a PENDING order — customer provides bank details for the manual refund transfer
     @PostMapping("/cancel/{orderId}")
     public ResponseEntity<Map<String, String>> cancelOrder(
             @PathVariable String orderId,
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody(required = false) Map<String, String> body) {
 
         String userId = extractUserId(authHeader);
         if (userId == null) return ResponseEntity.status(401).build();
@@ -185,10 +196,19 @@ public class PaymentController {
 
         order.setStatus("CANCELLED");
         order.setPaymentStatus("REFUNDED");
+        order.setRefundStatus("PENDING_REFUND");
+
+        // Persist the customer's bank details so admin can process the transfer manually
+        if (body != null) {
+            order.setRefundBankName(body.get("bankName"));
+            order.setRefundBankBranch(body.get("bankBranch"));
+            order.setRefundAccountNumber(body.get("accountNumber"));
+            order.setRefundAccountHolderName(body.get("accountHolderName"));
+        }
         order.setUpdatedAt(LocalDateTime.now());
         orderRepository.save(order);
 
-        return ResponseEntity.ok(Map.of("status", "CANCELLED", "paymentStatus", "REFUNDED"));
+        return ResponseEntity.ok(Map.of("status", "CANCELLED", "paymentStatus", "REFUNDED", "refundStatus", "PENDING_REFUND"));
     }
 
     // Admin: all payments

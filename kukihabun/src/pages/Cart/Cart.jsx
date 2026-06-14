@@ -1,3 +1,14 @@
+/**
+ * Cart — checkout page.
+ *
+ * Key flows:
+ *  1. Address → geocode (via Nominatim) → road distance (via OSRM, Haversine fallback)
+ *     → delivery fee shown in real time.
+ *  2. Map pin → reverse geocode → address field auto-filled.
+ *  3. "Place Order" → backend order created → PayHere popup launched.
+ *  4. On PayHere success, order is marked PAID and the user is sent to /orders.
+ */
+
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import './Cart.css';
 import { StoreContext } from '../../context/StoreContext';
@@ -20,9 +31,14 @@ L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, 
 
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
 
-// City-first geocoding restricted to Sri Lanka.
-// Splits address by comma, tries from rightmost part (city/town) leftward
-// so "213/6, Kajugahayatadeniya, Puwakwatta Road, Meegoda" first tries "Meegoda" → best match.
+/**
+ * City-first geocoding, restricted to Sri Lanka (countrycodes=lk).
+ *
+ * Why city-first? Sending a full Sri Lankan address ("213/6, Puwakwatta Road, Meegoda")
+ * to Nominatim often returns no results because local road names aren't mapped.
+ * Splitting by comma and trying from the rightmost token (city/town) leftward
+ * gives Nominatim the best chance of finding a recognisable place name first.
+ */
 const geocodeAddressSL = async (address) => {
   const parts = address.split(',').map(p => p.trim()).filter(Boolean);
   for (let i = parts.length - 1; i >= 0; i--) {
@@ -61,7 +77,7 @@ const reverseGeocode = async (lat, lng) => {
   } catch { return null; }
 };
 
-// Straight-line distance fallback
+// Straight-line (as-the-crow-flies) distance — shown immediately while OSRM loads.
 const haversineKm = (lat1, lng1, lat2, lng2) => {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -71,7 +87,12 @@ const haversineKm = (lat1, lng1, lat2, lng2) => {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 };
 
-// Real road distance via OSRM public server; falls back to Haversine on failure
+/**
+ * Road distance via the public OSRM routing server.
+ * Falls back to Haversine if OSRM is unavailable or returns an error.
+ * The caller shows Haversine immediately (fast) then replaces it with OSRM
+ * (accurate) once the request completes — giving the user instant feedback.
+ */
 const getRoadDistanceKm = async (lat1, lng1, lat2, lng2, signal) => {
   try {
     const res = await fetch(
@@ -107,18 +128,18 @@ const LocationPicker = ({ onPick, disabled }) => {
   return null;
 };
 
-// Meegoda — from Contact page map
+// Restaurant coordinates (Meegoda) — must match the Contact page map pin.
 const RESTAURANT_LAT = 6.8442;
 const RESTAURANT_LNG = 80.0391;
 
-// Rs.100 for first 1 km, +Rs.50 per additional km
+// Pricing: flat Rs.100 covers the first kilometre; every km after that adds Rs.50.
 const calcDeliveryFee = (km) => {
   if (!km || km <= 1) return 100;
   return 100 + Math.ceil(km - 1) * 50;
 };
 
 const Cart = () => {
-  const { foodList, increaseQty, decreaseQty, removeFromCart, clearCart, quantities, user, token, updateUserPhone,
+  const { foodList, increaseQty, decreaseQty, removeFromCart, clearCart, quantities, user, token, logout, updateUserPhone,
           customizations, setSpice, toggleAvoid, clearCustomizations } = useContext(StoreContext);
   const navigate = useNavigate();
 
@@ -142,6 +163,9 @@ const Cart = () => {
   const [payhereData, setPayhereData] = useState(null);
   const pendingCartItems = useRef([]);
   const pendingOrderId = useRef(null);
+  // A ref (not state) guards against double-click submissions because React state
+  // updates are async — a second click can read stale `placing = false` before the
+  // first async call has set it to true.
   const placingRef = useRef(false);
   const geocodeTimer = useRef(null);
   const suggestTimer = useRef(null);
@@ -156,7 +180,9 @@ const Cart = () => {
   const deliveryFee = orderType === 'delivery' && subtotal > 0 ? calcDeliveryFee(distKm) : 0;
   const total = subtotal + deliveryFee;
 
-  // Autocomplete suggestions — debounced, Sri Lanka only; suppressed when location already confirmed from map pin
+  // ── Address autocomplete ──────────────────────────────────────────────────
+  // Debounced 500ms; aborted if the user types again before the request resolves.
+  // Suppressed when `locationConfirmed` is true (user already accepted a map pin).
   useEffect(() => {
     if (!deliveryAddress || deliveryAddress.length < 3 || locationConfirmed) {
       setSuggestions([]);
@@ -177,7 +203,9 @@ const Cart = () => {
     return () => clearTimeout(suggestTimer.current);
   }, [deliveryAddress, locationConfirmed]);
 
-  // Fallback geocode when no suggestion is selected — only when location not yet confirmed
+  // ── Fallback geocode ──────────────────────────────────────────────────────
+  // Runs city-first geocoding when the user types a free-form address without
+  // selecting an autocomplete suggestion. Skipped if a map pin is already confirmed.
   useEffect(() => {
     if (!deliveryAddress || deliveryAddress.length < 5 || locationConfirmed) return;
     clearTimeout(geocodeTimer.current);
@@ -190,7 +218,10 @@ const Cart = () => {
     return () => clearTimeout(geocodeTimer.current);
   }, [deliveryAddress, locationConfirmed]);
 
-  // Road distance via OSRM whenever coordinates change; Haversine shown immediately
+  // ── Distance calculation ──────────────────────────────────────────────────
+  // Shows Haversine immediately (instant) then upgrades to OSRM road distance
+  // when the async call resolves. Previous OSRM requests are aborted on each
+  // coordinate change so only the latest result is used.
   useEffect(() => {
     if (!deliveryLat || !deliveryLng) { setDistanceInfo(null); return; }
     if (roadAbort.current) roadAbort.current.abort();
@@ -230,16 +261,17 @@ const Cart = () => {
   };
 
 
+  const now = new Date();
+  const timeInMinutes = now.getHours() * 60 + now.getMinutes();
+  const OPEN_TIME  = 16 * 60;  // 4:00 PM
+  const CLOSE_TIME = 22 * 60 + 30;  // 10:30 PM
+  const isOpen = timeInMinutes >= OPEN_TIME && timeInMinutes < CLOSE_TIME;
+
   const handleCheckout = async () => {
-    // // Order cutoff: we accept orders from 4:00 PM to 9:30 PM only
-    // const now = new Date();
-    // const timeInMinutes = now.getHours() * 60 + now.getMinutes();
-    // const openTime  = 16 * 60;       // 4:00 PM
-    // const closeTime = 21 * 60 + 30;  // 9:30 PM
-    // if (timeInMinutes < openTime || timeInMinutes >= closeTime) {
-    //   toast.error("We're closed right now. Orders are accepted from 4:00 PM to 9:30 PM. Please try again tomorrow!", { autoClose: 6000 });
-    //   return;
-    // }
+    if (!isOpen) {
+      toast.error("We're closed right now. Orders are accepted from 4:00 PM to 10:30 PM.", { autoClose: 6000 });
+      return;
+    }
 
     // Ref-based guard prevents duplicate orders from rapid clicks (state updates are async)
     if (placingRef.current || !user) {
@@ -271,16 +303,24 @@ const Cart = () => {
       pendingCartItems.current = [...cartItems];
       pendingOrderId.current = order.id;
       setPayhereData(payData);
-    } catch {
-      toast.error('Failed to place order. Please try again.');
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        toast.error('Your session has expired. Please sign in again.');
+        logout();
+      } else {
+        toast.error('Failed to place order. Please try again.');
+      }
     } finally {
       placingRef.current = false;
       setPlacing(false);
     }
   };
 
+  // ── PayHere payment result handlers ──────────────────────────────────────
+
   const handlePaymentSuccess = async () => {
-    // PayHere onCompleted fired — mark this order as confirmed so Orders.jsx can recover if needed
+    // PayHere onCompleted fired — set CONFIRMED_PAYMENT_KEY so that if markOrderPaid
+    // fails here, Orders.jsx will retry it on next load (recovery step 1).
     if (pendingOrderId.current) {
       sessionStorage.setItem(CONFIRMED_PAYMENT_KEY, pendingOrderId.current);
       try {
@@ -298,10 +338,12 @@ const Cart = () => {
   };
 
   const handlePaymentClose = () => {
-    // Popup closed — do NOT delete the order and do NOT clear PENDING_PAYMENT_KEY.
-    // If payment actually succeeded but onCompleted didn't fire (common in PayHere sandbox),
-    // Orders.jsx load() will find PENDING_PAYMENT_KEY and call markOrderPaid as recovery.
-    // If payment was genuinely cancelled, the order stays UNPAID and won't appear in active orders.
+    // Popup closed without a confirmed callback.
+    // We intentionally do NOT clear PENDING_PAYMENT_KEY here.
+    // If payment actually succeeded (common in PayHere sandbox where onCompleted
+    // doesn't always fire), Orders.jsx will find the key on next load and call
+    // markOrderPaid as a recovery step. If the user genuinely cancelled, the order
+    // stays UNPAID and won't show in active orders — no harm done.
     pendingOrderId.current = null;
     setPayhereData(null);
   };
@@ -363,25 +405,21 @@ const Cart = () => {
             cartItems.map(food => (
               <div key={food.id} className="card mb-3">
                 <div className="card-body">
-                  <div className="row align-items-center mb-3">
-                    <div className="col-md-2">
-                      <img src={food.imageUrl} alt={food.name} className="img-fluid rounded" style={{ height: 60, objectFit: 'cover' }} />
-                    </div>
-                    <div className="col-md-4">
-                      <h6 className="mb-0">{food.name}</h6>
+                  {/* Mobile-first flex row: image | name | controls */}
+                  <div className="d-flex align-items-center gap-3 mb-3 flex-wrap">
+                    <img src={food.imageUrl} alt={food.name} className="rounded flex-shrink-0"
+                      style={{ width: 64, height: 56, objectFit: 'cover' }} />
+                    <div className="flex-fill" style={{ minWidth: 0 }}>
+                      <h6 className="mb-0 text-truncate">{food.name}</h6>
                       <small className="text-muted">{food.category}</small>
                     </div>
-                    <div className="col-md-3">
-                      <div className="input-group input-group-sm">
+                    <div className="d-flex align-items-center gap-2 flex-shrink-0 flex-wrap justify-content-end">
+                      <div className="input-group input-group-sm" style={{ width: 'auto' }}>
                         <button className="btn btn-outline-secondary" onClick={() => decreaseQty(food.id)}>-</button>
-                        <input type="text" className="form-control text-center" value={quantities[food.id]} readOnly style={{ maxWidth: 50 }} />
+                        <input type="text" className="form-control text-center" value={quantities[food.id]} readOnly style={{ width: 42 }} />
                         <button className="btn btn-outline-secondary" onClick={() => increaseQty(food.id)}>+</button>
                       </div>
-                    </div>
-                    <div className="col-md-2 text-end">
-                      <strong>Rs.{(food.price * quantities[food.id]).toFixed(2)}</strong>
-                    </div>
-                    <div className="col-md-1 text-end">
+                      <strong style={{ minWidth: 72, textAlign: 'right', whiteSpace: 'nowrap' }}>Rs.{(food.price * quantities[food.id]).toFixed(2)}</strong>
                       <button className="btn btn-sm btn-outline-danger" onClick={() => removeFromCart(food.id)}>
                         <i className="bi bi-trash"></i>
                       </button>
@@ -450,7 +488,7 @@ const Cart = () => {
           )}
         </div>
 
-        <div className="col-lg-4">
+        <div className="col-lg-4" style={{ alignSelf: 'flex-start', position: 'sticky', top: '1.5rem' }}>
           <div className="card cart-summary">
             <div className="card-body">
               <h5 className="card-title mb-4">Order Summary</h5>
@@ -607,6 +645,7 @@ const Cart = () => {
               <button
                 className="btn btn-primary w-100"
                 disabled={
+                  !isOpen ||
                   (cartItems.length === 0 && !pendingOffer) || placing || !user?.phone ||
                   (orderType === 'delivery' && !deliveryAddress && !deliveryLat)
                 }
@@ -616,6 +655,11 @@ const Cart = () => {
                 Place Order
               </button>
 
+              {!isOpen && (
+                <p className="text-center mt-2 small" style={{ color: '#f47373' }}>
+                  <i className="bi bi-clock me-1"></i>Orders accepted 4:00 PM – 10:30 PM only.
+                </p>
+              )}
               {!user && (
                 <p className="text-muted text-center mt-2 small">
                   <i className="bi bi-info-circle me-1"></i>Sign in required to place an order.

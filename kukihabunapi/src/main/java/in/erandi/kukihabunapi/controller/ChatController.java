@@ -116,6 +116,12 @@ public class ChatController {
         return ResponseEntity.ok(chatService.getAllConversations());
     }
 
+    @PatchMapping("/{conversationId}/read")
+    public ResponseEntity<Void> markAsRead(@PathVariable String conversationId) {
+        chatService.markConversationRead(conversationId);
+        return ResponseEntity.ok().build();
+    }
+
     private String extractUserId(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) return null;
         String token = authHeader.substring(7);

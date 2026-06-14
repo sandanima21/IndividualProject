@@ -139,7 +139,7 @@ public class UserController {
         String email = body.get("email");
         String username = body.get("username");
 
-        if (email != null && userRepository.findByEmail(email).isPresent()) {
+        if (email != null && userRepository.findFirstByEmail(email).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered.");
         }
         if (username != null && userRepository.findByUsername(username).isPresent()) {

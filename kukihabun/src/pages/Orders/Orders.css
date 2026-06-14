@@ -60,6 +60,36 @@
   color: var(--bs-primary, #0d6efd);
 }
 
+/* ── Tracker responsive ── */
+@media (max-width: 576px) {
+  .order-tracker::before {
+    top: 14px;
+    left: 4%;
+    right: 4%;
+  }
+  .tracker-dot {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+  .tracker-label {
+    font-size: 0.52rem;
+    max-width: 44px;
+  }
+}
+
+@media (max-width: 380px) {
+  .tracker-dot {
+    width: 22px;
+    height: 22px;
+    font-size: 0.65rem;
+  }
+  .tracker-label {
+    font-size: 0.47rem;
+    max-width: 36px;
+  }
+}
+
 /* ── Cancel button ── */
 .cancel-order-btn {
   background: rgba(220,53,69,0.12);

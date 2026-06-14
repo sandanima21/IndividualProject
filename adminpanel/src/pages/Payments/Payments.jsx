@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 
@@ -9,7 +9,7 @@ const Payments = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    axios.get('http://localhost:8080/api/payments')
+    axios.get(`${import.meta.env.VITE_API_URL}/api/payments`)
       .then(r => setPayments(r.data))
       .catch(() => toast.error('Failed to load payments.'))
       .finally(() => setLoading(false));

@@ -1,20 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getConversations, getMessages, replyMessage, replyWithImage } from '../../services/chatService';
+import { getConversations, getMessages, markConversationRead, replyMessage, replyWithImage } from '../../services/chatService';
 import { toast } from 'react-toastify';
 import './Chat.css';
 
 const LAST_VISIT_KEY = 'admin_chat_last_visit';
-
-const getLastVisit = () => {
-  const ts = localStorage.getItem(LAST_VISIT_KEY);
-  return ts ? new Date(ts) : null;
-};
-
-const isNewMessage = (conv) => {
-  const lastVisit = getLastVisit();
-  if (!lastVisit) return false;
-  return conv.lastMessageAt && new Date(conv.lastMessageAt) > lastVisit;
-};
 
 const Chat = () => {
   const [conversations, setConversations] = useState([]);
@@ -26,8 +15,6 @@ const Chat = () => {
   const [imageFile, setImageFile] = useState(null);
   const chatBodyRef = useRef(null);
   const fileInputRef = useRef(null);
-  // Track which conversations have been opened this session
-  const [openedIds, setOpenedIds] = useState(new Set());
 
   const loadConversations = async () => {
     try {
@@ -71,10 +58,10 @@ const Chat = () => {
     setImageFile(null);
     setImagePreview(null);
     setText('');
-    setOpenedIds(prev => new Set([...prev, conv.conversationId]));
     setConversations(prev =>
       prev.map(c => c.conversationId === conv.conversationId ? { ...c, unreadCount: 0 } : c)
     );
+    markConversationRead(conv.conversationId).catch(() => {});
   };
 
   const handleFileChange = (e) => {
@@ -123,7 +110,7 @@ const Chat = () => {
             <p className="text-muted p-3">No conversations yet.</p>
           )}
           {conversations.map(conv => {
-            const hasNew = isNewMessage(conv) && !openedIds.has(conv.conversationId) && conv.unreadCount > 0;
+            const hasUnread = conv.unreadCount > 0;
             return (
               <div
                 key={conv.conversationId}
@@ -132,30 +119,45 @@ const Chat = () => {
                 style={{ cursor: 'pointer', borderBottom: '1px solid rgba(201,168,76,0.08)' }}
               >
                 <div className="d-flex align-items-center gap-2">
-                  <div style={{
-                    width: 38, height: 38, borderRadius: '50%', flexShrink: 0,
-                    background: 'linear-gradient(135deg,rgba(201,168,76,0.3),rgba(201,168,76,0.1))',
-                    border: '1px solid rgba(201,168,76,0.25)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontWeight: 700, fontSize: '0.85rem', color: 'var(--gold)',
-                  }}>
-                    {conv.customerName?.charAt(0)?.toUpperCase() || '?'}
+                  <div style={{ position: 'relative', flexShrink: 0 }}>
+                    <div style={{
+                      width: 38, height: 38, borderRadius: '50%',
+                      background: 'linear-gradient(135deg,rgba(201,168,76,0.3),rgba(201,168,76,0.1))',
+                      border: '1px solid rgba(201,168,76,0.25)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontWeight: 700, fontSize: '0.85rem', color: 'var(--gold)',
+                    }}>
+                      {conv.customerName?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                    {hasUnread && (
+                      <span style={{
+                        position: 'absolute', top: -2, right: -2,
+                        background: '#3ecf8e', color: '#000',
+                        borderRadius: '50%', fontSize: '0.55rem', fontWeight: 700,
+                        minWidth: 16, height: 16, display: 'flex', alignItems: 'center',
+                        justifyContent: 'center', padding: '0 3px', lineHeight: 1,
+                        border: '1.5px solid var(--sidebar-bg, #1a1a1a)',
+                      }}>
+                        {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                      </span>
+                    )}
                   </div>
                   <div className="flex-fill min-w-0">
                     <div className="d-flex justify-content-between align-items-center">
-                      <span className="fw-semibold small">{conv.customerName}</span>
-                      <div className="d-flex align-items-center gap-1">
-                        <small className="text-muted" style={{ fontSize: '0.62rem' }}>
-                          {new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </small>
-                        {hasNew && (
-                          <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.6rem', minWidth: 18, padding: '2px 5px' }}>
-                            {conv.unreadCount}
-                          </span>
-                        )}
-                      </div>
+                      <span className={`small ${hasUnread ? 'fw-bold' : 'fw-semibold'}`}
+                        style={hasUnread ? { color: '#fff' } : {}}>
+                        {conv.customerName}
+                      </span>
+                      <small className="text-muted" style={{ fontSize: '0.62rem' }}>
+                        {new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </small>
                     </div>
-                    <small className="text-muted text-truncate d-block" style={{ maxWidth: 170, fontSize: '0.75rem' }}>{conv.lastMessage}</small>
+                    <small
+                      className="text-truncate d-block"
+                      style={{ maxWidth: 170, fontSize: '0.75rem', color: hasUnread ? 'rgba(255,255,255,0.75)' : undefined, fontWeight: hasUnread ? 500 : undefined }}
+                    >
+                      {conv.lastMessage}
+                    </small>
                   </div>
                 </div>
               </div>

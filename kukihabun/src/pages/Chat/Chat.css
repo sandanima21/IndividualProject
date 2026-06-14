@@ -105,3 +105,24 @@
   text-align: right;
   margin-top: 4px;
 }
+
+/* ── Mobile responsive ── */
+@media (max-width: 576px) {
+  .chat-fullscreen {
+    height: calc(100vh - 56px);
+  }
+  .chat-fs-header {
+    padding: 0.65rem 1rem;
+  }
+  .chat-fs-messages {
+    padding: 0.75rem 0.75rem;
+  }
+  .chat-fs-input {
+    padding: 0.65rem 0.75rem;
+  }
+  .chat-bubble {
+    max-width: 82%;
+    font-size: 0.85rem;
+    padding: 8px 11px;
+  }
+}

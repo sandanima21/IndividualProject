@@ -38,6 +38,14 @@ public class OrderResponse {
     private double total;
     private String status;
     private String paymentStatus;
+    private String payherePaymentId; // PayHere transaction reference, needed by admin to process refund
+    private String refundStatus;
+    private String refundNotes;
+    private String refundBankName;
+    private String refundBankBranch;
+    private String refundAccountNumber;
+    private String refundAccountHolderName;
+    private String refundReceiptUrl;
     private LocalDateTime paymentTime;
     private LocalDateTime cancelableUntil;
     private LocalDateTime createdAt;

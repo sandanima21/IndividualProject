@@ -61,8 +61,7 @@ const Footer = () => {
                   <div className="kuki-contact-text">
                     <div className="kuki-contact-label">Opening Hours</div>
                     <div className="kuki-contact-value">
-                      Mon – Sat &nbsp;·&nbsp; 10:00 AM – 10:00 PM<br />
-                      Sunday &nbsp;·&nbsp; 11:00 AM – 9:00 PM
+                      Every Day &nbsp;·&nbsp; 4:00 PM – 10:30 PM
                     </div>
                   </div>
                 </div>
@@ -144,6 +143,13 @@ const Footer = () => {
               <a href="https://github.com/sandanima21" target="_blank" rel="noreferrer">sandanima21</a>
             </span>
           </div>
+          <p className="kuki-footer-recaptcha">
+            Protected by reCAPTCHA — Google{' '}
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>
+            {' '}and{' '}
+            <a href="https://policies.google.com/terms" target="_blank" rel="noreferrer">Terms of Service</a>
+            {' '}apply.
+          </p>
         </div>
       </div>
 

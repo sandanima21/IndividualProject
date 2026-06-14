@@ -1,3 +1,19 @@
+﻿/**
+ * Orders — customer order list and live delivery tracker.
+ *
+ * Two tabs:
+ *  "Active"  — PAID orders that haven't been DELIVERED or CANCELLED yet.
+ *  "History" — DELIVERED orders, with review and reorder actions.
+ *
+ * Status updates arrive via WebSocket (/topic/order-status/{userId}).
+ * A 30-second polling fallback ensures the list stays fresh if the socket drops.
+ *
+ * PayHere recovery (handled in load()):
+ *  Step 1 — explicit: CONFIRMED_PAYMENT_KEY is set when onCompleted fires.
+ *  Step 2 — fallback: PENDING_PAYMENT_KEY survives a closed popup and is used
+ *            to call markOrderPaid in case onCompleted never fired (PayHere sandbox quirk).
+ */
+
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { StoreContext } from '../../context/StoreContext';
 import { getMyOrders, cancelOrder, submitDeliveryReview, getDeliveryReviewByOrder, markOrderPaid } from '../../service/orderservice';
@@ -18,12 +34,24 @@ import SockJS from 'sockjs-client';
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
+const REFUND_STATUS_META = {
+  PENDING_REFUND:   { label: 'Refund Pending',   color: '#f4a24e', bg: 'rgba(244,162,78,0.12)',  icon: 'bi-hourglass-split' },
+  REFUND_INITIATED: { label: 'Refund Initiated',  color: '#4a9eff', bg: 'rgba(74,158,255,0.12)', icon: 'bi-arrow-repeat'   },
+  REFUNDED:         { label: 'Refunded',           color: '#3ecf8e', bg: 'rgba(62,207,142,0.12)', icon: 'bi-check-circle'   },
+  REFUND_FAILED:    { label: 'Refund Failed',      color: '#f87171', bg: 'rgba(248,113,113,0.12)',icon: 'bi-x-circle'       },
+};
+
 // Restaurant fixed coordinates (from Contact Us map)
 const RESTAURANT_LAT = 6.844176631120501;
 const RESTAURANT_LNG = 80.03913846950536;
 
 const CancelButton = ({ orderId, token, onCancelled, onExpired, cancelableUntil }) => {
-  const [cancelling, setCancelling] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [cancelling, setCancelling]   = useState(false);
+  const [bankName, setBankName]       = useState('');
+  const [bankBranch, setBankBranch]   = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
 
   useEffect(() => {
     if (!cancelableUntil) return;
@@ -33,12 +61,21 @@ const CancelButton = ({ orderId, token, onCancelled, onExpired, cancelableUntil 
     return () => clearTimeout(t);
   }, [cancelableUntil, onExpired]);
 
-  const handleCancel = async () => {
-    if (!window.confirm('Cancel this order? A refund will be processed within 3–5 business days.')) return;
+  const handleConfirm = async () => {
+    if (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim()) {
+      toast.error('Please fill in all required bank details.');
+      return;
+    }
     setCancelling(true);
     try {
-      await cancelOrder(orderId, token);
-      toast.success('Order cancelled. Refund initiated.');
+      await cancelOrder(orderId, token, {
+        bankName: bankName.trim(),
+        bankBranch: bankBranch.trim(),
+        accountNumber: accountNumber.trim(),
+        accountHolderName: accountHolder.trim(),
+      });
+      toast.success('Order cancelled. Refund will be processed within 2–4 business days.');
+      setShowModal(false);
       onCancelled();
     } catch {
       toast.error('Failed to cancel order.');
@@ -48,12 +85,81 @@ const CancelButton = ({ orderId, token, onCancelled, onExpired, cancelableUntil 
   };
 
   return (
-    <button className="cancel-order-btn" onClick={handleCancel} disabled={cancelling}>
-      {cancelling
-        ? <span className="spinner-border spinner-border-sm"></span>
-        : <i className="bi bi-x-circle-fill"></i>}
-      Cancel Order
-    </button>
+    <>
+      <button className="cancel-order-btn" onClick={() => setShowModal(true)}>
+        <i className="bi bi-x-circle-fill"></i>Cancel Order
+      </button>
+
+      {showModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+          onClick={() => !cancelling && setShowModal(false)}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '1.5rem', width: 420, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h6 className="mb-0 fw-bold">Cancel Order</h6>
+                <small className="text-muted">Provide your bank details to receive the refund</small>
+              </div>
+              {!cancelling && (
+                <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', color: 'rgba(200,196,188,0.5)', cursor: 'pointer', fontSize: '1.2rem' }}>
+                  <i className="bi bi-x-lg"></i>
+                </button>
+              )}
+            </div>
+
+            {/* Warning */}
+            <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: '1.2rem' }}>
+              <div style={{ fontSize: '0.8rem', color: '#f87171', fontWeight: 600 }}>
+                <i className="bi bi-exclamation-triangle me-2"></i>This action cannot be undone.
+              </div>
+              <div style={{ fontSize: '0.74rem', color: 'rgba(200,196,188,0.55)', marginTop: 4 }}>
+                Refunds are processed manually within 2–4 business days via bank transfer.
+              </div>
+            </div>
+
+            {/* Bank details form */}
+            <div style={{ fontSize: '0.72rem', color: 'rgba(200,196,188,0.45)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
+              Bank Details for Refund
+            </div>
+
+            <div className="mb-3">
+              <label className="form-label" style={{ fontSize: '0.8rem' }}>Bank Name <span style={{ color: '#f87171' }}>*</span></label>
+              <input className="form-control form-control-sm" placeholder="e.g. Commercial Bank of Ceylon"
+                value={bankName} onChange={e => setBankName(e.target.value)} />
+            </div>
+            <div className="mb-3">
+              <label className="form-label" style={{ fontSize: '0.8rem' }}>Branch <span style={{ color: 'rgba(200,196,188,0.35)', fontWeight: 400 }}>(optional)</span></label>
+              <input className="form-control form-control-sm" placeholder="e.g. Kandy Main Branch"
+                value={bankBranch} onChange={e => setBankBranch(e.target.value)} />
+            </div>
+            <div className="mb-3">
+              <label className="form-label" style={{ fontSize: '0.8rem' }}>Account Number <span style={{ color: '#f87171' }}>*</span></label>
+              <input className="form-control form-control-sm" placeholder="Your account number"
+                value={accountNumber} onChange={e => setAccountNumber(e.target.value)} />
+            </div>
+            <div className="mb-4">
+              <label className="form-label" style={{ fontSize: '0.8rem' }}>Account Holder Name <span style={{ color: '#f87171' }}>*</span></label>
+              <input className="form-control form-control-sm" placeholder="Name as it appears on your account"
+                value={accountHolder} onChange={e => setAccountHolder(e.target.value)} />
+            </div>
+
+            <div className="d-flex gap-2 justify-content-end">
+              <button className="btn btn-sm btn-outline-secondary" onClick={() => setShowModal(false)} disabled={cancelling}>
+                Keep Order
+              </button>
+              <button className="btn btn-sm" disabled={cancelling}
+                style={{ background: '#f87171', border: 'none', color: '#fff', fontWeight: 600 }}
+                onClick={handleConfirm}>
+                {cancelling && <span className="spinner-border spinner-border-sm me-1"></span>}
+                Cancel & Request Refund
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -70,6 +176,11 @@ const destIcon = L.divIcon({
   iconSize: [32, 32], iconAnchor: [16, 32], className: '',
 });
 
+/**
+ * Fetches a driving route polyline from OSRM.
+ * Memoised by stringified lat/lng to avoid refetching on every render.
+ * The result is null until the request resolves, so callers should guard before rendering.
+ */
 const useOsrmRoute = (from, to) => {
   const [route, setRoute] = useState(null);
   const fromKey = from ? `${from.lat.toFixed(3)},${from.lng.toFixed(3)}` : null;
@@ -111,7 +222,7 @@ const DeliveryTracker = ({ order }) => {
   // Fetch initial tracking snapshot
   useEffect(() => {
     if (!isOutForDelivery || !order.deliveryPersonId) return;
-    fetch(`http://localhost:8080/api/tracking/order/${order.id}`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/tracking/order/${order.id}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return;
@@ -124,7 +235,7 @@ const DeliveryTracker = ({ order }) => {
   useEffect(() => {
     if (!isOutForDelivery || !order.deliveryPersonId) return;
     const client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+      webSocketFactory: () => new SockJS(`${import.meta.env.VITE_API_URL}/ws`),
       onConnect: () => {
         client.subscribe(`/topic/order/${order.id}/tracking`, (msg) => {
           const data = JSON.parse(msg.body);
@@ -184,12 +295,20 @@ const DeliveryTracker = ({ order }) => {
 };
 
 const STATUS_STEPS = [
-  { key: 'PENDING',   icon: 'bi-clock-history',    label: 'Pending'   },
-  { key: 'CONFIRMED', icon: 'bi-check-circle',      label: 'Confirmed' },
-  { key: 'COOKING',   icon: 'bi-fire',              label: 'Cooking'   },
-  { key: 'READY',     icon: 'bi-bag-check',         label: 'Ready'     },
-  { key: 'OUT_FOR_DELIVERY', icon: 'bi-bicycle',    label: 'On the Way'},
-  { key: 'DELIVERED', icon: 'bi-house-check-fill',  label: 'Delivered' },
+  { key: 'PENDING',          icon: 'bi-clock-history',   label: 'Pending'    },
+  { key: 'CONFIRMED',        icon: 'bi-check-circle',    label: 'Confirmed'  },
+  { key: 'COOKING',          icon: 'bi-fire',            label: 'Cooking'    },
+  { key: 'READY',            icon: 'bi-bag-check',       label: 'Ready'      },
+  { key: 'OUT_FOR_DELIVERY', icon: 'bi-bicycle',         label: 'On the Way' },
+  { key: 'DELIVERED',        icon: 'bi-house-check-fill',label: 'Delivered'  },
+];
+
+const TAKEAWAY_STATUS_STEPS = [
+  { key: 'PENDING',   icon: 'bi-clock-history',  label: 'Pending'   },
+  { key: 'CONFIRMED', icon: 'bi-check-circle',   label: 'Confirmed' },
+  { key: 'COOKING',   icon: 'bi-fire',           label: 'Cooking'   },
+  { key: 'READY',     icon: 'bi-bag-check',      label: 'Ready'     },
+  { key: 'DELIVERED', icon: 'bi-bag-heart-fill', label: 'Picked Up' },
 ];
 
 const statusColor = {
@@ -399,11 +518,17 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
   const { user, token, reorderItems, clearCart } = useContext(StoreContext);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [tab, setTab] = useState(searchParams.get('tab') === 'history' ? 'history' : 'active');
+  const [tab, setTab] = useState(
+    searchParams.get('tab') === 'history' ? 'history' :
+    searchParams.get('tab') === 'cancelled' ? 'cancelled' : 'active'
+  );
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewedOrders, setReviewedOrders] = useState(new Set());
   const [detailsOrder, setDetailsOrder] = useState(null);
+  // Tracks order IDs whose review status has already been fetched, so polling
+  // doesn't re-issue the same 404 request every 30 s for unreviewed orders.
+  const checkedReviewsRef = useRef(new Set());
 
   // Handle return from PayHere form-POST checkout (just clean the URL — load() does the real work)
   useEffect(() => {
@@ -431,43 +556,61 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
   const load = async () => {
     if (!token) return;
     try {
-      // Recovery step 1: explicit confirmation (onCompleted fired or form-POST status_code=2)
+      // ── PayHere recovery ─────────────────────────────────────────────────
+      // PayHere has two completion paths and each is handled independently:
+
+      // Step 1 — Explicit confirmation.
+      // CONFIRMED_PAYMENT_KEY is set either by Cart's onCompleted callback or by
+      // the form-POST return URL handler above (status_code=2). This is the
+      // authoritative success signal and is processed first.
       const confirmedId = sessionStorage.getItem(CONFIRMED_PAYMENT_KEY);
       if (confirmedId) {
         try {
           await markOrderPaid(confirmedId, token);
           toast.success('Payment confirmed! Your order is placed.');
           clearCart();
-        } catch { /* already marked or backend error — proceed */ }
+        } catch { /* already marked, or a transient backend error — keep going */ }
         sessionStorage.removeItem(CONFIRMED_PAYMENT_KEY);
         sessionStorage.removeItem('kukihabun_pending_offer');
       }
 
-      // Recovery step 2: fallback — popup closed without onCompleted firing (common in PayHere sandbox).
-      // PENDING_PAYMENT_KEY survives unless handlePaymentSuccess explicitly cleared it (success path).
+      // Step 2 — Fallback (popup closed without onCompleted firing).
+      // This is common in PayHere sandbox: the popup closes but the callback
+      // never fires. PENDING_PAYMENT_KEY is set before the popup opens and only
+      // cleared by the explicit success path. If it's still here, assume payment
+      // went through and attempt to mark the order paid.
       const pendingId = sessionStorage.getItem(PENDING_PAYMENT_KEY);
       if (pendingId && pendingId !== confirmedId) {
         try {
           await markOrderPaid(pendingId, token);
           toast.success('Payment confirmed! Your order is placed.');
           clearCart();
-        } catch { /* order may not exist or already paid — proceed */ }
+        } catch { /* order may not exist or is already paid — proceed regardless */ }
         sessionStorage.removeItem(PENDING_PAYMENT_KEY);
         sessionStorage.removeItem('kukihabun_pending_offer');
       }
 
       const data = await getMyOrders(token);
       setOrders(data);
-      // Check which delivered delivery orders already have a review
-      const deliveredDelivery = data.filter(o => o.status === 'DELIVERED' && o.orderType === 'delivery');
-      const checks = await Promise.allSettled(
-        deliveredDelivery.map(o => getDeliveryReviewByOrder(o.id))
+      // Only fetch review status for orders not yet checked — avoids a 404 request
+      // every 30 s for orders that simply haven't been reviewed yet.
+      const unchecked = data.filter(
+        o => o.status === 'DELIVERED' && o.orderType === 'delivery' &&
+             !checkedReviewsRef.current.has(o.id)
       );
-      const reviewed = new Set();
-      deliveredDelivery.forEach((o, i) => {
-        if (checks[i].status === 'fulfilled' && checks[i].value !== null) reviewed.add(o.id);
-      });
-      setReviewedOrders(reviewed);
+      if (unchecked.length > 0) {
+        const checks = await Promise.allSettled(
+          unchecked.map(o => getDeliveryReviewByOrder(o.id))
+        );
+        setReviewedOrders(prev => {
+          const next = new Set(prev);
+          unchecked.forEach((o, i) => {
+            checkedReviewsRef.current.add(o.id);
+            if (checks[i].status === 'fulfilled' && checks[i].value !== null) next.add(o.id);
+          });
+          return next;
+        });
+      }
     } catch {
       toast.error('Failed to load orders.');
     } finally {
@@ -477,20 +620,32 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
 
   useEffect(() => {
     load();
+    // 30-second polling as a fallback for when WebSocket events are missed
+    // (e.g. brief connection drops, Safari restrictions).
     const poll = setInterval(load, 30_000);
     return () => clearInterval(poll);
   }, [token]);
 
-  // Real-time order status updates via WebSocket
+  // ── Real-time updates ─────────────────────────────────────────────────────
+  // WebSocket delivers status changes instantly (e.g. CONFIRMED → COOKING).
+  // The subscription is per-user so only this customer's orders are pushed.
+  // Merges the updated order into the existing list without a full refetch.
   useEffect(() => {
     if (!user?.id) return;
+    let failures = 0;
     const client = new Client({
-      webSocketFactory: () => new SockJS('http://localhost:8080/ws'),
+      webSocketFactory: () => new SockJS(`${import.meta.env.VITE_API_URL}/ws`),
+      reconnectDelay: 8000,
       onConnect: () => {
+        failures = 0;
         client.subscribe(`/topic/order-status/${user.id}`, (msg) => {
           const updated = JSON.parse(msg.body);
           setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
         });
+      },
+      onWebSocketClose: () => {
+        failures += 1;
+        if (failures >= 5) client.deactivate(); // stop retrying after 5 consecutive failures
       },
     });
     client.activate();
@@ -508,15 +663,26 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
 
   if (loading) return <div className={embedded ? 'py-3 text-center' : 'container py-5 text-center'}><div className="spinner-border"></div></div>;
 
-  const effectiveFilter = embedded ? statusFilter : (tab === 'history' ? 'delivered' : 'active');
+  const effectiveFilter = embedded ? statusFilter :
+    tab === 'history' ? 'delivered' :
+    tab === 'cancelled' ? 'cancelled' : 'active';
   const isHistory = effectiveFilter === 'delivered';
+  const isCancelled = effectiveFilter === 'cancelled';
 
   const filteredByStatus = effectiveFilter === 'active'
-    ? orders.filter(o => o.paymentStatus === 'PAID' && o.status !== 'DELIVERED' && o.status !== 'CANCELLED')
+    ? orders.filter(o =>
+        o.paymentStatus === 'PAID' &&
+        o.status !== 'CANCELLED' &&
+        o.status !== 'DELIVERED'
+      )
     : effectiveFilter === 'delivered'
       ? orders.filter(o => o.status === 'DELIVERED')
-      : orders;
+      : effectiveFilter === 'cancelled'
+        ? orders.filter(o => o.status === 'CANCELLED')
+        : orders;
   const displayOrders = maxItems ? filteredByStatus.slice(0, maxItems) : filteredByStatus;
+
+  const cancelledCount = orders.filter(o => o.status === 'CANCELLED').length;
 
   // Always show live data in the details modal
   const liveDetailsOrder = detailsOrder ? orders.find(o => o.id === detailsOrder.id) ?? detailsOrder : null;
@@ -531,43 +697,131 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
       {displayOrders.length === 0 ? (
         <div className="text-center py-5">
           <i className="bi bi-bag-x fs-1 text-muted"></i>
-          <p className="mt-3 text-muted">{isHistory ? 'No order history yet.' : 'No active orders.'}</p>
-          <Link to="/explore" className="btn btn-primary mt-2">Start Ordering</Link>
+          <p className="mt-3 text-muted">{isHistory ? 'No order history yet.' : isCancelled ? 'No cancelled orders.' : 'No active orders.'}</p>
+          {!isCancelled && <Link to="/explore" className="btn btn-primary mt-2">Start Ordering</Link>}
         </div>
+      ) : isCancelled ? (
+        displayOrders.map(order => {
+          const refundMeta = REFUND_STATUS_META[order.refundStatus] || { label: 'Processing', color: '#9ca3af', bg: 'rgba(100,100,100,0.12)', icon: 'bi-hourglass' };
+          return (
+            <div key={order.id} className="card mb-3" style={{ borderColor: 'rgba(248,113,113,0.25)', opacity: 0.9 }}>
+              <div className="card-header d-flex justify-content-between align-items-center" style={{ background: 'rgba(248,113,113,0.05)' }}>
+                <div>
+                  <span className="fw-semibold" style={{ fontSize: '0.9rem' }}>
+                    <span style={{ color: '#f87171', fontFamily: 'monospace', fontSize: '0.82rem', marginRight: 6 }}>{order.displayId || `#${order.id.slice(-6).toUpperCase()}`}</span>
+                    {order.orderType === 'delivery' ? '🚚 Delivery' : '🛍 Take-away'}
+                  </span>
+                  <span className="badge ms-2" style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171' }}>Cancelled</span>
+                </div>
+                <small className="text-muted">{new Date(order.createdAt).toLocaleDateString()}</small>
+              </div>
+              <div className="card-body">
+                {(order.items ?? []).map(item => (
+                  <div key={item.foodId} className="d-flex align-items-center justify-content-between mb-2">
+                    <div className="d-flex align-items-center gap-3">
+                      <img src={item.foodImageUrl} alt={item.foodName} style={{ width: 50, height: 40, objectFit: 'cover', borderRadius: 6, opacity: 0.7 }} />
+                      <div>
+                        <div className="fw-semibold" style={{ opacity: 0.8 }}>{item.foodName} × {item.quantity}</div>
+                      </div>
+                    </div>
+                    <span style={{ opacity: 0.7 }}>Rs.{(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+                <hr />
+                <div className="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                  <div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 20, background: refundMeta.bg, color: refundMeta.color, fontSize: '0.78rem', fontWeight: 600 }}>
+                      <i className={`bi ${refundMeta.icon}`}></i>
+                      {refundMeta.label}
+                    </div>
+                    {order.refundStatus === 'PENDING_REFUND' || order.refundStatus == null ? (
+                      <div className="mt-1" style={{ fontSize: '0.72rem', color: 'rgba(200,196,188,0.45)' }}>
+                        <i className="bi bi-info-circle me-1"></i>Refunds are processed within 2–4 business days.
+                      </div>
+                    ) : null}
+                    {/* Bank details summary */}
+                    {order.refundBankName && (
+                      <div className="mt-2" style={{ fontSize: '0.72rem', color: 'rgba(200,196,188,0.45)', lineHeight: 1.6 }}>
+                        <i className="bi bi-bank me-1"></i>
+                        {order.refundBankName}{order.refundBankBranch ? ` · ${order.refundBankBranch}` : ''}
+                        {order.refundAccountNumber && <span className="ms-2" style={{ fontFamily: 'monospace' }}>{order.refundAccountNumber}</span>}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Admin-uploaded receipt */}
+                  {order.refundReceiptUrl && (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.68rem', color: 'rgba(200,196,188,0.4)', marginBottom: 4 }}>Refund Receipt</div>
+                      <img
+                        src={order.refundReceiptUrl}
+                        alt="Refund receipt"
+                        onClick={() => window.open(order.refundReceiptUrl, '_blank')}
+                        style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(62,207,142,0.3)', cursor: 'pointer' }}
+                      />
+                      <div style={{ fontSize: '0.65rem', color: '#3ecf8e', marginTop: 3 }}>
+                        <i className="bi bi-check-circle me-1"></i>Tap to view
+                      </div>
+                    </div>
+                  )}
+
+                  <strong style={{ opacity: 0.8 }}>Total: Rs.{order.total?.toFixed(2)}</strong>
+                </div>
+              </div>
+            </div>
+          );
+        })
       ) : (
         displayOrders.map(order => (
           <div key={order.id} className="card mb-4 shadow-sm">
             <div className="card-header d-flex justify-content-between align-items-center">
-              <div>
+              <div className="d-flex align-items-center flex-wrap gap-2">
                 <span className="fw-semibold" style={{ fontSize: '0.9rem' }}>
                   <span style={{ color: 'var(--gold)', fontFamily: 'monospace', fontSize: '0.82rem', marginRight: 6 }}>{order.displayId || `#${order.id.slice(-6).toUpperCase()}`}</span>
                   {order.orderType === 'delivery' ? '🚚 Delivery' : '🛍 Take-away'}
                 </span>
-                <span className={`badge bg-${statusColor[order.status]} ms-2`}>{order.status}</span>
+                {order.status === 'DELIVERED' && order.orderType === 'takeaway' ? (
+                  <span style={{
+                    background: 'rgba(201,168,76,0.18)', border: '1px solid rgba(201,168,76,0.45)',
+                    color: 'var(--gold)', fontWeight: 700, fontSize: '0.72rem',
+                    borderRadius: 20, padding: '2px 10px', letterSpacing: '0.03em',
+                  }}>
+                    <i className="bi bi-bag-heart-fill me-1"></i>You take that
+                  </span>
+                ) : order.status === 'DELIVERED' && order.orderType === 'delivery' ? (
+                  <span className="badge bg-success ms-1">Delivered</span>
+                ) : (
+                  <span className={`badge bg-${statusColor[order.status]} ms-1`}>
+                    {order.status.charAt(0) + order.status.slice(1).toLowerCase()}
+                  </span>
+                )}
               </div>
               <small className="text-muted">{new Date(order.createdAt).toLocaleDateString()}</small>
             </div>
 
             {/* Status tracker — only for active orders */}
-            {!isHistory && (
-              <div className="card-body border-bottom pb-3">
-                <div className="order-tracker d-flex justify-content-between">
-                  {STATUS_STEPS.map((step, i) => {
-                    const stepIndex = STATUS_STEPS.findIndex(s => s.key === order.status);
-                    const done = i <= stepIndex;
-                    const active = i === stepIndex;
-                    return (
-                      <div key={step.key} className="tracker-step">
-                        <div className={`tracker-dot${done ? ' done' : ''}${active ? ' active' : ''}`}>
-                          <i className={`bi ${step.icon}`}></i>
+            {!isHistory && (() => {
+              const steps = order.orderType === 'takeaway' ? TAKEAWAY_STATUS_STEPS : STATUS_STEPS;
+              const stepIndex = steps.findIndex(s => s.key === order.status);
+              return (
+                <div className="card-body border-bottom pb-3">
+                  <div className="order-tracker d-flex justify-content-between">
+                    {steps.map((step, i) => {
+                      const done   = i <= stepIndex;
+                      const active = i === stepIndex;
+                      return (
+                        <div key={step.key} className="tracker-step">
+                          <div className={`tracker-dot${done ? ' done' : ''}${active ? ' active' : ''}`}>
+                            <i className={`bi ${step.icon}`}></i>
+                          </div>
+                          <span className={`tracker-label${done ? ' done' : ''}`}>{step.label}</span>
                         </div>
-                        <span className={`tracker-label${done ? ' done' : ''}`}>{step.label}</span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             <div className="card-body">
               {(order.items ?? []).map(item => (
@@ -690,7 +944,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
   return (
     <>
       <div className="container py-5">
-        <div className="d-flex align-items-center gap-3 mb-4">
+        <div className="d-flex align-items-center gap-3 mb-4 flex-wrap">
           <button
             className={`btn btn-sm ${tab === 'active' ? 'btn-primary' : 'btn-outline-secondary'}`}
             onClick={() => setTab('active')}
@@ -702,6 +956,22 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
             onClick={() => setTab('history')}
           >
             <i className="bi bi-clock-history me-1"></i>History
+          </button>
+          <button
+            className="btn btn-sm"
+            style={{
+              background: tab === 'cancelled' ? 'rgba(248,113,113,0.15)' : 'transparent',
+              color: tab === 'cancelled' ? '#f87171' : 'rgba(240,236,224,0.5)',
+              border: `1px solid ${tab === 'cancelled' ? 'rgba(248,113,113,0.4)' : 'rgba(255,255,255,0.15)'}`,
+            }}
+            onClick={() => setTab('cancelled')}
+          >
+            <i className="bi bi-x-circle me-1"></i>Cancelled
+            {cancelledCount > 0 && (
+              <span className="ms-1 badge" style={{ background: 'rgba(248,113,113,0.2)', color: '#f87171', fontSize: '0.65rem', borderRadius: 20 }}>
+                {cancelledCount}
+              </span>
+            )}
           </button>
         </div>
         {inner}

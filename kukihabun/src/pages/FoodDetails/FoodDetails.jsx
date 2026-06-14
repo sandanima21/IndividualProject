@@ -26,7 +26,7 @@ const FoodDetails = () => {
         setData(food);
         setReviews(rev);
       } catch (e) {
-        console.error(e);
+        // load failure handled by empty state
       }
     };
     load();

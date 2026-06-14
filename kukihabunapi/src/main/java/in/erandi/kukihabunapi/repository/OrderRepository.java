@@ -13,6 +13,10 @@ public interface OrderRepository extends MongoRepository<OrderEntity, String> {
     List<OrderEntity> findByStatusAndPaymentStatusAndCancelableUntilBefore(
             String status, String paymentStatus, LocalDateTime cutoff);
 
+    // Fallback for orders paid before cancelableUntil was introduced (field is null)
+    List<OrderEntity> findByStatusAndPaymentStatusAndCancelableUntilIsNullAndPaymentTimeBefore(
+            String status, String paymentStatus, LocalDateTime paymentTimeCutoff);
+
     // Count active deliveries per rider (kept for reference)
     long countByDeliveryPersonIdAndStatus(String deliveryPersonId, String status);
 
