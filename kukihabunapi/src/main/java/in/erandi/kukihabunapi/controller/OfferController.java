@@ -22,7 +22,6 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/offers")
-@CrossOrigin("*")
 @RequiredArgsConstructor
 public class OfferController {
 

@@ -20,7 +20,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/foods")
 @AllArgsConstructor
-@CrossOrigin("*")//allow requests from any FE origin
 
 public class FoodController {
 

@@ -43,7 +43,6 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/payhere")
-@CrossOrigin(origins = "*")  // PayHere's servers must be able to reach this endpoint
 public class PayHereWebhookController {
 
     private static final Logger log = LoggerFactory.getLogger(PayHereWebhookController.class);
