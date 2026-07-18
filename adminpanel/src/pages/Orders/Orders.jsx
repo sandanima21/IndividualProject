@@ -153,6 +153,7 @@ const LiveTrackModal = ({ order, onClose }) => {
 };
 
 const COLUMNS = [
+  { key: 'PENDING',          displayKeys: ['PENDING'],          label: 'Pending',              icon: 'bi-clock-history',  color: '#f87171', bg: 'rgba(248,113,113,0.14)',  riderOnly: false },
   { key: 'CONFIRMED',        displayKeys: ['CONFIRMED'],        label: 'Confirmed',            icon: 'bi-check-circle',   color: '#f4a24e', bg: 'rgba(244,162,78,0.14)',   riderOnly: false },
   { key: 'COOKING',          displayKeys: ['COOKING'],          label: 'Preparing',            icon: 'bi-fire',           color: '#ffc107', bg: 'rgba(255,193,7,0.14)',    riderOnly: false },
   { key: 'READY',            displayKeys: ['READY'],            label: 'Ready',                icon: 'bi-bag-check',      color: '#4a9eff', bg: 'rgba(74,158,255,0.14)',   riderOnly: false },

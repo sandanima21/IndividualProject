@@ -153,7 +153,6 @@ private final PaymentRepository paymentRepository;
             orderRepository.findById(orderId).ifPresent(order -> {
                 order.setPaymentStatus("PAID");
                 order.setPaymentTime(now);
-                order.setCancelableUntil(now.plusMinutes(15));
                 orderRepository.save(order);
             });
             paymentRepository.findByOrderId(orderId).ifPresent(p -> {

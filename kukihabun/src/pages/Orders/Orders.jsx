@@ -45,21 +45,13 @@ const REFUND_STATUS_META = {
 const RESTAURANT_LAT = 6.844176631120501;
 const RESTAURANT_LNG = 80.03913846950536;
 
-const CancelButton = ({ orderId, token, onCancelled, onExpired, cancelableUntil }) => {
+const CancelButton = ({ orderId, token, onCancelled }) => {
   const [showModal, setShowModal] = useState(false);
   const [cancelling, setCancelling]   = useState(false);
   const [bankName, setBankName]       = useState('');
   const [bankBranch, setBankBranch]   = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
-
-  useEffect(() => {
-    if (!cancelableUntil) return;
-    const diff = Math.max(0, new Date(cancelableUntil) - new Date());
-    if (diff === 0) { onExpired?.(); return; }
-    const t = setTimeout(() => onExpired?.(), diff);
-    return () => clearTimeout(t);
-  }, [cancelableUntil, onExpired]);
 
   const handleConfirm = async () => {
     if (!bankName.trim() || !accountNumber.trim() || !accountHolder.trim()) {
@@ -869,7 +861,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                     <i className="bi bi-receipt me-1"></i>Details
                   </button>
                   {!isHistory && order.status === 'PENDING' && (
-                    <CancelButton orderId={order.id} token={token} onCancelled={load} onExpired={load} cancelableUntil={order.cancelableUntil} />
+                    <CancelButton orderId={order.id} token={token} onCancelled={load} />
                   )}
                   {isHistory && (
                     <>
