@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, initializeRecaptchaConfig } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyBoSmJxvC2m09XNkuijKddA0EuawcIOVZo",
@@ -13,5 +13,3 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-
-initializeRecaptchaConfig(auth).catch(() => {});
