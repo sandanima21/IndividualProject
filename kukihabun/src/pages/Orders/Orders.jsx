@@ -22,6 +22,10 @@ import { toast } from 'react-toastify';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PENDING_PAYMENT_KEY, CONFIRMED_PAYMENT_KEY } from '../../components/PayHereCheckout/PayHereCheckout';
 import './Orders.css';
+
+// Parse backend LocalDateTime (no timezone suffix) as UTC, display in Sri Lanka time (UTC+5:30)
+const toSLDate = ts => new Date(ts + 'Z').toLocaleDateString('en-GB', { timeZone: 'Asia/Colombo' });
+const toSLDateTime = ts => new Date(ts + 'Z').toLocaleString('en-GB', { timeZone: 'Asia/Colombo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -441,7 +445,7 @@ const OrderDetailsModal = ({ order, onClose }) => {
             {/* Meta */}
             <div className="d-flex justify-content-between mb-3 flex-wrap gap-2">
               <span className="badge bg-secondary">{order.status}</span>
-              <small className="text-muted">{new Date(order.createdAt).toLocaleString()}</small>
+              <small className="text-muted">{toSLDateTime(order.createdAt)}</small>
             </div>
 
             {/* Items */}
@@ -705,7 +709,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                   </span>
                   <span className="badge ms-2" style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171' }}>Cancelled</span>
                 </div>
-                <small className="text-muted">{new Date(order.createdAt).toLocaleDateString()}</small>
+                <small className="text-muted">{toSLDate(order.createdAt)}</small>
               </div>
               <div className="card-body">
                 {(order.items ?? []).map(item => (
@@ -788,7 +792,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                   </span>
                 )}
               </div>
-              <small className="text-muted">{new Date(order.createdAt).toLocaleDateString()}</small>
+              <small className="text-muted">{toSLDate(order.createdAt)}</small>
             </div>
 
             {/* Status tracker — only for active orders */}
