@@ -78,6 +78,9 @@ const reverseGeocode = async (lat, lng) => {
 };
 
 // Straight-line (as-the-crow-flies) distance — shown immediately while OSRM loads.
+const isWithinColombo = (lat, lng) =>
+  lat >= 6.698 && lat <= 6.980 && lng >= 79.820 && lng <= 80.075;
+
 const haversineKm = (lat1, lng1, lat2, lng2) => {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -609,6 +612,14 @@ const Cart = () => {
                     >
                       <i className="bi bi-pencil me-1"></i>Change Location
                     </button>
+                  )}
+                  {deliveryLat && deliveryLng && !isWithinColombo(deliveryLat, deliveryLng) && (
+                    <div className="mt-2 p-2 rounded-3 d-flex align-items-start gap-2" style={{ background: 'rgba(244,162,78,0.1)', border: '1px solid rgba(244,162,78,0.4)' }}>
+                      <i className="bi bi-exclamation-triangle-fill mt-1" style={{ color: '#f4a24e', flexShrink: 0, fontSize: '0.85rem' }}></i>
+                      <span style={{ color: '#f4a24e', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                        We currently only deliver within Colombo. Please select a location inside Colombo.
+                      </span>
+                    </div>
                   )}
                 </div>
               )}

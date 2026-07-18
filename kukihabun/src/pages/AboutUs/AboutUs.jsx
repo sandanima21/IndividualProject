@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const HOURS = [
-  { day: 'Every Day', time: '4:00 PM – 10:30 PM' },
+  { day: 'Every Day', time: '10:00 AM – 10:30 PM' },
   { day: 'Last Order', time: 'By 10:30 PM' },
-  { day: 'Closed', time: 'Before 4:00 PM' },
+  { day: 'Closed', time: 'Before 10:00 AM' },
 ];
 
 const ATMOSPHERE_IMGS = [
@@ -64,7 +64,7 @@ const AboutUs = () => {
       {/* Night restaurant badge */}
       <div className="text-center py-3" style={{ background: 'rgba(201,168,76,0.06)', borderBottom: '1px solid rgba(201,168,76,0.15)' }}>
         <span style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 50, padding: '6px 20px', color: 'var(--gold)', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.12em' }}>
-          <i className="bi bi-moon-stars-fill me-2"></i>Night Restaurant · Open 4:00 PM – 10:30 PM
+          <i className="bi bi-sun-fill me-2"></i>Open Daily · 10:00 AM – 10:30 PM
         </span>
       </div>
 
@@ -165,7 +165,7 @@ const AboutUs = () => {
               <h5 className="fw-bold mb-4"><i className="bi bi-info-circle-fill me-2" style={{ color: '#3ecf8e' }}></i>Delivery Details</h5>
               {[
                 ['bi-clock', 'Estimated Time', '30–45 minutes depending on distance and order volume'],
-                ['bi-geo', 'Coverage', 'We deliver within ~8 km of our Meegoda location'],
+                ['bi-geo', 'Coverage', 'We currently deliver within Colombo'],
                 ['bi-credit-card', 'Payment', 'Pay securely online via PayHere before delivery'],
                 ['bi-telephone', 'Phone Required', 'Valid mobile number needed for delivery coordination'],
                 ['bi-pin-map', 'Pinpoint Location', 'Use the map in checkout to pin your exact delivery spot'],
