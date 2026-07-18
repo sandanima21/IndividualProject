@@ -185,8 +185,6 @@ public class AuthController {
             return ResponseEntity.ok(authService.authenticateWithGoogle(request.getAccessToken()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
-        } catch (org.springframework.web.server.ResponseStatusException e) {
-            return ResponseEntity.status(e.getStatusCode()).build();
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }

@@ -94,10 +94,6 @@ public class AuthServiceImpl implements AuthService {
                             });
                 });
 
-        if (!isNew[0] && !user.isActive()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account has been deactivated. Please contact support.");
-        }
-
         if (isNew[0] && email != null) {
             emailService.sendWelcome(email, name);
         }
@@ -106,26 +102,8 @@ public class AuthServiceImpl implements AuthService {
         return response;
     }
 
-    // Mirrors the rule set enforced client-side (kukihabun/src/pages/SignIn — validatePassword)
-    // so a direct API call can't bypass password-strength requirements the UI implies are mandatory.
-    private static final int MIN_PASSWORD_LENGTH = 8;
-
-    private void validatePasswordStrength(String password) {
-        if (password == null
-                || password.length() < MIN_PASSWORD_LENGTH
-                || !password.matches(".*[A-Z].*")
-                || !password.matches(".*[a-z].*")
-                || !password.matches(".*[0-9].*")
-                || !password.matches(".*[^A-Za-z0-9].*")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Password must be at least 8 characters and include an uppercase letter, "
-                            + "a lowercase letter, a number, and a special character.");
-        }
-    }
-
     @Override
     public AuthResponse signupManual(ManualSignupRequest request) {
-        validatePasswordStrength(request.getPassword());
         if (userRepository.findFirstByEmail(request.getEmail()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered.");
         }
@@ -169,12 +147,6 @@ public class AuthServiceImpl implements AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password.");
         }
-        // Checked after the password match (not before/instead of it) so a wrong-password
-        // guess against a deactivated account still gets a generic "Invalid password" rather
-        // than confirming the account exists and is deactivated.
-        if (!user.isActive()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account has been deactivated. Please contact support.");
-        }
 
         return buildResponse(user);
     }
@@ -184,19 +156,8 @@ public class AuthServiceImpl implements AuthService {
         UserEntity user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
 
-        // This endpoint has no prior JWT to check ownership against — it's the very first
-        // credential a newly-provisioned delivery account sets, using the User ID shared by
-        // an admin. Restricting it to accounts that haven't set a password yet prevents it
-        // from being used as a general-purpose password reset for any account whose id leaks
-        // or is guessed (including already-onboarded delivery users, customers, or admins).
-        if (user.isPasswordSet()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "This account already has a password set. Please sign in instead.");
-        }
-
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setPasswordSet(true);
-        user.setMustChangePassword(false);
         userRepository.save(user);
 
         return buildResponse(user);
