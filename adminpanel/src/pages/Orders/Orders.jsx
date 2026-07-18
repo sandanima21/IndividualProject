@@ -283,10 +283,15 @@ const OrderCard = ({ order, onDragStart, onDragEnd, onClick, isDragging, onLiveT
       onDragEnd={onDragEnd}
       onClick={onClick}
     >
-      {/* Top row: ID + badges */}
-      <div className="d-flex align-items-center justify-content-between mb-1">
-        <span className="kanban-card-id">#{order.displayId || order.id.slice(-6).toUpperCase()}</span>
-        <div className="d-flex gap-1">
+      {/* Top row: ID + time + badges */}
+      <div className="d-flex align-items-center justify-content-between mb-1" style={{ gap: '0.25rem' }}>
+        <div className="d-flex align-items-center gap-1" style={{ minWidth: 0 }}>
+          <span className="kanban-card-id" style={{ flexShrink: 0 }}>#{order.displayId || order.id.slice(-6).toUpperCase()}</span>
+          <span style={{ color: 'rgba(200,196,188,0.35)', fontSize: '0.65rem', flexShrink: 0 }}>
+            {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+        <div className="d-flex gap-1" style={{ flexShrink: 0 }}>
           {order.paymentStatus === 'PAID'
             ? <span className="badge" style={{ background: 'rgba(62,207,142,0.15)', color: '#3ecf8e', fontSize: '0.6rem', padding: '2px 6px' }}>PAID</span>
             : <span className="badge" style={{ background: 'rgba(244,115,115,0.12)', color: '#f47373', fontSize: '0.6rem', padding: '2px 6px' }}>UNPAID</span>}
@@ -302,26 +307,21 @@ const OrderCard = ({ order, onDragStart, onDragEnd, onClick, isDragging, onLiveT
       {/* Items */}
       <div className="kanban-card-items">{itemsSummary}</div>
 
-      {/* Footer: price + time + live track */}
+      {/* Footer: price + live track */}
       <div className="kanban-card-footer">
         <span style={{ color: 'var(--gold)', fontWeight: 700, fontSize: '0.85rem' }}>
           Rs.{order.total?.toFixed(2)}
         </span>
-        <div className="d-flex align-items-center gap-2">
-          {order.status === 'OUT_FOR_DELIVERY' && (
-            <button
-              className="btn btn-sm py-0 px-1"
-              style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)', fontSize: '0.65rem', borderRadius: 6 }}
-              onClick={e => { e.stopPropagation(); onLiveTrack(order); }}
-              title="Live track rider"
-            >
-              <i className="bi bi-broadcast me-1"></i>Track
-            </button>
-          )}
-          <span style={{ color: 'rgba(200,196,188,0.4)', fontSize: '0.7rem' }}>
-            {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </span>
-        </div>
+        {order.status === 'OUT_FOR_DELIVERY' && (
+          <button
+            className="btn btn-sm py-0 px-2"
+            style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)', fontSize: '0.65rem', borderRadius: 6, flexShrink: 0 }}
+            onClick={e => { e.stopPropagation(); onLiveTrack(order); }}
+            title="Live track rider"
+          >
+            <i className="bi bi-broadcast me-1"></i>Track
+          </button>
+        )}
       </div>
     </div>
   );
