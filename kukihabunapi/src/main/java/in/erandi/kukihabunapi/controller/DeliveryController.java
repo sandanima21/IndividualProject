@@ -14,6 +14,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -52,7 +53,13 @@ public class DeliveryController {
 
     // READY + PAID + unassigned orders available for riders to pick up
     @GetMapping("/orders/available")
-    public ResponseEntity<List<OrderResponse>> getAvailableOrders() {
+    public ResponseEntity<List<OrderResponse>> getAvailableOrders(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String riderId = extractUserId(authHeader);
+        if (riderId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        boolean isRider = userRepository.findById(riderId).map(u -> "DELIVERY".equals(u.getRole())).orElse(false);
+        if (!isRider) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+
         List<OrderResponse> orders = orderService.getAllOrders().stream()
                 .filter(o -> "READY".equals(o.getStatus()))
                 .filter(o -> "PAID".equals(o.getPaymentStatus()))
@@ -200,16 +207,30 @@ public class DeliveryController {
     @PutMapping("/orders/{orderId}/location")
     public ResponseEntity<Void> updateLocationRest(
             @PathVariable String orderId,
-            @RequestBody Map<String, Double> body) {
+            @RequestBody Map<String, Double> body,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String riderId = extractUserId(authHeader);
+        if (riderId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        OrderEntity order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) return ResponseEntity.notFound().build();
+        if (!riderId.equals(order.getDeliveryPersonId())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+
         updateAndBroadcast(orderId, body.get("lat"), body.get("lng"));
         return ResponseEntity.ok().build();
     }
 
-    // WebSocket: rider broadcasts location → all subscribers on order topic
+    // WebSocket: rider broadcasts location → all subscribers on order topic.
+    // principal is set by WebSocketConfig's STOMP CONNECT interceptor from the client's JWT;
+    // messages from an unauthenticated session or a rider not assigned to this order are dropped
+    // silently (no response channel exists on a @MessageMapping handler to report an error).
     @MessageMapping("/delivery/{orderId}/location")
     public void updateLocationWs(
             @DestinationVariable String orderId,
-            @Payload Map<String, Double> location) {
+            @Payload Map<String, Double> location,
+            Principal principal) {
+        if (principal == null) return;
+        OrderEntity order = orderRepository.findById(orderId).orElse(null);
+        if (order == null || !principal.getName().equals(order.getDeliveryPersonId())) return;
         updateAndBroadcast(orderId, location.get("lat"), location.get("lng"));
     }
 

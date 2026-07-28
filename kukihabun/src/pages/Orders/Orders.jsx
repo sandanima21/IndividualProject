@@ -203,6 +203,7 @@ const useOsrmRoute = (from, to) => {
 };
 
 const DeliveryTracker = ({ order }) => {
+  const { token } = useContext(StoreContext);
   const [driverPos, setDriverPos] = useState(
     order.deliveryPersonCurrentLat
       ? { lat: order.deliveryPersonCurrentLat, lng: order.deliveryPersonCurrentLng }
@@ -218,7 +219,9 @@ const DeliveryTracker = ({ order }) => {
   // Fetch initial tracking snapshot
   useEffect(() => {
     if (!isOutForDelivery || !order.deliveryPersonId) return;
-    fetch(`${import.meta.env.VITE_API_URL}/api/tracking/order/${order.id}`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/tracking/order/${order.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return;

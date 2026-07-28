@@ -25,6 +25,8 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -66,9 +68,18 @@ public class OrderServiceImpl implements OrderService {
 
     private static final double RESTAURANT_LAT = 6.844176631120501;
     private static final double RESTAURANT_LNG = 80.03913846950536;
+    private static final ZoneId COLOMBO = ZoneId.of("Asia/Colombo");
+    private static final LocalTime OPEN_TIME = LocalTime.of(10, 0);
+    private static final LocalTime CLOSE_TIME = LocalTime.of(22, 30);
 
     @Override
     public OrderResponse placeOrder(String userId, OrderRequest request) {
+        LocalTime nowInColombo = LocalTime.now(COLOMBO);
+        if (nowInColombo.isBefore(OPEN_TIME) || !nowInColombo.isBefore(CLOSE_TIME)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "We're closed right now. Orders are accepted from 10:00 AM to 10:30 PM.");
+        }
+
         List<OrderItemEntity> items = new ArrayList<>(
                 request.getItems() == null ? List.of() :
                 request.getItems().stream().map(this::buildOrderItem).collect(Collectors.toList()));
@@ -90,6 +101,17 @@ public class OrderServiceImpl implements OrderService {
                 .mapToDouble(i -> i.getPrice() * i.getQuantity())
                 .sum();
         double deliveryFee = (request.getDeliveryFee() != null) ? request.getDeliveryFee() : 0.0;
+
+        // The client computes and displays this fee (Cart.jsx, via OSRM road distance, which is
+        // always >= straight-line distance), but a tampered request could send any value —
+        // reject anything below the Haversine-based floor so a delivery can't be placed for free.
+        if ("delivery".equalsIgnoreCase(request.getOrderType())) {
+            double minFee = minDeliveryFee(request.getDeliveryLat(), request.getDeliveryLng());
+            if (deliveryFee < minFee - 0.01) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid delivery fee");
+            }
+        }
+
         double total = subtotal + deliveryFee;
 
         OrderEntity order = OrderEntity.builder()
@@ -242,6 +264,25 @@ public class OrderServiceImpl implements OrderService {
                 orderRepository.deleteById(orderId);
             }
         });
+    }
+
+    /** Mirrors Cart.jsx's calcDeliveryFee: flat Rs.100 covers the first km, +Rs.50/km after. */
+    private double minDeliveryFee(Double deliveryLat, Double deliveryLng) {
+        if (deliveryLat == null || deliveryLng == null) return 100.0;
+        double km = haversine(RESTAURANT_LAT, RESTAURANT_LNG, deliveryLat, deliveryLng);
+        if (km <= 1) return 100.0;
+        return 100.0 + Math.ceil(km - 1) * 50.0;
+    }
+
+    /** Haversine formula — returns distance in km between two GPS coordinates. */
+    private double haversine(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6371.0;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     }
 
     private OrderItemEntity buildOrderItem(OrderItemRequest req) {

@@ -9,12 +9,6 @@ export const placeOrder = (orderData, token) =>
 export const getMyOrders = (token) =>
     axios.get(`${API_URL}/my`, authHeader(token)).then(r => r.data);
 
-export const getAllOrders = () =>
-    axios.get(API_URL).then(r => r.data);
-
-export const updateOrderStatus = (orderId, status) =>
-    axios.patch(`${API_URL}/${orderId}/status`, { status }).then(r => r.data);
-
 // Mark order as PAID after successful Stripe payment (no Stripe API call — Stripe.js already verified it)
 export const markOrderPaid = (orderId, token) =>
     axios.post(`${API_URL}/${orderId}/mark-paid`, {}, authHeader(token)).then(r => r.data);

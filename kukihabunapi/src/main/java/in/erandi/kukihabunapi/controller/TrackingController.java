@@ -127,11 +127,24 @@ public class TrackingController {
      *
      * Returns the latest tracking snapshot for an order, including ETA.
      * Used on page-load before WebSocket updates begin.
+     *
+     * Restricted to the order's own customer, the assigned rider, or an admin —
+     * previously open to anyone who guessed/enumerated an order id, exposing a
+     * stranger's live GPS position and delivery address.
      */
     @GetMapping("/order/{orderId}")
-    public ResponseEntity<TrackingResponse> getLatestTracking(@PathVariable String orderId) {
+    public ResponseEntity<TrackingResponse> getLatestTracking(
+            @PathVariable String orderId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String callerId = extractUserId(authHeader);
+        if (callerId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
         OrderEntity order = orderRepository.findById(orderId).orElse(null);
         if (order == null) return ResponseEntity.notFound().build();
+
+        boolean isOwner = callerId.equals(order.getUserId()) || callerId.equals(order.getDeliveryPersonId());
+        boolean isAdmin = userRepository.findById(callerId).map(u -> "ADMIN".equals(u.getRole())).orElse(false);
+        if (!isOwner && !isAdmin) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 
         // Latest persisted point (may be null if tracking not yet started)
         DeliveryTrackingEntity latest = trackingRepository

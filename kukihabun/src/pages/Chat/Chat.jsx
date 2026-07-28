@@ -2,7 +2,11 @@ import React, { useContext, useEffect, useRef, useState } from 'react';
 import { StoreContext } from '../../context/StoreContext';
 import { getMessages, sendMessage, sendMessageWithImage } from '../../service/chatservice';
 import { toast } from 'react-toastify';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 import './Chat.css';
+
+const API = import.meta.env.VITE_API_URL;
 
 const formatDateLabel = (dateStr) => {
   const date = new Date(dateStr);
@@ -52,6 +56,27 @@ const Chat = () => {
   };
 
   useEffect(() => { load(); }, [user, token]);
+
+  // Live updates for owner replies — the backend already broadcasts every reply to
+  // /queue/chat/{userId} (see ChatController.replyMessage), this was just never subscribed to,
+  // so replies previously only appeared after a manual refresh or reopening the page.
+  useEffect(() => {
+    if (!user) return;
+    const client = new Client({
+      webSocketFactory: () => new SockJS(`${API}/ws`),
+      connectHeaders: { Authorization: `Bearer ${token}` },
+      onConnect: () => {
+        client.subscribe(`/queue/chat/${user.id}`, (msg) => {
+          const incoming = JSON.parse(msg.body);
+          if (incoming.senderRole === 'CUSTOMER') return; // own message, already appended on send
+          setMessages(prev => prev.some(m => m.id === incoming.id) ? prev : [...prev, incoming]);
+          localStorage.setItem('kukihabun_chat_seen_at', new Date().toISOString());
+        });
+      },
+    });
+    client.activate();
+    return () => client.deactivate();
+  }, [user, token]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

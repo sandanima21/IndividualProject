@@ -257,7 +257,10 @@ const DeliveryDashboard = () => {
   };
 
   const loadAvailableOrders = async () => {
-    const res = await fetch(`${API}/api/delivery/orders/available`);
+    const res = await fetch(`${API}/api/delivery/orders/available`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.status === 401 || res.status === 403) return;
     if (res.ok) setAvailableOrders(await res.json());
   };
 
@@ -350,9 +353,13 @@ const DeliveryDashboard = () => {
   const startSharing = (orderId) => {
     if (!navigator.geolocation) { toast.error('Geolocation not supported.'); return; }
 
-    // STOMP client for real-time WebSocket broadcast
+    // STOMP client for real-time WebSocket broadcast. connectHeaders carries the rider's JWT so
+    // the server can verify (via WebSocketConfig's STOMP interceptor) that this session really is
+    // the order's assigned rider before accepting location publishes — closes a GPS-spoofing hole
+    // where anyone could previously broadcast a fake position for any order over the open socket.
     const client = new Client({
       webSocketFactory: () => new SockJS(`${API}/ws`),
+      connectHeaders: { Authorization: `Bearer ${token}` },
       onConnect: () => {
         watchIdRef.current = navigator.geolocation.watchPosition(
           (pos) => {

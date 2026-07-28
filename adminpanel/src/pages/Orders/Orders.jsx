@@ -62,7 +62,9 @@ const LiveTrackModal = ({ order, onClose }) => {
 
   // Fetch initial tracking snapshot
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/tracking/order/${order.id}`)
+    fetch(`${import.meta.env.VITE_API_URL}/api/tracking/order/${order.id}`, {
+      headers: { Authorization: `Bearer ${sessionStorage.getItem('admin_token')}` },
+    })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (!d) return;

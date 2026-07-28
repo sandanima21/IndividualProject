@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { StoreContext } from '../../context/StoreContext';
@@ -22,10 +22,11 @@ const ChangePassword = () => {
   const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  if (!user) {
-    navigate('/signin');
-    return null;
-  }
+  useEffect(() => {
+    if (!user) navigate('/signin');
+  }, [user]);
+
+  if (!user) return null;
 
   const pwOk = RULES.every(r => r.test(pw));
 

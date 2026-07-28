@@ -3,6 +3,7 @@ package in.erandi.kukihabunapi.controller;
 import in.erandi.kukihabunapi.config.JwtUtil;
 import in.erandi.kukihabunapi.io.ReviewRequest;
 import in.erandi.kukihabunapi.io.ReviewResponse;
+import in.erandi.kukihabunapi.repository.UserRepository;
 import in.erandi.kukihabunapi.service.ReviewService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,10 +17,12 @@ public class ReviewController {
 
     private final ReviewService reviewService;
     private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
-    public ReviewController(ReviewService reviewService, JwtUtil jwtUtil) {
+    public ReviewController(ReviewService reviewService, JwtUtil jwtUtil, UserRepository userRepository) {
         this.reviewService = reviewService;
         this.jwtUtil = jwtUtil;
+        this.userRepository = userRepository;
     }
 
     @PostMapping
@@ -42,7 +45,13 @@ public class ReviewController {
     }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<List<ReviewResponse>> getReviewsByUser(@PathVariable String userId) {
+    public ResponseEntity<List<ReviewResponse>> getReviewsByUser(
+            @PathVariable String userId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String callerId = extractUserId(authHeader);
+        if (callerId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        boolean isAdmin = userRepository.findById(callerId).map(u -> "ADMIN".equals(u.getRole())).orElse(false);
+        if (!callerId.equals(userId) && !isAdmin) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return ResponseEntity.ok(reviewService.getReviewsByUser(userId));
     }
 
