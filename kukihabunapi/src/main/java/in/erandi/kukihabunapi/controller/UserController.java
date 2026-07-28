@@ -41,10 +41,23 @@ public class UserController {
         this.s3Client = s3Client;
     }
 
+    /** True only if the Authorization header carries a valid JWT belonging to an ADMIN account. */
+    private boolean isAdmin(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return false;
+        String token = authHeader.substring(7);
+        if (!jwtUtil.validateToken(token)) return false;
+        String userId = jwtUtil.extractUserId(token);
+        return userRepository.findById(userId).map(u -> "ADMIN".equals(u.getRole())).orElse(false);
+    }
+
+    private <T> ResponseEntity<T> adminOnly() {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
+
     @PatchMapping("/me/picture")
     public ResponseEntity<Map<String, Object>> uploadPicture(
             @RequestParam MultipartFile file,
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) return ResponseEntity.status(401).build();
         String token = authHeader.substring(7);
         if (!jwtUtil.validateToken(token)) return ResponseEntity.status(401).build();
@@ -74,7 +87,7 @@ public class UserController {
     @PatchMapping("/me/phone")
     public ResponseEntity<Map<String, Object>> updatePhone(
             @RequestBody Map<String, String> body,
-            @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) return ResponseEntity.status(401).build();
         String token = authHeader.substring(7);
         if (!jwtUtil.validateToken(token)) return ResponseEntity.status(401).build();
@@ -89,19 +102,24 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserEntity>> getAllUsers() {
+    public ResponseEntity<List<UserEntity>> getAllUsers(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) return adminOnly();
         return ResponseEntity.ok(userRepository.findAll());
     }
 
     @GetMapping("/role/{role}")
-    public ResponseEntity<List<UserEntity>> getUsersByRole(@PathVariable String role) {
+    public ResponseEntity<List<UserEntity>> getUsersByRole(
+            @PathVariable String role, @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) return adminOnly();
         return ResponseEntity.ok(userRepository.findByRole(role));
     }
 
     @PutMapping("/{id}/role")
     public ResponseEntity<UserEntity> updateUserRole(
             @PathVariable String id,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) return adminOnly();
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         user.setRole(body.get("role"));
@@ -109,7 +127,9 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/deactivate")
-    public ResponseEntity<UserEntity> deactivateUser(@PathVariable String id) {
+    public ResponseEntity<UserEntity> deactivateUser(
+            @PathVariable String id, @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) return adminOnly();
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         user.setActive(false);
@@ -117,7 +137,9 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/activate")
-    public ResponseEntity<UserEntity> activateUser(@PathVariable String id) {
+    public ResponseEntity<UserEntity> activateUser(
+            @PathVariable String id, @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) return adminOnly();
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         user.setActive(true);
@@ -125,7 +147,9 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
+    public ResponseEntity<Void> deleteUser(
+            @PathVariable String id, @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) return adminOnly();
         if (!userRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
@@ -134,7 +158,9 @@ public class UserController {
     }
 
     @PostMapping("/register-delivery")
-    public ResponseEntity<UserEntity> registerDeliveryPerson(@RequestBody Map<String, String> body) {
+    public ResponseEntity<UserEntity> registerDeliveryPerson(
+            @RequestBody Map<String, String> body, @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) return adminOnly();
         String email = body.get("email");
         String username = body.get("username");
 
@@ -165,7 +191,16 @@ public class UserController {
     @PostMapping("/{id}/change-password")
     public ResponseEntity<Void> changePassword(
             @PathVariable String id,
-            @RequestBody Map<String, String> body) {
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return ResponseEntity.status(401).build();
+        String token = authHeader.substring(7);
+        if (!jwtUtil.validateToken(token)) return ResponseEntity.status(401).build();
+        // Only the account owner may change their own password through this endpoint —
+        // nothing else ties the caller to {id}, so without this check anyone with a valid
+        // JWT (for any account) could reset any other user's password.
+        if (!jwtUtil.extractUserId(token).equals(id)) return ResponseEntity.status(403).build();
+
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
         user.setPassword(passwordEncoder.encode(body.get("password")));

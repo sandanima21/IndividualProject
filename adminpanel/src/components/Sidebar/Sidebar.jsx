@@ -20,6 +20,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { assets } from '../../assets/assets';
+import { getConversations } from '../../services/chatService';
 
 const LAST_VISIT_KEY = 'admin_chat_last_visit';
 
@@ -41,9 +42,7 @@ const Sidebar = ({ sidebarVisible }) => {
         return;
       }
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/conversations`);
-        if (!res.ok) return;
-        const convs = await res.json();
+        const convs = await getConversations();
         const lastVisit = localStorage.getItem(LAST_VISIT_KEY);
         const cutoff = lastVisit ? new Date(lastVisit) : null;
         if (!cutoff) { setChatUnread(0); return; }

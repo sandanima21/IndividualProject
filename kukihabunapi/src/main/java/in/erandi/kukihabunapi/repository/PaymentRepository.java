@@ -11,4 +11,6 @@ public interface PaymentRepository extends MongoRepository<PaymentEntity, String
     Optional<PaymentEntity> findByPayherePaymentId(String payherePaymentId);
     List<PaymentEntity> findByUserId(String userId);
     List<PaymentEntity> findAllByOrderByCreatedAtDesc();
+    // Batch lookup used by OrderServiceImpl to avoid one query per order when listing orders
+    List<PaymentEntity> findByOrderIdIn(List<String> orderIds);
 }

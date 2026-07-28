@@ -98,8 +98,8 @@ const App = () => {
   return (
     <div className="d-flex" id="wrapper">
       {/* Mobile backdrop — clicking it closes the sidebar drawer.
-          Rendered in the DOM only when the sidebar is open so it doesn't
-          intercept clicks when the drawer is hidden. */}
+          Always rendered; hidden via display:none when the sidebar is
+          closed so it doesn't intercept clicks. */}
       <div
         className="sidebar-mobile-overlay"
         onClick={() => setSidebarVisible(false)}

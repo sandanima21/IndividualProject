@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getAllOrders, updateRefundStatus, uploadRefundReceipt, processPayhereRefund } from '../../services/orderService';
 import { toast } from 'react-toastify';
+import { formatColomboDate, formatColomboDateTime, formatColomboTime } from '../../utils/date';
 
 const FILTERS = [
   { key: 'today', label: 'Today' },
@@ -206,7 +207,7 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
               <div>
                 <div style={{ fontSize: '0.65rem', color: 'rgba(200,196,188,0.4)', marginBottom: 3 }}>Payment Date</div>
                 <div style={{ fontSize: '0.83rem' }}>
-                  {new Date(order.paymentTime).toLocaleString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  {formatColomboDateTime(order.paymentTime)}
                 </div>
               </div>
             )}
@@ -400,8 +401,8 @@ export const RefundedTable = ({ orders, onRefresh }) => {
                     </td>
 
                     <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: 'rgba(200,196,188,0.45)', whiteSpace: 'nowrap' }}>
-                      {new Date(order.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
-                      <div style={{ fontSize: '0.68rem' }}>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      {formatColomboDate(order.createdAt)}
+                      <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.createdAt)}</div>
                     </td>
 
                     <td style={{ padding: '10px 12px', borderRadius: expanded ? '0 10px 0 0' : '0 10px 10px 0', textAlign: 'center' }}

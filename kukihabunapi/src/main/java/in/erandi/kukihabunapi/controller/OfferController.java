@@ -1,7 +1,9 @@
 package in.erandi.kukihabunapi.controller;
 
+import in.erandi.kukihabunapi.config.JwtUtil;
 import in.erandi.kukihabunapi.entity.OfferEntity;
 import in.erandi.kukihabunapi.repository.OfferRepository;
+import in.erandi.kukihabunapi.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -27,9 +29,20 @@ public class OfferController {
 
     private final OfferRepository offerRepository;
     private final S3Client s3Client;
+    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
 
     @Value("${aws.s3.bucketname}")
     private String bucketName;
+
+    /** True only if the Authorization header carries a valid JWT belonging to an ADMIN account. */
+    private boolean isAdmin(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return false;
+        String token = authHeader.substring(7);
+        if (!jwtUtil.validateToken(token)) return false;
+        String userId = jwtUtil.extractUserId(token);
+        return userRepository.findById(userId).map(u -> "ADMIN".equals(u.getRole())).orElse(false);
+    }
 
     // Customer-facing: only currently active offers
     @GetMapping
@@ -43,7 +56,8 @@ public class OfferController {
 
     // Admin-facing: all offers regardless of dates
     @GetMapping("/all")
-    public List<OfferEntity> getAll() {
+    public List<OfferEntity> getAll(@RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         return offerRepository.findAll();
     }
 
@@ -55,8 +69,10 @@ public class OfferController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) Double price,
-            @RequestParam(required = false) MultipartFile file
+            @RequestParam(required = false) MultipartFile file,
+            @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         String imageUrl = (file != null && !file.isEmpty()) ? uploadToS3(file) : null;
         return offerRepository.save(OfferEntity.builder()
                 .title(title)
@@ -76,8 +92,10 @@ public class OfferController {
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate,
             @RequestParam(required = false) Double price,
-            @RequestParam(required = false) MultipartFile file
+            @RequestParam(required = false) MultipartFile file,
+            @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         OfferEntity offer = offerRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         offer.setTitle(title);
@@ -94,7 +112,8 @@ public class OfferController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable String id) {
+    public void delete(@PathVariable String id, @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         OfferEntity offer = offerRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         if (offer.getImageUrl() != null) deleteFromS3(offer.getImageUrl());

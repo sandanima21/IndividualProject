@@ -10,6 +10,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { formatColomboDateTime, formatColomboTime } from '../../utils/date';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
@@ -184,7 +185,7 @@ const DetailModal = ({ order, onClose, onStatusMove }) => {
           <div>
             <span style={{ fontSize: '0.72rem', color: 'rgba(200,196,188,0.5)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Order</span>
             <h5 className="fw-bold mb-0" style={{ color: 'var(--gold)', letterSpacing: '0.05em' }}>#{order.displayId || order.id.slice(-6).toUpperCase()}</h5>
-            <small className="text-muted">{new Date(order.createdAt).toLocaleString()}</small>
+            <small className="text-muted">{formatColomboDateTime(order.createdAt)}</small>
           </div>
           <button className="btn-close btn-close-white" onClick={onClose} />
         </div>
@@ -307,7 +308,7 @@ const OrderCard = ({ order, onDragStart, onDragEnd, onClick, isDragging, onLiveT
       {/* Footer: time + price + optional live track */}
       <div className="kanban-card-footer">
         <span style={{ color: 'rgba(200,196,188,0.4)', fontSize: '0.65rem', flexShrink: 0 }}>
-          {new Date(order.createdAt + 'Z').toLocaleTimeString('en-US', { timeZone: 'Asia/Colombo', hour: '2-digit', minute: '2-digit', hour12: true })}
+          {formatColomboTime(order.createdAt, { hour12: true })}
         </span>
         <div className="d-flex align-items-center gap-1" style={{ flexShrink: 0 }}>
           {order.status === 'OUT_FOR_DELIVERY' && (

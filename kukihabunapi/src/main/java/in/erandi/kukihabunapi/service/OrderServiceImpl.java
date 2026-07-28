@@ -27,7 +27,11 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -109,18 +113,17 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public List<OrderResponse> getOrdersByUser(String userId) {
-        return orderRepository.findByUserIdOrderByCreatedAtDesc(userId)
-                .stream().map(this::toResponse).collect(Collectors.toList());
+        return toResponseList(orderRepository.findByUserIdOrderByCreatedAtDesc(userId));
     }
 
     @Override
     public List<OrderResponse> getAllOrders() {
-        return orderRepository.findAllByOrderByCreatedAtDesc()
+        List<OrderEntity> orders = orderRepository.findAllByOrderByCreatedAtDesc()
                 .stream()
                 // Exclude PENDING+UNPAID (items still in cart); include PENDING+PAID (awaiting confirm window)
                 .filter(o -> !"PENDING".equals(o.getStatus()) || "PAID".equals(o.getPaymentStatus()))
-                .map(this::toResponse)
                 .collect(Collectors.toList());
+        return toResponseList(orders);
     }
 
     @Override
@@ -256,17 +259,51 @@ public class OrderServiceImpl implements OrderService {
                 .build();
     }
 
+    /**
+     * Batch-fetches the users and payment records needed for a whole list of orders in
+     * two queries total, instead of the ~1+3N queries the naive per-order lookups would
+     * cost — same output as calling toResponse(order) on each, just without the N+1.
+     */
+    private List<OrderResponse> toResponseList(List<OrderEntity> orders) {
+        if (orders.isEmpty()) return List.of();
+
+        Set<String> userIds = new HashSet<>();
+        for (OrderEntity o : orders) {
+            if (o.getUserId() != null) userIds.add(o.getUserId());
+            if (o.getDeliveryPersonId() != null) userIds.add(o.getDeliveryPersonId());
+        }
+        Map<String, UserEntity> usersById = new HashMap<>();
+        for (UserEntity u : userRepository.findAllById(userIds)) {
+            usersById.put(u.getId(), u);
+        }
+
+        List<String> orderIds = orders.stream().map(OrderEntity::getId).collect(Collectors.toList());
+        Map<String, String> payherePaymentIdByOrderId = new HashMap<>();
+        for (var p : paymentRepository.findByOrderIdIn(orderIds)) {
+            payherePaymentIdByOrderId.put(p.getOrderId(), p.getPayherePaymentId());
+        }
+
+        return orders.stream()
+                .map(order -> buildResponse(order,
+                        usersById.get(order.getUserId()),
+                        order.getDeliveryPersonId() != null ? usersById.get(order.getDeliveryPersonId()) : null,
+                        payherePaymentIdByOrderId.get(order.getId())))
+                .collect(Collectors.toList());
+    }
+
     private OrderResponse toResponse(OrderEntity order) {
         UserEntity user = userRepository.findById(order.getUserId()).orElse(null);
+        String payherePaymentId = paymentRepository.findByOrderId(order.getId())
+                .map(p -> p.getPayherePaymentId()).orElse(null);
+        UserEntity rider = (order.getDeliveryPersonId() != null)
+                ? userRepository.findById(order.getDeliveryPersonId()).orElse(null) : null;
+        return buildResponse(order, user, rider, payherePaymentId);
+    }
+
+    private OrderResponse buildResponse(OrderEntity order, UserEntity user, UserEntity rider, String payherePaymentId) {
         String userName = user != null ? user.getName() : "Unknown";
         String userEmail = user != null ? user.getEmail() : null;
 
-        // Look up the PayHere transaction ID so admin can reference it in the PayHere merchant dashboard
-        String payherePaymentId = paymentRepository.findByOrderId(order.getId())
-                .map(p -> p.getPayherePaymentId()).orElse(null);
-
-        UserEntity rider = (order.getDeliveryPersonId() != null)
-                ? userRepository.findById(order.getDeliveryPersonId()).orElse(null) : null;
         String deliveryPersonName   = rider != null ? rider.getName()    : null;
         String deliveryPersonPhone  = rider != null ? rider.getPhone()   : null;
         String deliveryPersonPicture = rider != null ? rider.getPicture() : null;

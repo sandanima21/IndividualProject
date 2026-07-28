@@ -9,6 +9,7 @@ import in.erandi.kukihabunapi.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -50,6 +51,13 @@ public class ChatServiceImpl implements ChatService {
         Map<String, List<MessageEntity>> grouped = allMessages.stream()
                 .collect(Collectors.groupingBy(MessageEntity::getConversationId));
 
+        // Batch-fetch every customer's name in one query instead of one findById per
+        // conversation (conversationId doubles as the customer's userId).
+        Map<String, String> namesByUserId = new HashMap<>();
+        for (UserEntity u : userRepository.findAllById(grouped.keySet())) {
+            namesByUserId.put(u.getId(), u.getName());
+        }
+
         return grouped.entrySet().stream()
                 .map(entry -> {
                     String conversationId = entry.getKey();
@@ -60,8 +68,7 @@ public class ChatServiceImpl implements ChatService {
                     long unread = messages.stream()
                             .filter(m -> !m.isRead() && "CUSTOMER".equals(m.getSenderRole()))
                             .count();
-                    String customerName = userRepository.findById(conversationId)
-                            .map(UserEntity::getName).orElse("Customer");
+                    String customerName = namesByUserId.getOrDefault(conversationId, "Customer");
                     String preview = latest.getContent() != null ? latest.getContent()
                             : latest.getImageUrl() != null ? "📷 Image" : "";
                     return ConversationSummary.builder()

@@ -38,7 +38,7 @@ public class ChatController {
 
     @PostMapping("/send")
     public ResponseEntity<MessageResponse> sendMessage(
-            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestBody MessageRequest request) {
         String userId = extractUserId(authHeader);
         if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
@@ -56,7 +56,7 @@ public class ChatController {
 
     @PostMapping(value = "/send-image", consumes = "multipart/form-data")
     public ResponseEntity<MessageResponse> sendMessageWithImage(
-            @RequestHeader("Authorization") String authHeader,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestPart(value = "file") MultipartFile file,
             @RequestPart(value = "content", required = false) String content) {
         String userId = extractUserId(authHeader);
@@ -76,7 +76,9 @@ public class ChatController {
 
     @PostMapping("/reply")
     public ResponseEntity<MessageResponse> replyMessage(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestBody Map<String, String> body) {
+        if (!isAdmin(extractUserId(authHeader))) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         String conversationId = body.get("conversationId");
         String content = body.get("content");
 
@@ -90,9 +92,11 @@ public class ChatController {
 
     @PostMapping(value = "/reply-image", consumes = "multipart/form-data")
     public ResponseEntity<MessageResponse> replyWithImage(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
             @RequestPart("conversationId") String conversationId,
             @RequestPart(value = "file") MultipartFile file,
             @RequestPart(value = "content", required = false) String content) {
+        if (!isAdmin(extractUserId(authHeader))) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
 
         String imageUrl = foodService.uploadFile(file);
         MessageResponse message = chatService.sendMessage("OWNER", "Shop Owner", "OWNER", conversationId, content, imageUrl);
@@ -103,20 +107,33 @@ public class ChatController {
         return ResponseEntity.ok(message);
     }
 
+    // Shared between the admin inbox (reading any conversation) and the customer app
+    // (reading their own conversation, where conversationId == their own userId) —
+    // so this allows either the account owner or an admin, not admin-only.
     @GetMapping("/{conversationId}")
     public ResponseEntity<List<MessageResponse>> getMessages(
             @PathVariable String conversationId,
             @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String callerId = extractUserId(authHeader);
+        if (callerId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        if (!callerId.equals(conversationId) && !isAdmin(callerId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         return ResponseEntity.ok(chatService.getMessages(conversationId));
     }
 
     @GetMapping("/conversations")
-    public ResponseEntity<List<ConversationSummary>> getConversations() {
+    public ResponseEntity<List<ConversationSummary>> getConversations(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(extractUserId(authHeader))) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         return ResponseEntity.ok(chatService.getAllConversations());
     }
 
     @PatchMapping("/{conversationId}/read")
-    public ResponseEntity<Void> markAsRead(@PathVariable String conversationId) {
+    public ResponseEntity<Void> markAsRead(
+            @PathVariable String conversationId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(extractUserId(authHeader))) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         chatService.markConversationRead(conversationId);
         return ResponseEntity.ok().build();
     }
@@ -126,5 +143,11 @@ public class ChatController {
         String token = authHeader.substring(7);
         if (!jwtUtil.validateToken(token)) return null;
         return jwtUtil.extractUserId(token);
+    }
+
+    /** True only if the given userId belongs to an ADMIN account. */
+    private boolean isAdmin(String userId) {
+        if (userId == null) return false;
+        return userRepository.findById(userId).map(u -> "ADMIN".equals(u.getRole())).orElse(false);
     }
 }

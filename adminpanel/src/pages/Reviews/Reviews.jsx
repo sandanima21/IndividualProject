@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { getFoodList } from '../../services/foodService';
 import { toast } from 'react-toastify';
+import { formatColomboDate } from '../../utils/date';
 
 const StarRating = ({ value }) => (
   <span>
@@ -73,7 +74,7 @@ const FoodReviewsTab = () => {
                   <td><span style={{ color: '#e0ddd4', fontSize: '0.85rem' }}>{foodMap[r.foodId] || <span className="text-muted small">{r.foodId?.slice(-8) || '—'}</span>}</span></td>
                   <td><StarRating value={r.rating} /></td>
                   <td style={{ maxWidth: 250, color: '#c8c4bc', fontSize: '0.85rem' }}>{r.comment || <span className="text-muted">—</span>}</td>
-                  <td style={{ color: 'rgba(200,196,188,0.6)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td style={{ color: 'rgba(200,196,188,0.6)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{formatColomboDate(r.createdAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -171,7 +172,7 @@ const DeliveryReviewsTab = () => {
                   </td>
                   <td><StarRating value={r.rating} /></td>
                   <td style={{ maxWidth: 250, color: '#c8c4bc', fontSize: '0.85rem' }}>{r.comment || <span className="text-muted">—</span>}</td>
-                  <td style={{ color: 'rgba(200,196,188,0.6)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td style={{ color: 'rgba(200,196,188,0.6)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{formatColomboDate(r.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -19,7 +20,9 @@ public class DeliveryReviewEntity {
     @Id
     private String id;
 
+    @Indexed
     private String orderId;
+    @Indexed
     private String deliveryPersonId;
     private String customerId;
     private String customerName;

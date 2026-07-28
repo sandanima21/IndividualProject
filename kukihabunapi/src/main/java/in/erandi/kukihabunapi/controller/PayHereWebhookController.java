@@ -1,46 +1,25 @@
 package in.erandi.kukihabunapi.controller;
 
-import in.erandi.kukihabunapi.io.OrderResponse;
-import in.erandi.kukihabunapi.repository.OrderRepository;
-import in.erandi.kukihabunapi.repository.PaymentRepository;
-import in.erandi.kukihabunapi.service.OrderService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.web.bind.annotation.*;
-
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-/**
- * Receives PayHere's automated refund-status callback and automatically
- * transitions the order to REFUNDED in the database.
- *
- * Configure this URL in the PayHere merchant portal (Merchant API → Webhooks):
- *   Production : https://yoursite.com/api/v1/payhere/refund-webhook
- *   Sandbox    : https://yoursite.com/api/v1/payhere/refund-webhook  (same path)
- *
- * PayHere sends HTTP POST with application/x-www-form-urlencoded params.
- * Expected params (subset):
- *   merchant_id, order_id, payment_id, payhere_amount, payhere_currency,
- *   status_code, md5sig
- *
- * Signature verification (same algorithm as payment notify):
- *   MD5( merchant_id + order_id + payhere_amount + payhere_currency
- *        + status_code + MD5(merchantSecret).toUpperCase() ).toUpperCase()
- *
- * Status codes (PayHere):
- *   Positive (≥1) → refund was processed successfully → REFUNDED
- *   Negative      → refund failed; logged, status stays at REFUND_INITIATED
- *
- * Note: PayHere may also send refund callbacks to your original notify_url
- * (with a refund-specific status_code). Duplicate calls are idempotent because
- * we only transition REFUND_INITIATED → REFUNDED (already-REFUNDED orders are skipped).
- */
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import in.erandi.kukihabunapi.io.OrderResponse;
+import in.erandi.kukihabunapi.repository.OrderRepository;
+import in.erandi.kukihabunapi.repository.PaymentRepository;
+import in.erandi.kukihabunapi.service.OrderService;
+
 @RestController
 @RequestMapping("/api/v1/payhere")
 public class PayHereWebhookController {

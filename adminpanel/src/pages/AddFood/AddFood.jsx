@@ -39,11 +39,19 @@ const AddFood = () => {
       return;
     }
     try {
+      // Stored under `customizables` (not the legacy spiceLevels/ingredientsToAvoid
+      // fields) so records created here use the same shape as ones created via the
+      // Available Foods page's customization builder.
+      const customizables = [];
+      if (spiceLevels.length > 0) customizables.push({ thing: 'Spice Level', options: spiceLevels });
+      if (ingredientsToAvoid.length > 0) customizables.push({ thing: 'Ingredients to Avoid', options: ingredientsToAvoid });
+
       const foodData = {
         ...data,
         customizationOptions: {
-          spiceLevels,
-          ingredientsToAvoid,
+          spiceLevels: [],
+          ingredientsToAvoid: [],
+          customizables,
         },
       };
       await addFood(foodData, image);

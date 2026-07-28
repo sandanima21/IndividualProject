@@ -156,8 +156,19 @@ public class AuthServiceImpl implements AuthService {
         UserEntity user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
 
+        // This endpoint has no prior JWT to check ownership against — it's the very first
+        // credential a newly-provisioned delivery account sets, using the User ID shared by
+        // an admin. Restricting it to accounts that haven't set a password yet prevents it
+        // from being used as a general-purpose password reset for any account whose id leaks
+        // or is guessed (including already-onboarded delivery users, customers, or admins).
+        if (user.isPasswordSet()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "This account already has a password set. Please sign in instead.");
+        }
+
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setPasswordSet(true);
+        user.setMustChangePassword(false);
         userRepository.save(user);
 
         return buildResponse(user);

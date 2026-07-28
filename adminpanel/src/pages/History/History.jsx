@@ -3,6 +3,7 @@ import { getAllOrders } from '../../services/orderService';
 import { getAllReviews } from '../../services/reviewService';
 import { RefundedTable } from '../Refunds/Refunds';
 import { toast } from 'react-toastify';
+import { formatColomboDate, formatColomboTime } from '../../utils/date';
 
 const FILTERS = [
   { key: 'today', label: 'Today' },
@@ -67,8 +68,8 @@ const OrderRow = ({ order, reviewsForOrder }) => {
           Rs.{order.total?.toFixed(2)}
         </td>
         <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: 'rgba(200,196,188,0.45)', whiteSpace: 'nowrap' }}>
-          {new Date(order.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric' })}
-          <div style={{ fontSize: '0.68rem' }}>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+          {formatColomboDate(order.createdAt)}
+          <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.createdAt)}</div>
         </td>
         <td style={{ padding: '10px 12px', borderRadius: '0 10px 10px 0', textAlign: 'center' }}>
           {hasReviews ? (

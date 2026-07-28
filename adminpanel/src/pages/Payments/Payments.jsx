@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { formatColomboDateTime } from '../../utils/date';
 
 const statusColor = { PENDING: 'secondary', SUCCESS: 'success', FAILED: 'danger', REFUNDED: 'warning', CANCELLED: 'dark' };
 
@@ -58,10 +59,10 @@ const Payments = () => {
                     <span className={`badge bg-${statusColor[p.status]}`}>{p.status}</span>
                   </td>
                   <td className="align-middle small text-muted">
-                    {p.paidAt ? new Date(p.paidAt).toLocaleString() : '—'}
+                    {formatColomboDateTime(p.paidAt)}
                   </td>
                   <td className="align-middle small text-muted">
-                    {p.cancelableUntil ? new Date(p.cancelableUntil).toLocaleString() : '—'}
+                    {formatColomboDateTime(p.cancelableUntil)}
                   </td>
                 </tr>
               ))}

@@ -1,66 +1,44 @@
 package in.erandi.kukihabunapi.service;
 
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseAuthException;
+import com.google.firebase.auth.FirebaseToken;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * Prototype implementation of {@link FirebasePhoneService}.
+ * Verifies a Firebase Phone Auth ID token server-side via the Firebase Admin
+ * SDK (initialized once at startup by {@link in.erandi.kukihabunapi.config.FirebaseConfig}).
  *
- * In sandbox / test-number mode, the Firebase client SDK already verified the
- * OTP before calling our backend, so we log the received token and trust the
- * phone number provided in the request body.
- *
- * ──────────────────────────────────────────────────────────────────────────────
- *  HOW TO UPGRADE TO PRODUCTION (firebase-admin SDK)
- * ──────────────────────────────────────────────────────────────────────────────
- *
- *  1. Add the dependency to pom.xml:
- *
- *       <dependency>
- *           <groupId>com.google.firebase</groupId>
- *           <artifactId>firebase-admin</artifactId>
- *           <version>9.4.1</version>
- *       </dependency>
- *
- *  2. Download your Firebase service-account JSON from:
- *       Firebase Console → Project Settings → Service accounts → Generate new private key
- *     Place the file at: src/main/resources/firebase-service-account.json
- *
- *  3. Initialize the SDK once at application startup (e.g. in a @Configuration class):
- *
- *       @PostConstruct
- *       public void initFirebase() throws IOException {
- *           FileInputStream sa = new FileInputStream(
- *               "src/main/resources/firebase-service-account.json");
- *           FirebaseOptions opts = FirebaseOptions.builder()
- *               .setCredentials(GoogleCredentials.fromStream(sa))
- *               .build();
- *           FirebaseApp.initializeApp(opts);
- *       }
- *
- *  4. Replace the body of verifyToken() with:
- *
- *       try {
- *           FirebaseToken decoded = FirebaseAuth.getInstance().verifyIdToken(idToken);
- *           // phone_number claim is set by Firebase for phone-auth tokens
- *           return (String) decoded.getClaims().get("phone_number");
- *       } catch (FirebaseAuthException e) {
- *           System.err.println("[FIREBASE] Token verification failed: " + e.getMessage());
- *           return null;
- *       }
- *
- * ──────────────────────────────────────────────────────────────────────────────
+ * Returns the verified E.164 phone number from the token's `phone_number`
+ * claim, or {@code null} if the token is missing, invalid, expired, or the
+ * Admin SDK failed to initialize (e.g. no service-account file present) — in
+ * every {@code null} case, the caller (AuthController.verifyPhone) falls back
+ * to the phone number supplied in the request body, same as before this was
+ * wired up to a real check.
  */
 @Service
 public class FirebasePhoneServiceImpl implements FirebasePhoneService {
+
+    private static final Logger log = LoggerFactory.getLogger(FirebasePhoneServiceImpl.class);
 
     @Override
     public String verifyToken(String idToken) {
         if (idToken == null || idToken.isBlank()) {
             return null;
         }
-
-        // Return null → controller falls back to the phone from the request body.
-        // In production: decode and verify the Firebase ID token with firebase-admin SDK.
-        return null;
+        try {
+            FirebaseToken decoded = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            Object phone = decoded.getClaims().get("phone_number");
+            return phone != null ? phone.toString() : null;
+        } catch (FirebaseAuthException e) {
+            log.warn("Firebase phone token verification failed: {}", e.getMessage());
+            return null;
+        } catch (IllegalStateException e) {
+            // FirebaseApp never initialized — most likely a missing service-account file.
+            log.error("Firebase Admin SDK not initialized — cannot verify phone token: {}", e.getMessage());
+            return null;
+        }
     }
 }

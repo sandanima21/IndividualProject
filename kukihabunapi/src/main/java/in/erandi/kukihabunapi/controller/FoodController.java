@@ -8,8 +8,10 @@ import org.springframework.web.multipart.MultipartFile;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import in.erandi.kukihabunapi.config.JwtUtil;
 import in.erandi.kukihabunapi.io.FoodRequest;
 import in.erandi.kukihabunapi.io.FoodResponse;
+import in.erandi.kukihabunapi.repository.UserRepository;
 import in.erandi.kukihabunapi.service.FoodService;
 import lombok.AllArgsConstructor;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,10 +26,24 @@ import java.util.List;
 public class FoodController {
 
     private FoodService foodService;
+    private JwtUtil jwtUtil;
+    private UserRepository userRepository;
+
+    /** True only if the Authorization header carries a valid JWT belonging to an ADMIN account. */
+    private boolean isAdmin(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return false;
+        String token = authHeader.substring(7);
+        if (!jwtUtil.validateToken(token)) return false;
+        String userId = jwtUtil.extractUserId(token);
+        return userRepository.findById(userId).map(u -> "ADMIN".equals(u.getRole())).orElse(false);
+    }
 
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public FoodResponse addFood(@RequestPart("food") String foodString,
-                                @RequestPart("file")MultipartFile file) {
+                                @RequestPart("file")MultipartFile file,
+                                @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         ObjectMapper objectMapper = new ObjectMapper();
         FoodRequest request = null;
         try {
@@ -53,7 +69,9 @@ public class FoodController {
     @PutMapping("/{id}")
     public FoodResponse updateFood(@PathVariable String id,
                                    @RequestPart("food") String foodString,
-                                   @RequestPart(value = "file", required = false) MultipartFile file) {
+                                   @RequestPart(value = "file", required = false) MultipartFile file,
+                                   @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         ObjectMapper objectMapper = new ObjectMapper();
         FoodRequest request;
         try {
@@ -66,7 +84,8 @@ public class FoodController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteFood(@PathVariable String id){
+    public void deleteFood(@PathVariable String id, @RequestHeader(value = "Authorization", required = false) String authHeader){
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         foodService.deleteFood(id);
     }
 

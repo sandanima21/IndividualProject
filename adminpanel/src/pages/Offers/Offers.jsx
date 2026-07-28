@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { toast } from 'react-toastify';
 
 const API = `${import.meta.env.VITE_API_URL}/api/offers`;
@@ -28,7 +28,7 @@ const Offers = () => {
 
   const load = async () => {
     try {
-      const res = await axios.get(`${API}/all`);
+      const res = await api.get(`${API}/all`);
       setOffers(res.data);
     } catch { toast.error('Failed to load offers.'); }
   };
@@ -89,10 +89,10 @@ const Offers = () => {
       if (imageFile)      fd.append('file', imageFile);
 
       if (editingId) {
-        await axios.put(`${API}/${editingId}`, fd);
+        await api.put(`${API}/${editingId}`, fd);
         toast.success('Offer updated!');
       } else {
-        await axios.post(API, fd);
+        await api.post(API, fd);
         toast.success('Offer created!');
       }
       resetForm();
@@ -108,7 +108,7 @@ const Offers = () => {
     if (!window.confirm('Delete this offer?')) return;
     setDeletingId(id);
     try {
-      await axios.delete(`${API}/${id}`);
+      await api.delete(`${API}/${id}`);
       toast.success('Offer deleted.');
       setOffers(prev => prev.filter(o => o.id !== id));
       if (editingId === id) resetForm();
