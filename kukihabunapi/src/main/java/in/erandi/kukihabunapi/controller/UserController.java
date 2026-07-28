@@ -201,11 +201,29 @@ public class UserController {
         // JWT (for any account) could reset any other user's password.
         if (!jwtUtil.extractUserId(token).equals(id)) return ResponseEntity.status(403).build();
 
+        String password = body.get("password");
+        validatePasswordStrength(password);
+
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        user.setPassword(passwordEncoder.encode(body.get("password")));
+        user.setPassword(passwordEncoder.encode(password));
         user.setMustChangePassword(false);
         userRepository.save(user);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Mirrors the frontend's password rule (8+ chars, upper, lower, number, special char) so
+     *  a raw API call bypassing the UI can't set a weak password. */
+    private void validatePasswordStrength(String password) {
+        if (password == null || password.length() < 8)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 8 characters.");
+        if (!password.matches(".*[A-Z].*"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must include an uppercase letter.");
+        if (!password.matches(".*[a-z].*"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must include a lowercase letter.");
+        if (!password.matches(".*[0-9].*"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must include a number.");
+        if (!password.matches(".*[^A-Za-z0-9].*"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must include a special character.");
     }
 }

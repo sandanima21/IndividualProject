@@ -28,14 +28,17 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
     private final EmailService emailService;
+    private final LoginRateLimiter loginRateLimiter;
 
     public AuthServiceImpl(UserRepository userRepository, EmailOtpRepository emailOtpRepository,
-                           JwtUtil jwtUtil, BCryptPasswordEncoder passwordEncoder, EmailService emailService) {
+                           JwtUtil jwtUtil, BCryptPasswordEncoder passwordEncoder, EmailService emailService,
+                           LoginRateLimiter loginRateLimiter) {
         this.userRepository = userRepository;
         this.emailOtpRepository = emailOtpRepository;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     @Override
@@ -94,6 +97,10 @@ public class AuthServiceImpl implements AuthService {
                             });
                 });
 
+        if (!user.isActive()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account has been deactivated.");
+        }
+
         if (isNew[0] && email != null) {
             emailService.sendWelcome(email, name);
         }
@@ -110,6 +117,7 @@ public class AuthServiceImpl implements AuthService {
         if (userRepository.findByUsername(request.getUsername()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken.");
         }
+        validatePasswordStrength(request.getPassword());
 
         // Enforce that email was verified via OTP before account creation
         var verifiedOtp = emailOtpRepository
@@ -137,17 +145,28 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public AuthResponse loginManual(ManualLoginRequest request) {
+        loginRateLimiter.checkAllowed(request.getUsernameOrEmail());
+
         UserEntity user = userRepository.findByUsername(request.getUsernameOrEmail())
                 .or(() -> userRepository.findFirstByEmail(request.getUsernameOrEmail()))
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found."));
+                .orElseGet(() -> null);
+        if (user == null) {
+            loginRateLimiter.recordFailure(request.getUsernameOrEmail());
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found.");
+        }
 
         if (user.getPassword() == null || !user.isPasswordSet()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Password not set. Please set your password first.");
         }
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            loginRateLimiter.recordFailure(request.getUsernameOrEmail());
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid password.");
         }
+        if (!user.isActive()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This account has been deactivated.");
+        }
 
+        loginRateLimiter.recordSuccess(request.getUsernameOrEmail());
         return buildResponse(user);
     }
 
@@ -165,6 +184,7 @@ public class AuthServiceImpl implements AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "This account already has a password set. Please sign in instead.");
         }
+        validatePasswordStrength(request.getPassword());
 
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setPasswordSet(true);
@@ -172,6 +192,21 @@ public class AuthServiceImpl implements AuthService {
         userRepository.save(user);
 
         return buildResponse(user);
+    }
+
+    /** Mirrors the frontend's password rule (8+ chars, upper, lower, number, special char) so
+     *  a raw API call bypassing the UI can't set a weak password. */
+    private void validatePasswordStrength(String password) {
+        if (password == null || password.length() < 8)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must be at least 8 characters.");
+        if (!password.matches(".*[A-Z].*"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must include an uppercase letter.");
+        if (!password.matches(".*[a-z].*"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must include a lowercase letter.");
+        if (!password.matches(".*[0-9].*"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must include a number.");
+        if (!password.matches(".*[^A-Za-z0-9].*"))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must include a special character.");
     }
 
     private AuthResponse buildResponse(UserEntity user) {
