@@ -7,23 +7,23 @@ import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.InputStream;
 
 /**
- * Initializes the Firebase Admin SDK once at application startup, using the
- * service-account credentials at src/main/resources/firebase-service-account.json
- * (gitignored — see .gitignore's "Secrets" section). This is what lets
- * FirebasePhoneServiceImpl verify phone-auth ID tokens server-side instead of
- * trusting the client.
+ * Initializes the Firebase Admin SDK once at application startup, using the service-account
+ * credentials at {@code firebase.credentials.path}. Locally this defaults to the classpath file
+ * at src/main/resources/firebase-service-account.json (gitignored — see .gitignore's "Secrets"
+ * section). On Render, the file isn't in the git repo at all (same reason), so it's uploaded as a
+ * Render "Secret File" instead and this property is set to file:/etc/secrets/firebase-service-account.json
+ * (or wherever it's mounted) via the FIREBASE_CREDENTIALS_PATH env var.
  *
- * Initialization failure (e.g. the file is missing on a machine that hasn't
- * been given the secret) is logged but does not crash the app — phone
- * verification will simply fall back to trusting the client-supplied phone,
- * same as before this was wired up.
+ * This underpins both FirebasePhoneServiceImpl (phone-auth token verification, which falls back
+ * to trusting the client-supplied number if Firebase never initialized) and FirebaseStorageService
+ * (image uploads, which has no such fallback — an uninitialized FirebaseApp fails those outright).
  */
 @Component
 public class FirebaseConfig {
@@ -33,12 +33,21 @@ public class FirebaseConfig {
     @Value("${firebase.storage.bucket}")
     private String storageBucket;
 
+    @Value("${firebase.credentials.path:classpath:firebase-service-account.json}")
+    private String credentialsPath;
+
+    private final ResourceLoader resourceLoader;
+
+    public FirebaseConfig(ResourceLoader resourceLoader) {
+        this.resourceLoader = resourceLoader;
+    }
+
     @PostConstruct
     public void init() {
         if (!FirebaseApp.getApps().isEmpty()) {
             return;
         }
-        try (InputStream serviceAccount = new ClassPathResource("firebase-service-account.json").getInputStream()) {
+        try (InputStream serviceAccount = resourceLoader.getResource(credentialsPath).getInputStream()) {
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                     .setStorageBucket(storageBucket)
@@ -46,8 +55,9 @@ public class FirebaseConfig {
             FirebaseApp.initializeApp(options);
             log.info("Firebase Admin SDK initialized.");
         } catch (IOException e) {
-            log.error("Firebase service account file not found or unreadable — phone verification will fall back " +
-                    "to trusting the client-supplied number: {}", e.getMessage());
+            log.error("Firebase service account file not found or unreadable at '{}' — phone verification will " +
+                    "fall back to trusting the client-supplied number, and image uploads will fail: {}",
+                    credentialsPath, e.getMessage());
         }
     }
 }

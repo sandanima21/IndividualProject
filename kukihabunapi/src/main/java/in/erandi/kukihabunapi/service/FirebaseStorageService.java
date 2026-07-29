@@ -41,6 +41,11 @@ public class FirebaseStorageService {
             return publicUrl(blob.getBucket(), path);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Image upload failed: " + e.getMessage());
+        } catch (IllegalStateException e) {
+            // FirebaseApp never initialized — most likely a missing/misconfigured service-account
+            // credentials file, unlike phone verification this has no silent fallback.
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Image storage is not configured on this server: " + e.getMessage());
         }
     }
 
