@@ -4,22 +4,15 @@ import in.erandi.kukihabunapi.config.JwtUtil;
 import in.erandi.kukihabunapi.entity.OfferEntity;
 import in.erandi.kukihabunapi.repository.OfferRepository;
 import in.erandi.kukihabunapi.repository.UserRepository;
+import in.erandi.kukihabunapi.service.FirebaseStorageService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.IOException;
-import software.amazon.awssdk.core.exception.SdkException;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @RestController
@@ -28,12 +21,9 @@ import java.util.stream.Collectors;
 public class OfferController {
 
     private final OfferRepository offerRepository;
-    private final S3Client s3Client;
+    private final FirebaseStorageService storageService;
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
-
-    @Value("${aws.s3.bucketname}")
-    private String bucketName;
 
     /** True only if the Authorization header carries a valid JWT belonging to an ADMIN account. */
     private boolean isAdmin(String authHeader) {
@@ -73,7 +63,7 @@ public class OfferController {
             @RequestHeader(value = "Authorization", required = false) String authHeader
     ) {
         if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
-        String imageUrl = (file != null && !file.isEmpty()) ? uploadToS3(file) : null;
+        String imageUrl = (file != null && !file.isEmpty()) ? storageService.upload(file, "offers") : null;
         return offerRepository.save(OfferEntity.builder()
                 .title(title)
                 .description(description)
@@ -104,8 +94,8 @@ public class OfferController {
         offer.setEndDate(endDate != null ? LocalDateTime.parse(endDate) : null);
         offer.setPrice(price);
         if (file != null && !file.isEmpty()) {
-            if (offer.getImageUrl() != null) deleteFromS3(offer.getImageUrl());
-            offer.setImageUrl(uploadToS3(file));
+            if (offer.getImageUrl() != null) storageService.delete(offer.getImageUrl());
+            offer.setImageUrl(storageService.upload(file, "offers"));
         }
         return offerRepository.save(offer);
     }
@@ -116,28 +106,7 @@ public class OfferController {
         if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         OfferEntity offer = offerRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
-        if (offer.getImageUrl() != null) deleteFromS3(offer.getImageUrl());
+        if (offer.getImageUrl() != null) storageService.delete(offer.getImageUrl());
         offerRepository.deleteById(id);
-    }
-
-    private String uploadToS3(MultipartFile file) {
-        String ext = file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf('.') + 1);
-        String key = "offers/" + UUID.randomUUID() + "." + ext;
-        try {
-            s3Client.putObject(
-                    PutObjectRequest.builder().bucket(bucketName).key(key).contentType(file.getContentType()).build(),
-                    RequestBody.fromBytes(file.getBytes())
-            );
-        } catch (SdkException | IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Image upload failed: " + e.getMessage());
-        }
-        return "https://" + bucketName + ".s3.amazonaws.com/" + key;
-    }
-
-    private void deleteFromS3(String imageUrl) {
-        try {
-            String key = imageUrl.substring(imageUrl.lastIndexOf(".amazonaws.com/") + ".amazonaws.com/".length());
-            s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucketName).key(key).build());
-        } catch (Exception ignored) {}
     }
 }

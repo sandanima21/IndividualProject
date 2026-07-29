@@ -6,6 +6,7 @@ import com.google.firebase.FirebaseOptions;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +30,9 @@ public class FirebaseConfig {
 
     private static final Logger log = LoggerFactory.getLogger(FirebaseConfig.class);
 
+    @Value("${firebase.storage.bucket}")
+    private String storageBucket;
+
     @PostConstruct
     public void init() {
         if (!FirebaseApp.getApps().isEmpty()) {
@@ -37,6 +41,7 @@ public class FirebaseConfig {
         try (InputStream serviceAccount = new ClassPathResource("firebase-service-account.json").getInputStream()) {
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                    .setStorageBucket(storageBucket)
                     .build();
             FirebaseApp.initializeApp(options);
             log.info("Firebase Admin SDK initialized.");

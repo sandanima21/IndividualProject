@@ -14,16 +14,11 @@ import in.erandi.kukihabunapi.repository.OfferRepository;
 import in.erandi.kukihabunapi.repository.OrderRepository;
 import in.erandi.kukihabunapi.repository.PaymentRepository;
 import in.erandi.kukihabunapi.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -34,7 +29,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,23 +40,20 @@ public class OrderServiceImpl implements OrderService {
     private final OfferRepository offerRepository;
     private final PaymentRepository paymentRepository;
     private final SequenceService sequenceService;
-    private final S3Client s3Client;
+    private final FirebaseStorageService storageService;
     private final PayHereRefundService payhereRefundService;
-
-    @Value("${aws.s3.bucketname}")
-    private String bucketName;
 
     public OrderServiceImpl(OrderRepository orderRepository, FoodRepository foodRepository,
                             UserRepository userRepository, OfferRepository offerRepository,
                             PaymentRepository paymentRepository, SequenceService sequenceService,
-                            S3Client s3Client, PayHereRefundService payhereRefundService) {
+                            FirebaseStorageService storageService, PayHereRefundService payhereRefundService) {
         this.orderRepository = orderRepository;
         this.foodRepository = foodRepository;
         this.userRepository = userRepository;
         this.offerRepository = offerRepository;
         this.paymentRepository = paymentRepository;
         this.sequenceService = sequenceService;
-        this.s3Client = s3Client;
+        this.storageService = storageService;
         this.payhereRefundService = payhereRefundService;
     }
 
@@ -218,17 +209,7 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse uploadRefundReceipt(String orderId, MultipartFile file) {
         OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
-        String ext = file.getOriginalFilename() != null && file.getOriginalFilename().contains(".")
-                ? file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf('.') + 1) : "jpg";
-        String key = "refund-receipts/" + UUID.randomUUID() + "." + ext;
-        try {
-            s3Client.putObject(
-                    PutObjectRequest.builder().bucket(bucketName).key(key).contentType(file.getContentType()).build(),
-                    RequestBody.fromBytes(file.getBytes()));
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Receipt upload failed: " + e.getMessage());
-        }
-        order.setRefundReceiptUrl("https://" + bucketName + ".s3.amazonaws.com/" + key);
+        order.setRefundReceiptUrl(storageService.upload(file, "refund-receipts"));
         order.setUpdatedAt(LocalDateTime.now());
         return toResponse(orderRepository.save(order));
     }

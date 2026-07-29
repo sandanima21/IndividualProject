@@ -4,20 +4,16 @@ import in.erandi.kukihabunapi.config.JwtUtil;
 import in.erandi.kukihabunapi.entity.UserEntity;
 import in.erandi.kukihabunapi.repository.UserRepository;
 import in.erandi.kukihabunapi.service.EmailService;
-import org.springframework.beans.factory.annotation.Value;
+import in.erandi.kukihabunapi.service.FirebaseStorageService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/users")
@@ -27,18 +23,15 @@ public class UserController {
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
-    private final S3Client s3Client;
-
-    @Value("${aws.s3.bucketname}")
-    private String bucketName;
+    private final FirebaseStorageService storageService;
 
     public UserController(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder,
-                          JwtUtil jwtUtil, EmailService emailService, S3Client s3Client) {
+                          JwtUtil jwtUtil, EmailService emailService, FirebaseStorageService storageService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.emailService = emailService;
-        this.s3Client = s3Client;
+        this.storageService = storageService;
     }
 
     /** True only if the Authorization header carries a valid JWT belonging to an ADMIN account. */
@@ -65,23 +58,10 @@ public class UserController {
 
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        try {
-            String ext = file.getOriginalFilename() != null
-                    ? file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf('.') + 1)
-                    : "jpg";
-            String key = "profiles/" + UUID.randomUUID() + "." + ext;
-            s3Client.putObject(
-                    PutObjectRequest.builder().bucket(bucketName).key(key).contentType(file.getContentType()).build(),
-                    software.amazon.awssdk.core.sync.RequestBody.fromBytes(file.getBytes())
-            );
-            String pictureUrl = "https://" + bucketName + ".s3.amazonaws.com/" + key;
-            user.setPicture(pictureUrl);
-            userRepository.save(user);
-            return ResponseEntity.ok(Map.of("pictureUrl", pictureUrl));
-        } catch (IOException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Upload failed: " + e.getMessage()));
-        }
+        String pictureUrl = storageService.upload(file, "profiles");
+        user.setPicture(pictureUrl);
+        userRepository.save(user);
+        return ResponseEntity.ok(Map.of("pictureUrl", pictureUrl));
     }
 
     @PatchMapping("/me/phone")

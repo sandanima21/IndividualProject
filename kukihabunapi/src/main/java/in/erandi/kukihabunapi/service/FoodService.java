@@ -15,7 +15,7 @@ public interface FoodService {
 
     FoodResponse readFood(String id);
 
-    boolean deleteFile(String filename);
+    boolean deleteFile(String imageUrl);
 
     void deleteFood(String id);
 

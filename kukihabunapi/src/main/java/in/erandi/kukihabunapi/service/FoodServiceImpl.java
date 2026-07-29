@@ -1,12 +1,9 @@
 package in.erandi.kukihabunapi.service;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -16,42 +13,20 @@ import in.erandi.kukihabunapi.entity.FoodEntity;
 import in.erandi.kukihabunapi.io.FoodRequest;
 import in.erandi.kukihabunapi.io.FoodResponse;
 import in.erandi.kukihabunapi.repository.FoodRepository;
-import software.amazon.awssdk.core.exception.SdkException;
-import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.services.s3.S3Client;
-import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
 @Service
 
 public class FoodServiceImpl implements FoodService {
 
     @Autowired
-    private S3Client s3Client;
+    private FirebaseStorageService storageService;
 
     @Autowired
     private FoodRepository foodRepository;
 
-    @Value("${aws.s3.bucketname}")
-    private String bucketName;
-
     @Override
     public String uploadFile(MultipartFile file) {
-        String filenameExtension = file.getOriginalFilename().substring(file.getOriginalFilename().lastIndexOf(".")+1);
-        String key = UUID.randomUUID().toString()+"."+filenameExtension;
-        try {
-            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
-                    .bucket(bucketName)
-                    .key(key)
-                    .contentType(file.getContentType())
-                    .build();
-            s3Client.putObject(putObjectRequest, RequestBody.fromBytes(file.getBytes()));
-            return "https://" + bucketName + ".s3.amazonaws.com/" + key;
-        } catch (SdkException | IOException ex) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "File upload failed: " + ex.getMessage());
-        }
+        return storageService.upload(file, "foods");
     }
 
     @Override
@@ -76,21 +51,15 @@ public class FoodServiceImpl implements FoodService {
     }
 
     @Override
-    public boolean deleteFile(String filename) {
-        DeleteObjectRequest deleteObjectRequest = DeleteObjectRequest.builder()
-                .bucket(bucketName)
-                .key(filename)
-                .build();
-        s3Client.deleteObject(deleteObjectRequest);
+    public boolean deleteFile(String imageUrl) {
+        storageService.delete(imageUrl);
         return true;
     }
 
     @Override
     public void deleteFood(String id) {
         FoodResponse response=readFood(id);
-        String imageUrl=response.getImageUrl();
-        String filename=imageUrl.substring(imageUrl.lastIndexOf("/")+1);
-        boolean isFileDelete=deleteFile(filename);
+        boolean isFileDelete=deleteFile(response.getImageUrl());
         if (isFileDelete){
             foodRepository.deleteById(response.getId());
         }
@@ -106,14 +75,10 @@ public class FoodServiceImpl implements FoodService {
         existing.setPrice(request.getPrice());
         existing.setCustomizationOptions(request.getCustomizationOptions());
         if (file != null && !file.isEmpty()) {
-            // Delete old image from S3 then upload new one
-            try {
-                String oldUrl = existing.getImageUrl();
-                if (oldUrl != null && !oldUrl.isBlank()) {
-                    String oldKey = oldUrl.substring(oldUrl.lastIndexOf("/") + 1);
-                    deleteFile(oldKey);
-                }
-            } catch (Exception ignored) {}
+            String oldUrl = existing.getImageUrl();
+            if (oldUrl != null && !oldUrl.isBlank()) {
+                deleteFile(oldUrl);
+            }
             existing.setImageUrl(uploadFile(file));
         }
         return convertToResponse(foodRepository.save(existing));

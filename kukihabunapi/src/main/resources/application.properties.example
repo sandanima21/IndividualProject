@@ -16,11 +16,8 @@ stripe.webhook-secret=${STRIPE_WEBHOOK_SECRET}
 # MongoDB
 spring.mongodb.uri=mongodb://localhost:27017/KukiHabunDB
 
-# AWS S3
-aws.access.key=${AWS_ACCESS_KEY}
-aws.secret.key=${AWS_SECRET_KEY}
-aws.region=eu-north-1
-aws.s3.bucketname=kukihabun-food
+# Image storage — Firebase Cloud Storage (same Firebase project used for phone verification)
+firebase.storage.bucket=${FIREBASE_STORAGE_BUCKET}
 
 # JWT
 app.jwt.secret=${JWT_SECRET}
