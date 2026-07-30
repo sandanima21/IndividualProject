@@ -202,12 +202,12 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
             )}
             <div>
               <div style={{ fontSize: '0.65rem', color: 'rgba(200,196,188,0.4)', marginBottom: 3 }}>Refund Amount</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f87171' }}>Rs.{order.total?.toFixed(2)}</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f0ece0' }}>Rs.{order.total?.toFixed(2)}</div>
             </div>
             {order.payherePaymentId && (
               <div>
                 <div style={{ fontSize: '0.65rem', color: 'rgba(200,196,188,0.4)', marginBottom: 3 }}>PayHere Txn ID</div>
-                <code style={{ fontSize: '0.8rem', color: '#a78bfa', background: 'rgba(167,139,250,0.1)', padding: '2px 8px', borderRadius: 4, userSelect: 'all' }}>
+                <code style={{ fontSize: '0.8rem', color: 'rgba(200,196,188,0.7)', background: 'rgba(255,255,255,0.05)', padding: '2px 8px', borderRadius: 4, userSelect: 'all' }}>
                   {order.payherePaymentId}
                 </code>
               </div>
@@ -228,7 +228,7 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
               <div style={{ fontSize: '0.68rem', color: 'rgba(200,196,188,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
                 Customer Bank Details (for transfer)
               </div>
-              <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', padding: '10px 14px', background: 'rgba(244,162,78,0.06)', border: '1px solid rgba(244,162,78,0.15)', borderRadius: 8 }}>
+              <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', padding: '10px 14px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8 }}>
                 <div>
                   <div style={{ fontSize: '0.65rem', color: 'rgba(200,196,188,0.4)', marginBottom: 3 }}>Bank</div>
                   <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{order.refundBankName}</div>
@@ -347,13 +347,13 @@ export const RefundedTable = ({ orders, onRefresh, emptyMsg = 'No refunds in thi
         <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 6px' }}>
           <thead>
             <tr style={{ fontSize: '0.68rem', color: 'rgba(200,196,188,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              <th style={{ paddingBottom: 8, paddingLeft: 12 }}>Order ID</th>
-              <th style={{ paddingBottom: 8 }}>Customer</th>
-              <th style={{ paddingBottom: 8 }}>Items</th>
-              <th style={{ paddingBottom: 8 }}>Amount</th>
-              <th style={{ paddingBottom: 8 }}>Bank Details</th>
-              <th style={{ paddingBottom: 8 }}>Refund Status</th>
-              <th style={{ paddingBottom: 8 }}>Date</th>
+              <th style={{ paddingBottom: 8, textAlign: 'center' }}>Order ID</th>
+              <th style={{ paddingBottom: 8, textAlign: 'center' }}>Customer</th>
+              <th style={{ paddingBottom: 8, textAlign: 'center' }}>Items</th>
+              <th style={{ paddingBottom: 8, textAlign: 'center' }}>Amount</th>
+              <th style={{ paddingBottom: 8, textAlign: 'center' }}>Bank Details</th>
+              <th style={{ paddingBottom: 8, textAlign: 'center' }}>Refund Status</th>
+              <th style={{ paddingBottom: 8, textAlign: 'center' }}>Date</th>
               <th style={{ paddingBottom: 8, textAlign: 'center' }}>Action</th>
             </tr>
           </thead>
@@ -366,28 +366,28 @@ export const RefundedTable = ({ orders, onRefresh, emptyMsg = 'No refunds in thi
                   <tr style={{ background: '#1a1a1a', cursor: 'pointer' }}
                     onClick={() => setExpandedId(expanded ? null : order.id)}>
 
-                    <td style={{ padding: '10px 12px', borderRadius: expanded ? '10px 0 0 0' : '10px 0 0 10px', color: '#f87171', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'monospace' }}>
+                    <td style={{ padding: '10px 12px', textAlign: 'center', borderRadius: expanded ? '10px 0 0 0' : '10px 0 0 10px', color: 'var(--gold)', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'monospace' }}>
                       <i className={`bi bi-chevron-${expanded ? 'up' : 'down'} me-1`} style={{ fontSize: '0.6rem', opacity: 0.5 }}></i>
                       {order.displayId || `#${order.id.slice(-6).toUpperCase()}`}
                     </td>
 
-                    <td style={{ padding: '10px 12px' }}>
+                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                       <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{order.userName}</div>
                       {order.userEmail && <div style={{ fontSize: '0.7rem', color: 'rgba(200,196,188,0.45)' }}>{order.userEmail}</div>}
                     </td>
 
-                    <td style={{ padding: '10px 12px', fontSize: '0.78rem', color: 'rgba(200,196,188,0.6)', maxWidth: 160 }}>
+                    <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: '0.78rem', color: 'rgba(200,196,188,0.6)', maxWidth: 160 }}>
                       <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                         {order.items?.map(i => `${i.foodName} ×${i.quantity}`).join(' · ')}
                       </span>
                     </td>
 
-                    <td style={{ padding: '10px 12px', fontWeight: 700, color: '#f87171', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: '#f0ece0', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
                       Rs.{order.total?.toFixed(2)}
                     </td>
 
                     {/* Bank details preview */}
-                    <td style={{ padding: '10px 12px' }}>
+                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
                       {hasBankDetails ? (
                         <div>
                           <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>{order.refundBankName}</div>
@@ -398,23 +398,23 @@ export const RefundedTable = ({ orders, onRefresh, emptyMsg = 'No refunds in thi
                       )}
                     </td>
 
-                    <td style={{ padding: '10px 12px' }}>
-                      <div>
+                    <td style={{ padding: '10px 12px', textAlign: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
                         <RefundStatusBadge status={order.refundStatus} />
                         {order.cancelledBy === 'ADMIN' && (
-                          <span className="ms-1" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 20, background: 'rgba(167,139,250,0.12)', color: '#a78bfa', fontSize: '0.7rem', fontWeight: 600 }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 20, background: 'rgba(167,139,250,0.12)', color: '#a78bfa', fontSize: '0.7rem', fontWeight: 600 }}>
                             <i className="bi bi-x-octagon"></i>Admin Cancelled
                           </span>
                         )}
                         {order.refundNotes && !isAutoNote(order.refundNotes) && (
-                          <div style={{ fontSize: '0.65rem', color: 'rgba(200,196,188,0.4)', marginTop: 3, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.refundNotes}>
+                          <div style={{ fontSize: '0.65rem', color: 'rgba(200,196,188,0.4)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.refundNotes}>
                             {order.refundNotes}
                           </div>
                         )}
                       </div>
                     </td>
 
-                    <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: 'rgba(200,196,188,0.45)', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: '0.75rem', color: 'rgba(200,196,188,0.45)', whiteSpace: 'nowrap' }}>
                       {formatColomboDate(order.createdAt)}
                       <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.createdAt)}</div>
                     </td>
