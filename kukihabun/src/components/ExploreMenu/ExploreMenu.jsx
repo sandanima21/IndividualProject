@@ -1,8 +1,9 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { categories } from '../../assets/assets';
+import React, { useRef, useEffect, useState, useContext } from 'react';
+import { StoreContext } from '../../context/StoreContext';
 import './ExploreMenu.css';
 
 const ExploreMenu = ({ category, setCategory, searchText, setSearchText }) => {
+  const { categoryList } = useContext(StoreContext);
   const scrollRef = useRef(null);
   const [canLeft, setCanLeft]   = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -75,16 +76,16 @@ const ExploreMenu = ({ category, setCategory, searchText, setSearchText }) => {
         )}
 
         <div className="explore-categories" ref={scrollRef} onScroll={updateArrows}>
-          {categories.map((item, index) => (
+          {categoryList.map((item) => (
             <button
-              key={index}
-              className={`explore-cat-btn ${item.category === category ? 'active' : ''}`}
-              onClick={() => setCategory(prev => prev === item.category ? 'All' : item.category)}
+              key={item.id}
+              className={`explore-cat-btn ${item.name === category ? 'active' : ''}`}
+              onClick={() => setCategory(prev => prev === item.name ? 'All' : item.name)}
             >
               <div className="explore-img-wrap">
-                <img src={item.icon} alt={item.category} width={68} height={68} className="rounded-circle" />
+                <img src={item.imageUrl} alt={item.name} width={68} height={68} className="rounded-circle" />
               </div>
-              <span className="explore-cat-label">{item.category}</span>
+              <span className="explore-cat-label">{item.name}</span>
             </button>
           ))}
         </div>

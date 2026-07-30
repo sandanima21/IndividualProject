@@ -20,6 +20,7 @@ import Sidebar from './components/Sidebar/Sidebar'
 import Menubar from './components/Menubar/Menubar'
 import Analytics from './pages/Analytics/Analytics'
 import Orders from './pages/Orders/Orders'
+import Categories from './pages/Categories/Categories'
 import AvailableFoods from './pages/AvailableFoods/AvailableFoods'
 import Users from './pages/Users/Users'
 import Reviews from './pages/Reviews/Reviews'
@@ -161,6 +162,7 @@ const App = () => {
             <Route path='/'          element={<Analytics />} />
             <Route path='/analytics' element={<Analytics adminToken={adminToken} />} />
             <Route path='/orders'    element={<Orders adminToken={adminToken} />} />
+            <Route path='/categories' element={<Categories />} />
             <Route path='/foods'     element={<AvailableFoods />} />
             <Route path='/users'     element={<Users />} />
             <Route path='/reviews'   element={<Reviews />} />

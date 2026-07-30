@@ -14,6 +14,7 @@
 
 import { createContext, useCallback, useEffect, useRef, useState } from "react";
 import { fetchFoodList } from "../service/foodservice";
+import { fetchCategoryList } from "../service/categoryservice";
 
 // Delivery riders stay logged in longer because they keep the app open for hours.
 const INACTIVITY_BY_ROLE = {
@@ -28,6 +29,7 @@ const cartKey = (userId) => `kukihabun_cart_${userId || 'guest'}`;
 
 export const StoreProvider = ({ children }) => {
   const [foodList, setFoodList] = useState([]);
+  const [categoryList, setCategoryList] = useState([]);
 
   // Rehydrate user and token from localStorage on first render.
   const [user, setUser] = useState(() => {
@@ -172,9 +174,13 @@ export const StoreProvider = ({ children }) => {
     fetchFoodList().then(setFoodList).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    fetchCategoryList().then(setCategoryList).catch(() => {});
+  }, []);
+
   return (
     <StoreContext.Provider value={{
-      foodList, increaseQty, decreaseQty, removeItem,
+      foodList, categoryList, increaseQty, decreaseQty, removeItem,
       quantities, removeFromCart, clearCart, reorderItems, user, token, login, logout, updateUserPhone, updateUser,
       customizations, setSpice, toggleAvoid, clearCustomizations, setCustomization,
     }}>

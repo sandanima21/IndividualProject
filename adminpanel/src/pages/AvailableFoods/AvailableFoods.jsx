@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getFoodList, deleteFood, addFood, updateFood, setFoodAvailability } from '../../services/foodService';
+import { getCategoryList } from '../../services/categoryService';
 import { toast } from 'react-toastify';
 
-const CATEGORIES = ['Rice', 'Kottu', 'Salad', 'Soup', 'Beverages', 'Desserts'];
-const EMPTY_FORM = { name: '', description: '', price: '', category: 'Rice' };
+const EMPTY_FORM = { name: '', description: '', price: '', category: '' };
 
 /* ── Inline option chips for one customization type ── */
 const OptionChips = ({ options = [], setOptions }) => {
@@ -113,7 +113,7 @@ const CustomizationBuilder = ({ customizables, setCustomizables }) => {
 };
 
 /* ── Food Form Modal (Add / Edit) ── */
-const FoodModal = ({ mode, initial, onClose, onSaved }) => {
+const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
   const [data, setData] = useState(initial?.form || EMPTY_FORM);
 
   // Merge legacy spiceLevels into customizables on edit
@@ -145,6 +145,7 @@ const FoodModal = ({ mode, initial, onClose, onSaved }) => {
     e.preventDefault();
     if (mode === 'add' && !image) { toast.error('Please upload an image.'); return; }
     if (!data.name.trim()) { toast.error('Food name is required.'); return; }
+    if (!data.category) { toast.error('Please select a category.'); return; }
     if (!data.price || Number(data.price) <= 0) { toast.error('Enter a valid price.'); return; }
     setSubmitting(true);
     try {
@@ -208,9 +209,10 @@ const FoodModal = ({ mode, initial, onClose, onSaved }) => {
 
             {/* Category */}
             <div className="col-md-3">
-              <label className="form-label small">Category</label>
-              <select name="category" className="form-select" value={data.category} onChange={handleField}>
-                {CATEGORIES.map(c => <option key={c} style={{ background: '#1a1a1a' }}>{c}</option>)}
+              <label className="form-label small">Category *</label>
+              <select name="category" className="form-select" value={data.category} onChange={handleField} required>
+                <option value="" disabled style={{ background: '#1a1a1a' }}>Select…</option>
+                {categories.map(c => <option key={c.id} value={c.name} style={{ background: '#1a1a1a' }}>{c.name}</option>)}
               </select>
             </div>
 
@@ -257,6 +259,7 @@ const FoodModal = ({ mode, initial, onClose, onSaved }) => {
 /* ─── Main page ─── */
 const AvailableFoods = () => {
   const [list, setList] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState(null); // null | { mode: 'add' } | { mode: 'edit', ...food }
@@ -267,7 +270,10 @@ const AvailableFoods = () => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    getCategoryList().then(setCategories).catch(() => toast.error('Failed to load categories.'));
+  }, []);
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this food item?')) return;
@@ -291,7 +297,7 @@ const AvailableFoods = () => {
       mode: 'edit',
       id: food.id,
       imageUrl: food.imageUrl,
-      form: { name: food.name, description: food.description, price: String(food.price), category: food.category || 'Rice' },
+      form: { name: food.name, description: food.description, price: String(food.price), category: food.category || '' },
       spiceLevels: food.customizationOptions?.spiceLevels || [],
       customizables: food.customizationOptions?.customizables || [],
     });
@@ -401,6 +407,7 @@ const AvailableFoods = () => {
         <FoodModal
           mode={modal.mode}
           initial={modal.mode === 'edit' ? modal : null}
+          categories={categories}
           onClose={() => setModal(null)}
           onSaved={load}
         />

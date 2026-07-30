@@ -45,6 +45,7 @@ const Sidebar = ({ sidebarVisible, chatUnread }) => {
       <nav className="sidebar-nav">
         {navItem('/analytics', 'bi-bar-chart-line',  'Analytics')}
         {navItem('/orders',    'bi-bag',             'Orders')}
+        {navItem('/categories','bi-tags',            'Food Categories')}
         {navItem('/foods',     'bi-grid',            'Available Foods')}
         {navItem('/users',     'bi-people',          'Users')}
         {navItem('/reviews',   'bi-star',            'Reviews & Ratings')}
