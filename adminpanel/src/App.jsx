@@ -153,7 +153,7 @@ const App = () => {
 
       <Sidebar sidebarVisible={sidebarVisible} chatUnread={chatUnread} />
 
-      <div id="page-content-wrapper">
+      <div id="page-content-wrapper" className={sidebarVisible ? '' : 'sidebar-collapsed'}>
         <Menubar toggleSidebar={toggleSidebar} adminUser={adminUser} onLogout={handleLogout} chatUnread={chatUnread} />
         <ToastContainer theme="dark" />
         <div className="container-fluid">

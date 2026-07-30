@@ -88,7 +88,13 @@ body {
 .sidebar-item:hover { background: var(--gold-muted); color: var(--gold) !important; }
 .sidebar-item.active { background: var(--gold-muted); color: var(--gold) !important; font-weight: 700; }
 
-#page-content-wrapper { min-width: 0; flex: 1; overflow-x: hidden; margin-left: var(--sidebar-width); padding-top: var(--topbar-height); }
+#page-content-wrapper { min-width: 0; flex: 1; overflow-x: hidden; margin-left: var(--sidebar-width); padding-top: var(--topbar-height); transition: margin-left 0.2s; }
+
+/* Sidebar toggled off (desktop) — the fixed sidebar is hidden (see Sidebar.jsx's
+   d-none), so the content area and top bar should expand to use the full width
+   instead of leaving the space where the sidebar used to be empty. */
+#page-content-wrapper.sidebar-collapsed { margin-left: 0; }
+#page-content-wrapper.sidebar-collapsed .admin-topbar { left: 0 !important; }
 
 /* !important throughout: Bootstrap's own .navbar rule sets position:relative, and since
    bootstrap.css loads after index.css (see main.jsx), it wins ties on equal specificity —
