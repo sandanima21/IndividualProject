@@ -9,7 +9,6 @@
 
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { assets } from '../../assets/assets';
 
 const Sidebar = ({ sidebarVisible, chatUnread }) => {
   const { pathname } = useLocation();
@@ -38,10 +37,6 @@ const Sidebar = ({ sidebarVisible, chatUnread }) => {
     // `d-none` hides the sidebar completely when toggled off (desktop collapse).
     // On mobile, CSS promotes it to position:fixed so it becomes an overlay drawer.
     <div className={`sidebar-wrapper ${sidebarVisible ? '' : 'd-none'}`} id="sidebar-wrapper">
-      <div className="sidebar-brand">
-        <img src={assets.logo} alt="KukiHabun" height={56} width={56} style={{ borderRadius: 10 }} />
-        <span className="sidebar-brand-name">KukiHabun</span>
-      </div>
       <nav className="sidebar-nav">
         {navItem('/analytics', 'bi-bar-chart-line',  'Analytics')}
         {navItem('/orders',    'bi-bag',             'Orders')}

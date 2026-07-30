@@ -8,6 +8,12 @@
  *  the sidebar becomes an overlay drawer instead (no content offset) and a
  *  .sidebar-mobile-overlay backdrop appears behind it (see bottom of this file).
  *
+ *  The top bar (.admin-topbar, rendered by Menubar) is also position:fixed
+ *  rather than sticky — sticky depends on no ancestor having its own overflow/
+ *  scroll context, which is easy to accidentally break; fixed has no such
+ *  dependency. #page-content-wrapper's padding-top reserves space for it so
+ *  routed page content doesn't render underneath it.
+ *
  * Bootstrap 5 dark-theme overrides target tables, forms, modals, and
  * dropdowns so they match the black/gold palette without needing inline styles.
  */
@@ -20,6 +26,7 @@
   --gold-muted: rgba(201,168,76,0.12);
   --sidebar-bg: #111;
   --sidebar-width: 220px;
+  --topbar-height: 76px;
 }
 
 body {
@@ -49,15 +56,6 @@ body {
   z-index: 100;
 }
 
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 1.2rem 1rem;
-  border-bottom: 1px solid rgba(201,168,76,0.15);
-}
-.sidebar-brand-name { font-weight: 800; color: var(--gold); font-size: 1rem; }
-
 .sidebar-nav { padding: 1rem 0.5rem; flex: 1; overflow-y: auto; }
 .sidebar-section-label {
   font-size: 0.65rem;
@@ -81,7 +79,16 @@ body {
 .sidebar-item:hover { background: var(--gold-muted); color: var(--gold) !important; }
 .sidebar-item.active { background: var(--gold-muted); color: var(--gold) !important; font-weight: 700; }
 
-#page-content-wrapper { min-width: 0; flex: 1; overflow-x: hidden; margin-left: var(--sidebar-width); }
+#page-content-wrapper { min-width: 0; flex: 1; overflow-x: hidden; margin-left: var(--sidebar-width); padding-top: var(--topbar-height); }
+
+.admin-topbar {
+  position: fixed;
+  top: 0;
+  left: var(--sidebar-width);
+  right: 0;
+  height: var(--topbar-height);
+  z-index: 100;
+}
 
 /* Card and table overrides for dark theme */
 .card { background: #1a1a1a !important; border: 1px solid rgba(201,168,76,0.15) !important; color: #f0ece0 !important; }
@@ -143,6 +150,12 @@ select option { background: #1e1e1e !important; }
     width: 100% !important;
     min-width: 0 !important;
     margin-left: 0 !important;
+  }
+
+  /* Top bar spans the full width on mobile too, since the sidebar isn't
+     permanently reserving space on the left. */
+  .admin-topbar {
+    left: 0;
   }
 
   /* Semi-transparent backdrop behind the sidebar drawer */

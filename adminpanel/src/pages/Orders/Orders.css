@@ -1,10 +1,12 @@
 /*
  * Orders.css — Kanban board layout for admin order management.
  *
- * Each status column (PENDING → CONFIRMED → COOKING → READY → OUT_FOR_DELIVERY → DELIVERED)
- * wraps onto a new row once there isn't enough width for all six side by side —
- * no horizontal scrolling at any width. On mobile (≤768px) each column takes
- * the full row width (one column per row, page scrolls vertically).
+ * All six status columns (PENDING → CONFIRMED → COOKING → READY → OUT_FOR_DELIVERY →
+ * DELIVERED) always stay in a single row, shrinking to fit the available width rather
+ * than wrapping onto a new row or triggering horizontal scroll. If an individual card's
+ * footer (time + price) can't fit on one line at a narrow column width, the footer wraps
+ * internally — the column itself never reflows. On mobile (≤768px) columns stack one per
+ * row instead, since six columns can't shrink to a legible width on a phone screen.
  *
  * Drag-and-drop is handled in JavaScript; CSS provides the visual feedback
  * (.is-dragging, .drag-over).
@@ -12,7 +14,6 @@
 
 .kanban-board {
   display: flex;
-  flex-wrap: wrap;
   gap: 0.5rem;
   padding-bottom: 1.5rem;
   align-items: flex-start;
@@ -20,8 +21,8 @@
 }
 
 .kanban-column {
-  flex: 1 1 260px;
-  min-width: 220px;
+  flex: 1 1 0;
+  min-width: 0;
   background: #141414;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.07);
@@ -125,8 +126,10 @@
 
 .kanban-card-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 0.25rem;
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px solid rgba(255,255,255,0.06);

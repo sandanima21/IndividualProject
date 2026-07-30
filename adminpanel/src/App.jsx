@@ -57,6 +57,9 @@ const App = () => {
     sessionStorage.setItem('admin_user', JSON.stringify(data));
     setAdminToken(data.token);
     setAdminUser(data);
+    // Always land on Analytics after signing in, regardless of whatever URL
+    // happened to be showing (e.g. a bookmarked /orders link) before login.
+    navigate('/', { replace: true });
   };
 
   const handleLogout = () => {
