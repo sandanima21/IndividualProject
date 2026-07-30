@@ -83,9 +83,19 @@ public class PayHereRefundService {
         try {
             doRefund(token, payherePaymentId);
         } catch (HttpClientErrorException.Unauthorized e) {
-            // Token was rejected — invalidate and retry once with a fresh one
+            // Token was rejected — invalidate and retry once with a fresh one. If the retry
+            // *also* gets a 401, doRefund lets it propagate as-is (see its own catch block),
+            // so translate it here too instead of leaking a raw exception message — a second
+            // straight 401 means something other than a merely-expired token (e.g. a
+            // permission/scope problem on the App Key), so say that plainly.
             tokenCache.invalidate();
-            doRefund(getValidToken(), payherePaymentId);
+            try {
+                doRefund(getValidToken(), payherePaymentId);
+            } catch (HttpClientErrorException.Unauthorized e2) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                        "PayHere rejected the refund request as unauthorized even with a freshly issued "
+                                + "token — check that the App Key has the 'Automatic Charging API' permission enabled.");
+            }
         }
         return true;
     }
