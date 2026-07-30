@@ -85,16 +85,21 @@ public class PayHereRefundService {
         } catch (HttpClientErrorException.Unauthorized e) {
             // Token was rejected — invalidate and retry once with a fresh one. If the retry
             // *also* gets a 401, doRefund lets it propagate as-is (see its own catch block),
-            // so translate it here too instead of leaking a raw exception message — a second
-            // straight 401 means something other than a merely-expired token (e.g. a
-            // permission/scope problem on the App Key), so say that plainly.
+            // so translate it here too instead of leaking a raw exception message. A second
+            // straight 401 with a brand-new token isn't an expired-token problem — confirmed
+            // in practice this is PayHere's domain-whitelist check: it ties refund eligibility
+            // to the domain the original payment was made from, not the caller's domain, and
+            // rejects with 401 + a "status":-1 body (e.g. "Access denied for the domain") when
+            // that domain isn't on the App Key's allowed list. Surface PayHere's own message
+            // rather than guess, since the exact reason varies (could also be a missing
+            // permission on the App Key).
             tokenCache.invalidate();
             try {
                 doRefund(getValidToken(), payherePaymentId);
             } catch (HttpClientErrorException.Unauthorized e2) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                        "PayHere rejected the refund request as unauthorized even with a freshly issued "
-                                + "token — check that the App Key has the 'Automatic Charging API' permission enabled.");
+                        "PayHere rejected the refund as unauthorized even with a freshly issued token: "
+                                + extractPayhereMessage(e2.getResponseBodyAsString()));
             }
         }
         return true;
