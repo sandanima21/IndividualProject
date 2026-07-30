@@ -81,13 +81,17 @@ body {
 
 #page-content-wrapper { min-width: 0; flex: 1; overflow-x: hidden; margin-left: var(--sidebar-width); padding-top: var(--topbar-height); }
 
+/* !important throughout: Bootstrap's own .navbar rule sets position:relative, and since
+   bootstrap.css loads after index.css (see main.jsx), it wins ties on equal specificity —
+   silently overriding plain `.admin-topbar { position: fixed }` and collapsing the bar to
+   its content width instead of stretching between left/right. */
 .admin-topbar {
-  position: fixed;
-  top: 0;
-  left: var(--sidebar-width);
-  right: 0;
-  height: var(--topbar-height);
-  z-index: 100;
+  position: fixed !important;
+  top: 0 !important;
+  left: var(--sidebar-width) !important;
+  right: 0 !important;
+  height: var(--topbar-height) !important;
+  z-index: 100 !important;
 }
 
 /* Card and table overrides for dark theme */
@@ -155,7 +159,7 @@ select option { background: #1e1e1e !important; }
   /* Top bar spans the full width on mobile too, since the sidebar isn't
      permanently reserving space on the left. */
   .admin-topbar {
-    left: 0;
+    left: 0 !important;
   }
 
   /* Semi-transparent backdrop behind the sidebar drawer */
