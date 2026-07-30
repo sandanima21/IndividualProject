@@ -56,6 +56,15 @@ body {
   z-index: 100;
 }
 
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 1.2rem 1rem;
+  /* No border-bottom by request — the brand sits flush above the nav items. */
+}
+.sidebar-brand-name { font-weight: 800; color: var(--gold); font-size: 1.05rem; }
+
 .sidebar-nav { padding: 1rem 0.5rem; flex: 1; overflow-y: auto; }
 .sidebar-section-label {
   font-size: 0.65rem;
