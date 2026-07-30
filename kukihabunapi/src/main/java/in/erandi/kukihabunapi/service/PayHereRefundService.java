@@ -6,6 +6,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -49,7 +50,12 @@ public class PayHereRefundService {
     private String webhookBaseUrl;
 
     private final PayHereTokenCache tokenCache;
-    private final RestTemplate restTemplate = new RestTemplate();
+    // The default RestTemplate() request factory (JDK's HttpURLConnection) fails to read
+    // chunked-transfer-encoded error bodies from PayHere/Cloudflare — getResponseBodyAsString()
+    // silently comes back empty on 401s even though curl reads the same response body fine.
+    // JdkClientHttpRequestFactory (java.net.http.HttpClient) doesn't have this defect —
+    // confirmed via a direct side-by-side test against the real sandbox endpoint.
+    private final RestTemplate restTemplate = new RestTemplate(new JdkClientHttpRequestFactory());
 
     public PayHereRefundService(PayHereTokenCache tokenCache) {
         this.tokenCache = tokenCache;
