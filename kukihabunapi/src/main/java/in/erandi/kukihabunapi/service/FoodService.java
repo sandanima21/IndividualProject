@@ -20,4 +20,6 @@ public interface FoodService {
     void deleteFood(String id);
 
     FoodResponse updateFood(String id, FoodRequest request, MultipartFile file);
+
+    FoodResponse setAvailability(String id, boolean available);
 }

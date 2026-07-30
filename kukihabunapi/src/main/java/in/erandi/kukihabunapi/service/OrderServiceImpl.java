@@ -42,11 +42,13 @@ public class OrderServiceImpl implements OrderService {
     private final SequenceService sequenceService;
     private final FirebaseStorageService storageService;
     private final PayHereRefundService payhereRefundService;
+    private final EmailService emailService;
 
     public OrderServiceImpl(OrderRepository orderRepository, FoodRepository foodRepository,
                             UserRepository userRepository, OfferRepository offerRepository,
                             PaymentRepository paymentRepository, SequenceService sequenceService,
-                            FirebaseStorageService storageService, PayHereRefundService payhereRefundService) {
+                            FirebaseStorageService storageService, PayHereRefundService payhereRefundService,
+                            EmailService emailService) {
         this.orderRepository = orderRepository;
         this.foodRepository = foodRepository;
         this.userRepository = userRepository;
@@ -55,6 +57,7 @@ public class OrderServiceImpl implements OrderService {
         this.sequenceService = sequenceService;
         this.storageService = storageService;
         this.payhereRefundService = payhereRefundService;
+        this.emailService = emailService;
     }
 
     private static final double RESTAURANT_LAT = 6.844176631120501;
@@ -143,6 +146,12 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse updateOrderStatus(String orderId, String status) {
         OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        // Cancellation needs a reason, an email, and (if paid) a refund — none of which this
+        // generic status endpoint does. Route callers to adminCancelOrder instead.
+        if ("CANCELLED".equals(status)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Use POST /api/orders/{id}/admin-cancel to cancel an order");
+        }
         order.setStatus(status);
         order.setUpdatedAt(LocalDateTime.now());
 
@@ -228,12 +237,16 @@ public class OrderServiceImpl implements OrderService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "PayHere payment ID is missing — the original payment may not have completed");
 
-        // Delegate to PayHereRefundService — handles OAuth token caching and retry on 401
-        payhereRefundService.requestRefund(payherePaymentId);
+        // Delegate to PayHereRefundService — handles OAuth token caching and retry on 401.
+        // Returns false in sandbox mode without App credentials, where PayHere's own portal
+        // doesn't issue any — the call is simulated locally rather than actually sent.
+        boolean actuallyCalledPayHere = payhereRefundService.requestRefund(payherePaymentId);
 
         order.setRefundStatus("REFUND_INITIATED");
-        order.setRefundNotes("Refund submitted to PayHere at " + LocalDateTime.now()
-                + ". Awaiting settlement confirmation via webhook.");
+        order.setRefundNotes(actuallyCalledPayHere
+                ? "Refund submitted to PayHere at " + LocalDateTime.now() + ". Awaiting settlement confirmation via webhook."
+                : "Refund marked in-progress at " + LocalDateTime.now() + " (sandbox simulation — PayHere sandbox doesn't "
+                        + "issue API credentials, so no real API call was made; this won't appear in the PayHere dashboard).");
         order.setUpdatedAt(LocalDateTime.now());
         return toResponse(orderRepository.save(order));
     }
@@ -245,6 +258,35 @@ public class OrderServiceImpl implements OrderService {
                 orderRepository.deleteById(orderId);
             }
         });
+    }
+
+    @Override
+    public OrderResponse adminCancelOrder(String orderId, String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A cancellation reason is required.");
+        }
+        OrderEntity order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
+        if (List.of("OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED").contains(order.getStatus())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Order can no longer be cancelled");
+        }
+
+        boolean wasPaid = "PAID".equals(order.getPaymentStatus());
+        order.setStatus("CANCELLED");
+        order.setCancelReason(reason);
+        order.setCancelledBy("ADMIN");
+        if (wasPaid) {
+            order.setPaymentStatus("REFUNDED");
+            order.setRefundStatus("PENDING_REFUND");
+        }
+        order.setUpdatedAt(LocalDateTime.now());
+
+        OrderResponse response = toResponse(orderRepository.save(order));
+        if (response.getUserEmail() != null) {
+            emailService.sendOrderCancelled(response.getUserEmail(), response.getUserName(),
+                    response.getDisplayId(), reason, wasPaid);
+        }
+        return response;
     }
 
     /** Mirrors Cart.jsx's calcDeliveryFee: flat Rs.100 covers the first km, +Rs.50/km after. */
@@ -269,6 +311,12 @@ public class OrderServiceImpl implements OrderService {
     private OrderItemEntity buildOrderItem(OrderItemRequest req) {
         FoodEntity food = foodRepository.findById(req.getFoodId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Food not found: " + req.getFoodId()));
+        // Guards against a stale cart page (or a raw API call) ordering an item the
+        // admin has since paused — the customer UI already hides the Add button for
+        // these, this is the server-side backstop.
+        if (Boolean.FALSE.equals(food.getAvailable())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, food.getName() + " is currently out of stock.");
+        }
         return OrderItemEntity.builder()
                 .foodId(food.getId())
                 .foodName(food.getName())
@@ -369,6 +417,8 @@ public class OrderServiceImpl implements OrderService {
                 .deliveryFee(order.getDeliveryFee())
                 .total(order.getTotal())
                 .status(order.getStatus())
+                .cancelReason(order.getCancelReason())
+                .cancelledBy(order.getCancelledBy())
                 .paymentStatus(order.getPaymentStatus())
                 .payherePaymentId(payherePaymentId)
                 .refundStatus(order.getRefundStatus())

@@ -172,6 +172,15 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
             Customer &amp; Payment Details
           </div>
 
+          {order.cancelledBy === 'ADMIN' && order.cancelReason && (
+            <div className="mb-3 p-2 rounded-3" style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.2)' }}>
+              <div style={{ fontSize: '0.65rem', color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 3 }}>
+                <i className="bi bi-x-octagon me-1"></i>Cancellation Reason
+              </div>
+              <div style={{ fontSize: '0.83rem' }}>{order.cancelReason}</div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 28, flexWrap: 'wrap', marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: '0.65rem', color: 'rgba(200,196,188,0.4)', marginBottom: 3 }}>Name</div>
@@ -307,7 +316,7 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
   );
 };
 
-export const RefundedTable = ({ orders, onRefresh }) => {
+export const RefundedTable = ({ orders, onRefresh, emptyMsg = 'No refunds in this category.' }) => {
   const [editingOrder, setEditingOrder] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -325,7 +334,7 @@ export const RefundedTable = ({ orders, onRefresh }) => {
   if (orders.length === 0) return (
     <div className="text-center py-5 text-muted">
       <i className="bi bi-check2-circle" style={{ fontSize: '2.5rem', opacity: 0.3 }}></i>
-      <p className="mt-3 small">No refunds in this category.</p>
+      <p className="mt-3 small">{emptyMsg}</p>
     </div>
   );
 
@@ -392,6 +401,11 @@ export const RefundedTable = ({ orders, onRefresh }) => {
                     <td style={{ padding: '10px 12px' }}>
                       <div>
                         <RefundStatusBadge status={order.refundStatus} />
+                        {order.cancelledBy === 'ADMIN' && (
+                          <span className="ms-1" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 20, background: 'rgba(167,139,250,0.12)', color: '#a78bfa', fontSize: '0.7rem', fontWeight: 600 }}>
+                            <i className="bi bi-x-octagon"></i>Admin Cancelled
+                          </span>
+                        )}
                         {order.refundNotes && !isAutoNote(order.refundNotes) && (
                           <div style={{ fontSize: '0.65rem', color: 'rgba(200,196,188,0.4)', marginTop: 3, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={order.refundNotes}>
                             {order.refundNotes}

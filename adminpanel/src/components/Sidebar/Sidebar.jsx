@@ -3,64 +3,16 @@
  *
  * Renders nav links for all admin sections. The Chat link shows a badge with the
  * number of conversations that have received new messages since the admin last
- * visited the Chat page.
- *
- * Unread count logic:
- *  - `admin_chat_last_visit` (localStorage) stores the timestamp of the admin's
- *    last visit to /chat.
- *  - On every route change, conversations are re-fetched and those whose
- *    `lastMessageAt` is newer than `lastVisit` are counted as unread.
- *  - The count resets to 0 immediately when the admin navigates to /chat
- *    (before the fetch completes) so the badge clears without a delay.
- *  - localStorage is used (not sessionStorage) so the last-visit timestamp
- *    persists across tab refreshes — otherwise every refresh would reset it
- *    and make all messages appear new.
+ * visited the Chat page — the count itself is computed once in App.jsx (shared
+ * with Menubar's own badge) and passed down here as a prop.
  */
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { assets } from '../../assets/assets';
-import { getConversations } from '../../services/chatService';
 
-const LAST_VISIT_KEY = 'admin_chat_last_visit';
-
-const Sidebar = ({ sidebarVisible }) => {
+const Sidebar = ({ sidebarVisible, chatUnread }) => {
   const { pathname } = useLocation();
-  const [chatUnread, setChatUnread] = useState(0);
-
-  useEffect(() => {
-    // Record the first-ever visit timestamp so messages that arrived before this
-    // session don't appear as "new" on the very first load.
-    if (!localStorage.getItem(LAST_VISIT_KEY)) {
-      localStorage.setItem(LAST_VISIT_KEY, new Date().toISOString());
-    }
-
-    const fetchUnread = async () => {
-      // Viewing chat now — badge should be zero immediately, before the fetch.
-      if (pathname === '/chat') {
-        setChatUnread(0);
-        return;
-      }
-      try {
-        const convs = await getConversations();
-        const lastVisit = localStorage.getItem(LAST_VISIT_KEY);
-        const cutoff = lastVisit ? new Date(lastVisit) : null;
-        if (!cutoff) { setChatUnread(0); return; }
-        // Count conversations where the latest message arrived after the last visit.
-        const count = convs.filter(c =>
-          c.unreadCount > 0 &&
-          c.lastMessageAt &&
-          new Date(c.lastMessageAt) > cutoff
-        ).length;
-        setChatUnread(count);
-      } catch { /* silent — badge simply stays at its previous value */ }
-    };
-
-    fetchUnread();
-    // Poll every 30 seconds as a fallback (no WebSocket on this route).
-    const iv = setInterval(fetchUnread, 30_000);
-    return () => clearInterval(iv);
-  }, [pathname]); // re-run whenever the admin navigates so /chat clears instantly
 
   // Helper to build a nav link with optional unread badge.
   const navItem = (to, icon, label, badge) => {

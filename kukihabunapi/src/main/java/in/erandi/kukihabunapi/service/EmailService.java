@@ -152,6 +152,48 @@ public class EmailService {
         send(toEmail, "KukiHabun — Your Delivery Account Credentials", html);
     }
 
+    public void sendOrderCancelled(String toEmail, String customerName, String orderDisplayId, String reason, boolean refundIssued) {
+        String refundParagraph = refundIssued
+                ? """
+                  <p style="color: rgba(240,236,224,0.6); font-size: 0.85rem;
+                             text-align: center; line-height: 1.6; margin-bottom: 8px;">
+                    A refund is being processed for this order and will be completed within a few business days.
+                  </p>
+                  """
+                : "";
+        String html = """
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;
+                        background: #1a1a1a; border-radius: 16px; padding: 40px 36px;
+                        border: 1px solid rgba(244,115,115,0.3);">
+              <div style="text-align: center; margin-bottom: 28px;">
+                <span style="font-size: 2.4rem;">&#128683;</span>
+                <h1 style="color: #c9a84c; font-size: 1.5rem; margin: 8px 0 4px;">KukiHabun</h1>
+              </div>
+              <h2 style="color: #f0ece0; font-size: 1.15rem; font-weight: 700;
+                         text-align: center; margin-bottom: 10px;">
+                Your order %s has been cancelled
+              </h2>
+              <p style="color: rgba(240,236,224,0.6); font-size: 0.88rem;
+                         text-align: center; line-height: 1.6; margin-bottom: 8px;">
+                Hi %s, we're sorry — your order was cancelled by the restaurant.
+              </p>
+              <div style="background: rgba(244,115,115,0.08); border: 1px solid rgba(244,115,115,0.3);
+                          border-radius: 12px; padding: 16px 18px; margin: 20px 0;">
+                <span style="color: rgba(240,236,224,0.45); font-size: 0.75rem;
+                             text-transform: uppercase; letter-spacing: 0.1em;">Reason</span>
+                <div style="color: #f0ece0; font-size: 0.9rem; margin-top: 4px;">%s</div>
+              </div>
+              %s
+              <p style="color: rgba(240,236,224,0.4); font-size: 0.78rem;
+                         text-align: center; margin-top: 20px;">
+                Sorry for the inconvenience — we hope to serve you again soon.<br>
+                &mdash; The KukiHabun Team
+              </p>
+            </div>
+            """.formatted(orderDisplayId, customerName, reason, refundParagraph);
+        send(toEmail, "KukiHabun — Order " + orderDisplayId + " Cancelled", html);
+    }
+
     public void sendWelcome(String toEmail, String name) {
         String html = """
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;

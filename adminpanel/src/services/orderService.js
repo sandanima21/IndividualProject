@@ -30,3 +30,8 @@ export const uploadRefundReceipt = async (orderId, file) => {
   });
   return response.data;
 };
+
+export const adminCancelOrder = async (orderId, reason) => {
+  const response = await api.post(`${API_URL}/${orderId}/admin-cancel`, { reason });
+  return response.data;
+};

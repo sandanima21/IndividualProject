@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getFoodList, deleteFood, addFood, updateFood } from '../../services/foodService';
+import { getFoodList, deleteFood, addFood, updateFood, setFoodAvailability } from '../../services/foodService';
 import { toast } from 'react-toastify';
 
 const CATEGORIES = ['Rice', 'Kottu', 'Salad', 'Soup', 'Beverages', 'Desserts'];
@@ -275,6 +275,17 @@ const AvailableFoods = () => {
     catch { toast.error('Delete failed.'); }
   };
 
+  const handleToggleAvailability = async (food) => {
+    const nextAvailable = !food.available;
+    try {
+      await setFoodAvailability(food.id, nextAvailable);
+      toast.success(nextAvailable ? `${food.name} is back in stock.` : `${food.name} marked out of stock.`);
+      load();
+    } catch {
+      toast.error('Failed to update availability.');
+    }
+  };
+
   const openEdit = (food) => {
     setModal({
       mode: 'edit',
@@ -335,12 +346,17 @@ const AvailableFoods = () => {
             </thead>
             <tbody>
               {filtered.map(item => (
-                <tr key={item.id}>
+                <tr key={item.id} style={item.available === false ? { opacity: 0.55 } : undefined}>
                   <td>
                     <img src={item.imageUrl} alt={item.name} width={60} height={48} style={{ objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }} />
                   </td>
                   <td>
-                    <div className="fw-semibold">{item.name}</div>
+                    <div className="fw-semibold d-flex align-items-center gap-2">
+                      {item.name}
+                      {item.available === false && (
+                        <span className="badge" style={{ background: 'rgba(244,115,115,0.15)', color: '#f47373', fontSize: '0.65rem' }}>Out of Stock</span>
+                      )}
+                    </div>
                     {item.description && <div className="small text-muted text-truncate" style={{ maxWidth: 220 }}>{item.description}</div>}
                   </td>
                   <td>
@@ -358,6 +374,13 @@ const AvailableFoods = () => {
                   </td>
                   <td>
                     <div className="d-flex gap-1">
+                      <button
+                        className={`btn btn-sm px-2 ${item.available === false ? 'btn-outline-success' : 'btn-outline-secondary'}`}
+                        title={item.available === false ? 'Resume — back in stock' : 'Pause — out of stock'}
+                        onClick={() => handleToggleAvailability(item)}
+                      >
+                        <i className={`bi ${item.available === false ? 'bi-play-fill' : 'bi-pause-fill'}`}></i>
+                      </button>
                       <button className="btn btn-sm btn-outline-warning px-2" title="Edit" onClick={() => openEdit(item)}>
                         <i className="bi bi-pencil"></i>
                       </button>

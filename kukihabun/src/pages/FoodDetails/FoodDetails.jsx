@@ -139,7 +139,11 @@ const FoodDetails = () => {
             )}
 
             <div className="d-flex align-items-center gap-3 mt-3">
-              {quantities[id] > 0 ? (
+              {data.available === false ? (
+                <span className="badge" style={{ background: 'rgba(244,115,115,0.15)', color: '#f47373', fontSize: '0.85rem', padding: '10px 16px' }}>
+                  <i className="bi bi-slash-circle me-2"></i>Out of Stock
+                </span>
+              ) : quantities[id] > 0 ? (
                 <div className="d-flex align-items-center gap-2">
                   <button className="btn btn-outline-danger btn-sm" onClick={() => decreaseQty(id)}>-</button>
                   <span className="fw-bold fs-5">{quantities[id]}</span>

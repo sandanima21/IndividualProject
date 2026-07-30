@@ -204,6 +204,16 @@ const History = () => {
     matchesSearch(o)
   );
 
+  // Cancelled = admin-cancelled orders only — customer self-cancellations already flow
+  // through the Refunded tab above/Refunds page like any other refund, with no distinct
+  // "cancelled by customer" view requested.
+  const adminCancelledOrders = allOrders.filter(o =>
+    o.status === 'CANCELLED' &&
+    o.cancelledBy === 'ADMIN' &&
+    new Date(o.createdAt) >= cutoff &&
+    matchesSearch(o)
+  );
+
   const reviewsByOrder = allReviews.reduce((acc, r) => {
     if (!r.orderId) return acc;
     if (!acc[r.orderId]) acc[r.orderId] = [];
@@ -318,6 +328,15 @@ const History = () => {
           activeBg="rgba(248,113,113,0.15)"
           activeBorder="rgba(248,113,113,0.3)"
         />
+        <SectionBtn
+          id="cancelled"
+          icon="bi-x-octagon"
+          label="Cancelled"
+          count={adminCancelledOrders.length}
+          activeColor="#a78bfa"
+          activeBg="rgba(167,139,250,0.15)"
+          activeBorder="rgba(167,139,250,0.3)"
+        />
       </div>
 
       {/* ── Delivered section ── */}
@@ -365,6 +384,17 @@ const History = () => {
             </div>
           </div>
           <RefundedTable orders={refundedOrders} onRefresh={loadData} />
+        </>
+      )}
+
+      {/* ── Cancelled section (admin-cancelled only) ── */}
+      {section === 'cancelled' && (
+        <>
+          <div className="row g-3 mb-4">
+            <StatCard icon="bi-x-octagon"          label="Orders Cancelled" value={adminCancelledOrders.length} color="#a78bfa" bg="rgba(167,139,250,0.12)" />
+            <StatCard icon="bi-currency-exchange"  label="Value Lost"       value={`Rs.${adminCancelledOrders.reduce((s, o) => s + (o.total || 0), 0).toFixed(2)}`} color="#f87171" bg="rgba(248,113,113,0.12)" />
+          </div>
+          <RefundedTable orders={adminCancelledOrders} onRefresh={loadData} emptyMsg="No cancelled orders for this period." />
         </>
       )}
     </div>

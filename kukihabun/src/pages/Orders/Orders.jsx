@@ -34,6 +34,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { assets } from '../../assets/assets';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
@@ -160,7 +161,7 @@ const CancelButton = ({ orderId, token, onCancelled }) => {
 };
 
 const restaurantIcon = L.divIcon({
-  html: '<div style="background:#c9a84c;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4)">🍛</div>',
+  html: `<div style="background:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);overflow:hidden"><img src="${assets.logo}" style="width:100%;height:100%;object-fit:cover" /></div>`,
   iconSize: [32, 32], iconAnchor: [16, 16], className: '',
 });
 const riderIcon = L.divIcon({
@@ -264,7 +265,7 @@ const DeliveryTracker = ({ order }) => {
         </small>
         {isOutForDelivery && etaMinutes != null && (
           <span className="badge" style={{ background: 'rgba(62,207,142,0.15)', color: '#3ecf8e', fontSize: '0.75rem', padding: '4px 10px', borderRadius: 20 }}>
-            <i className="bi bi-clock me-1"></i>ETA ~{etaMinutes} min
+            <i className="bi bi-clock me-1"></i>Arriving in ~{etaMinutes} min
           </span>
         )}
       </div>
@@ -276,7 +277,7 @@ const DeliveryTracker = ({ order }) => {
           </Marker>
           {isOutForDelivery && driverPos && (
             <Marker position={[driverPos.lat, driverPos.lng]} icon={riderIcon}>
-              <Popup>Your delivery rider{etaMinutes != null ? ` · ETA ~${etaMinutes} min` : ''}</Popup>
+              <Popup>Your delivery rider{etaMinutes != null ? ` · Arriving in ~${etaMinutes} min` : ''}</Popup>
             </Marker>
           )}
           {hasDestination && (
@@ -738,6 +739,12 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                         <i className="bi bi-info-circle me-1"></i>Refunds are processed within 2–4 business days.
                       </div>
                     ) : null}
+                    {/* Restaurant's reason for cancelling, when set by admin */}
+                    {order.cancelReason && (
+                      <div className="mt-2 p-2 rounded-3" style={{ fontSize: '0.75rem', color: 'rgba(200,196,188,0.6)', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.15)' }}>
+                        <span style={{ color: '#a78bfa', fontWeight: 600 }}>Message from KukiHabun:</span> {order.cancelReason}
+                      </div>
+                    )}
                     {/* Bank details summary */}
                     {order.refundBankName && (
                       <div className="mt-2" style={{ fontSize: '0.72rem', color: 'rgba(200,196,188,0.45)', lineHeight: 1.6 }}>

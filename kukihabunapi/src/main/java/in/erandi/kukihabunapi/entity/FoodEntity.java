@@ -21,4 +21,11 @@ public class FoodEntity {
     private String category;
     private String imageUrl;
     private CustomizationOptions customizationOptions;
+
+    // Nullable on purpose: existing documents predate this field and have no
+    // value for it at all. Treat null the same as true ("available") wherever
+    // this is read — see FoodServiceImpl.convertToResponse — rather than using
+    // a primitive boolean, which Spring Data would need to default correctly
+    // for every pre-existing food the moment this field was added.
+    private Boolean available;
 }

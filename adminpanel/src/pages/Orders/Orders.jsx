@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
 import './Orders.css';
 import { toast } from 'react-toastify';
-import { getAllOrders, updateOrderStatus } from '../../services/orderService';
+import { getAllOrders, updateOrderStatus, adminCancelOrder } from '../../services/orderService';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -11,11 +11,12 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { formatColomboDateTime, formatColomboTime } from '../../utils/date';
+import { assets } from '../../assets/assets';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
-const restaurantIcon = L.divIcon({ className: '', html: '<div style="font-size:26px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))">🍛</div>', iconSize: [32, 32], iconAnchor: [16, 32] });
+const restaurantIcon = L.icon({ iconUrl: assets.logo, iconSize: [32, 32], iconAnchor: [16, 32], className: 'restaurant-marker-icon' });
 const riderIcon      = L.divIcon({ className: '', html: '<div style="font-size:26px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))">🛵</div>', iconSize: [32, 32], iconAnchor: [16, 32] });
 const destIcon       = L.divIcon({ className: '', html: '<div style="font-size:26px;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))">🏠</div>', iconSize: [32, 32], iconAnchor: [16, 32] });
 
@@ -106,14 +107,14 @@ const LiveTrackModal = ({ order, onClose }) => {
           </h6>
           <button className="btn-close btn-close-white" onClick={onClose} />
         </div>
-        <div className="mb-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
-          <small className="text-muted">
-            <i className="bi bi-person me-1"></i>{order.userName}
-            {order.deliveryAddress && <> &middot; <i className="bi bi-geo-alt me-1"></i>{order.deliveryAddress}</>}
-          </small>
+        <div className="mb-2 d-flex align-items-start justify-content-between flex-wrap gap-2">
+          <div className="text-muted small">
+            <div><i className="bi bi-person me-1"></i>{order.userName}</div>
+            {order.deliveryAddress && <div><i className="bi bi-geo-alt me-1"></i>{order.deliveryAddress}</div>}
+          </div>
           {etaMinutes != null && (
             <span className="badge" style={{ background: 'rgba(62,207,142,0.15)', color: '#3ecf8e', fontSize: '0.75rem', padding: '4px 12px', borderRadius: 20 }}>
-              <i className="bi bi-clock me-1"></i>ETA ~{etaMinutes} min
+              <i className="bi bi-clock me-1"></i>Arriving in ~{etaMinutes} min
             </span>
           )}
         </div>
@@ -131,7 +132,7 @@ const LiveTrackModal = ({ order, onClose }) => {
             </Marker>
             {riderPos && (
               <Marker position={[riderPos.lat, riderPos.lng]} icon={riderIcon}>
-                <Popup>Delivery rider{etaMinutes != null ? ` · ETA ~${etaMinutes} min` : ''}</Popup>
+                <Popup>Delivery rider{etaMinutes != null ? ` · Arriving in ~${etaMinutes} min` : ''}</Popup>
               </Marker>
             )}
             {destination && (
@@ -143,12 +144,6 @@ const LiveTrackModal = ({ order, onClose }) => {
               <Polyline positions={route} pathOptions={{ color: '#a78bfa', weight: 4, opacity: 0.8, dashArray: '8,6' }} />
             )}
           </MapContainer>
-        </div>
-        <div className="mt-2 d-flex gap-3 small text-muted">
-          <span>🍛 Restaurant</span>
-          <span>🛵 Rider</span>
-          <span>🏠 Customer</span>
-          {route && <span style={{ color: '#a78bfa' }}>━ Route</span>}
         </div>
       </div>
     </div>
@@ -165,10 +160,14 @@ const COLUMNS = [
 ];
 
 /* ─── Order detail modal ─── */
-const DetailModal = ({ order, onClose, onStatusMove }) => {
-  if (!order) return null;
+const DetailModal = ({ order, onClose, onStatusMove, onAdminCancel }) => {
+  const [showCancelForm, setShowCancelForm] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+
   const col = COLUMNS.find(c => c.displayKeys.includes(order.status)) || COLUMNS[0];
   const isDelivery = order.orderType === 'delivery';
+  const canCancel = !['OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'].includes(order.status);
   // Admin can move delivery orders: CONFIRMED → COOKING → READY only (rider handles OUT_FOR_DELIVERY and DELIVERED)
   // Admin can move pickup orders: CONFIRMED → COOKING → READY → DELIVERED (skip OUT_FOR_DELIVERY)
   const nextColIdx = COLUMNS.findIndex((c, i) =>
@@ -176,6 +175,19 @@ const DetailModal = ({ order, onClose, onStatusMove }) => {
     c.key !== 'OUT_FOR_DELIVERY' &&
     (!isDelivery || c.key !== 'DELIVERED'));
   const nextCol = nextColIdx !== -1 ? COLUMNS[nextColIdx] : null;
+
+  const handleConfirmCancel = async () => {
+    if (!cancelReason.trim()) return;
+    setCancelling(true);
+    try {
+      await onAdminCancel(order.id, cancelReason.trim());
+      onClose();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Failed to cancel order.');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1055, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
@@ -192,16 +204,10 @@ const DetailModal = ({ order, onClose, onStatusMove }) => {
           <button className="btn-close btn-close-white" onClick={onClose} />
         </div>
 
-        {/* Status + type */}
+        {/* Order type */}
         <div className="d-flex flex-wrap gap-2 mb-4">
-          <span className="badge px-3 py-2 rounded-pill" style={{ background: col.bg, color: col.color, fontSize: '0.78rem' }}>
-            <i className={`bi ${col.icon} me-1`}></i>{col.label}
-          </span>
           <span className="badge px-3 py-2 rounded-pill" style={{ background: order.orderType === 'delivery' ? 'rgba(74,158,255,0.15)' : 'rgba(100,100,100,0.2)', color: order.orderType === 'delivery' ? '#74aaff' : '#9ca3af', fontSize: '0.78rem' }}>
             {order.orderType === 'delivery' ? '🚚 Delivery' : '🛍 Takeaway'}
-          </span>
-          <span className="badge px-3 py-2 rounded-pill" style={{ background: order.paymentStatus === 'PAID' ? 'rgba(62,207,142,0.15)' : 'rgba(244,115,115,0.15)', color: order.paymentStatus === 'PAID' ? '#3ecf8e' : '#f47373', fontSize: '0.78rem' }}>
-            {order.paymentStatus === 'PAID' ? '✓ Paid' : '⏳ Unpaid'}
           </span>
         </div>
 
@@ -253,21 +259,50 @@ const DetailModal = ({ order, onClose, onStatusMove }) => {
         </div>
 
         {/* Actions */}
-        <div className="d-flex gap-2">
-          {nextCol && (
-            <button className="btn btn-primary flex-fill" style={{ fontWeight: 600 }}
-              onClick={() => { onStatusMove(order.id, nextCol.key); onClose(); }}>
-              <i className={`bi ${nextCol.icon} me-2`}></i>Move to {nextCol.label}
-            </button>
-          )}
-          {order.status === 'PENDING' && (
-            <button className="btn btn-outline-danger px-3"
-              onClick={() => { onStatusMove(order.id, 'CANCELLED'); onClose(); }}
-              title="Cancel order">
-              <i className="bi bi-x-circle"></i>
-            </button>
-          )}
-        </div>
+        {!showCancelForm ? (
+          <div className="d-flex gap-2">
+            {nextCol && (
+              <button className="btn btn-primary flex-fill" style={{ fontWeight: 600 }}
+                onClick={() => { onStatusMove(order.id, nextCol.key); onClose(); }}>
+                <i className={`bi ${nextCol.icon} me-2`}></i>Move to {nextCol.label}
+              </button>
+            )}
+            {canCancel && (
+              <button className="btn btn-outline-danger px-3"
+                onClick={() => setShowCancelForm(true)}
+                title="Cancel order">
+                <i className="bi bi-x-circle me-2"></i>Cancel the Order
+              </button>
+            )}
+          </div>
+        ) : (
+          <div>
+            <label className="form-label small" style={{ color: 'rgba(200,196,188,0.7)' }}>
+              Message for Customer <span className="text-danger">*</span>
+              <span className="text-muted"> — this will be emailed and shown on their order</span>
+            </label>
+            <textarea
+              className="form-control mb-2"
+              rows={3}
+              placeholder="e.g. We're out of an ingredient for one of your items and can't fulfil this order today."
+              value={cancelReason}
+              onChange={e => setCancelReason(e.target.value)}
+              autoFocus
+            />
+            <div className="d-flex gap-2">
+              <button className="btn btn-outline-secondary flex-fill" disabled={cancelling}
+                onClick={() => { setShowCancelForm(false); setCancelReason(''); }}>
+                Never mind
+              </button>
+              <button className="btn btn-danger flex-fill" style={{ fontWeight: 600 }}
+                disabled={cancelling || !cancelReason.trim()}
+                onClick={handleConfirmCancel}>
+                {cancelling && <span className="spinner-border spinner-border-sm me-2"></span>}
+                Confirm Cancellation
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -286,19 +321,11 @@ const OrderCard = ({ order, onDragStart, onDragEnd, onClick, isDragging, onLiveT
       onDragEnd={onDragEnd}
       onClick={onClick}
     >
-      {/* Top row: ID + badges */}
+      {/* Top row: ID */}
       <div className="d-flex align-items-center justify-content-between mb-1">
         <span className="kanban-card-id" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           #{order.displayId || order.id.slice(-6).toUpperCase()}
         </span>
-        <div className="d-flex gap-1" style={{ flexShrink: 0, marginLeft: '0.25rem' }}>
-          {order.paymentStatus === 'PAID'
-            ? <span className="badge" style={{ background: 'rgba(62,207,142,0.15)', color: '#3ecf8e', fontSize: '0.6rem', padding: '2px 6px' }}>PAID</span>
-            : <span className="badge" style={{ background: 'rgba(244,115,115,0.12)', color: '#f47373', fontSize: '0.6rem', padding: '2px 6px' }}>UNPAID</span>}
-          <span className="badge" style={{ background: order.orderType === 'delivery' ? 'rgba(74,158,255,0.12)' : 'rgba(100,100,100,0.15)', color: order.orderType === 'delivery' ? '#74aaff' : '#9ca3af', fontSize: '0.6rem', padding: '2px 6px' }}>
-            {order.orderType === 'delivery' ? '🚚' : '🛍'}
-          </span>
-        </div>
       </div>
 
       {/* Customer name */}
@@ -363,6 +390,12 @@ const Orders = () => {
     } catch {
       toast.error('Status update failed.');
     }
+  };
+
+  const handleAdminCancel = async (orderId, reason) => {
+    const updated = await adminCancelOrder(orderId, reason);
+    setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+    toast.success('Order cancelled and customer notified.');
   };
 
   const handleDragStart = (order) => {
@@ -492,11 +525,14 @@ const Orders = () => {
       </div>
 
       {/* Detail modal */}
-      <DetailModal
-        order={detailOrder}
-        onClose={() => setDetailOrder(null)}
-        onStatusMove={handleStatusMove}
-      />
+      {detailOrder && (
+        <DetailModal
+          order={detailOrder}
+          onClose={() => setDetailOrder(null)}
+          onStatusMove={handleStatusMove}
+          onAdminCancel={handleAdminCancel}
+        />
+      )}
 
       {/* Live track modal */}
       {liveTrackOrder && (

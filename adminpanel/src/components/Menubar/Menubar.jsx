@@ -1,6 +1,7 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
-const Menubar = ({ toggleSidebar, adminUser, onLogout }) => {
+const Menubar = ({ toggleSidebar, adminUser, onLogout, chatUnread }) => {
   return (
     <nav className="navbar" style={{
       background: '#111',
@@ -21,6 +22,14 @@ const Menubar = ({ toggleSidebar, adminUser, onLogout }) => {
 
         {adminUser && (
           <div className="d-flex align-items-center gap-3">
+            {chatUnread > 0 && (
+              <Link to="/chat" className="d-flex align-items-center gap-1 text-decoration-none" style={{ color: '#f0ece0' }} title="Unread customer messages">
+                <i className="bi bi-chat-dots" style={{ color: 'var(--gold)' }}></i>
+                <span className="badge bg-danger rounded-pill" style={{ fontSize: '0.62rem', minWidth: 18 }}>
+                  {chatUnread}
+                </span>
+              </Link>
+            )}
             <span className="small" style={{ color: 'rgba(240,236,224,0.55)' }}>
               <i className="bi bi-person-circle me-1" style={{ color: 'var(--gold)' }}></i>
               {adminUser.name || adminUser.username}

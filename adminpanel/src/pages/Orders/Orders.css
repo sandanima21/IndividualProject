@@ -2,29 +2,26 @@
  * Orders.css — Kanban board layout for admin order management.
  *
  * Each status column (PENDING → CONFIRMED → COOKING → READY → OUT_FOR_DELIVERY → DELIVERED)
- * is a flex child that grows equally on desktop. On mobile (≤768px) columns get a
- * fixed 200px width and the board scrolls horizontally so cards remain readable.
+ * wraps onto a new row once there isn't enough width for all six side by side —
+ * no horizontal scrolling at any width. On mobile (≤768px) each column takes
+ * the full row width (one column per row, page scrolls vertically).
  *
  * Drag-and-drop is handled in JavaScript; CSS provides the visual feedback
- * (.is-dragging, .drag-over) and the scrollable container.
+ * (.is-dragging, .drag-over).
  */
 
 .kanban-board {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  overflow-x: auto;
   padding-bottom: 1.5rem;
   align-items: flex-start;
   width: 100%;
 }
 
-.kanban-board::-webkit-scrollbar { height: 6px; }
-.kanban-board::-webkit-scrollbar-track { background: transparent; }
-.kanban-board::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.25); border-radius: 3px; }
-
 .kanban-column {
-  flex: 1 1 0;
-  min-width: 150px;
+  flex: 1 1 260px;
+  min-width: 220px;
   background: #141414;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.07);
@@ -144,14 +141,17 @@
 
 /* ── Mobile responsive kanban ── */
 @media (max-width: 768px) {
-  .kanban-board {
-    /* Allow horizontal scroll, each column has min width */
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
   .kanban-column {
-    flex: 0 0 200px;
-    min-width: 200px;
-    max-height: calc(100vh - 200px);
+    flex: 1 1 100%;
+    min-width: 0;
+    max-height: none;
   }
+}
+
+/* ── Restaurant marker on live-tracking maps (replaces an emoji divIcon) ── */
+.restaurant-marker-icon {
+  border-radius: 8px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+  background: #fff;
 }

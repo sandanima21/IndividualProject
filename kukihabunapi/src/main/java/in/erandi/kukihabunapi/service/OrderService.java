@@ -15,4 +15,5 @@ public interface OrderService {
     OrderResponse updateRefundStatus(String orderId, String refundStatus, String notes);
     OrderResponse uploadRefundReceipt(String orderId, org.springframework.web.multipart.MultipartFile file);
     OrderResponse processPayhereRefund(String orderId);
+    OrderResponse adminCancelOrder(String orderId, String reason);
 }

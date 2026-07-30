@@ -2,10 +2,11 @@
  * index.css — global dark-gold theme for the KukiHabun admin panel.
  *
  * Layout:
- *  #wrapper (d-flex) contains .sidebar-wrapper (220px fixed) and
- *  #page-content-wrapper (flex:1). On mobile (≤768px), the sidebar
- *  becomes a position:fixed overlay drawer and a .sidebar-mobile-overlay
- *  backdrop appears behind it (see bottom of this file).
+ *  #wrapper (d-flex) contains .sidebar-wrapper (220px, position:fixed at all
+ *  widths) and #page-content-wrapper (flex:1, offset by --sidebar-width via
+ *  margin-left so it doesn't sit under the fixed sidebar). On mobile (≤768px)
+ *  the sidebar becomes an overlay drawer instead (no content offset) and a
+ *  .sidebar-mobile-overlay backdrop appears behind it (see bottom of this file).
  *
  * Bootstrap 5 dark-theme overrides target tables, forms, modals, and
  * dropdowns so they match the black/gold palette without needing inline styles.
@@ -29,8 +30,6 @@ body {
   color: #f0ece0;
 }
 
-#wrapper { overflow-x: hidden; }
-
 .sidebar-wrapper {
   width: var(--sidebar-width);
   min-height: 100vh;
@@ -39,6 +38,15 @@ body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
+  /* Fixed at all widths so it stays in view while the page content scrolls;
+     #page-content-wrapper compensates with margin-left below. Overridden back
+     to an overlay drawer (no content offset) in the mobile media query. */
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
 }
 
 .sidebar-brand {
@@ -73,7 +81,7 @@ body {
 .sidebar-item:hover { background: var(--gold-muted); color: var(--gold) !important; }
 .sidebar-item.active { background: var(--gold-muted); color: var(--gold) !important; font-weight: 700; }
 
-#page-content-wrapper { min-width: 0; flex: 1; overflow-x: hidden; }
+#page-content-wrapper { min-width: 0; flex: 1; overflow-x: hidden; margin-left: var(--sidebar-width); }
 
 /* Card and table overrides for dark theme */
 .card { background: #1a1a1a !important; border: 1px solid rgba(201,168,76,0.15) !important; color: #f0ece0 !important; }
@@ -123,21 +131,18 @@ select option { background: #1e1e1e !important; }
 
 /* ── Mobile responsive sidebar ── */
 @media (max-width: 768px) {
-  /* Sidebar becomes a fixed overlay drawer on mobile */
+  /* Sidebar is already position:fixed from the base rule above; on mobile it
+     needs to stack above the backdrop overlay instead of the topbar. */
   .sidebar-wrapper {
-    position: fixed !important;
-    top: 0;
-    left: 0;
-    height: 100vh;
     z-index: 1050;
-    overflow-y: auto;
-    /* Sidebar is in-flow on desktop; on mobile it overlays without taking space */
   }
 
-  /* Content area takes full width when sidebar is overlay */
+  /* Content area takes full width when sidebar is an overlay, not a permanent
+     fixture — cancel the desktop margin-left that makes room for it. */
   #page-content-wrapper {
     width: 100% !important;
     min-width: 0 !important;
+    margin-left: 0 !important;
   }
 
   /* Semi-transparent backdrop behind the sidebar drawer */

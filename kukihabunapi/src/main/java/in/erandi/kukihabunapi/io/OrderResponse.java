@@ -37,6 +37,8 @@ public class OrderResponse {
     private double deliveryFee;
     private double total;
     private String status;
+    private String cancelReason;
+    private String cancelledBy;
     private String paymentStatus;
     private String payherePaymentId; // PayHere transaction reference, needed by admin to process refund
     private String refundStatus;

@@ -84,6 +84,14 @@ public class FoodServiceImpl implements FoodService {
         return convertToResponse(foodRepository.save(existing));
     }
 
+    @Override
+    public FoodResponse setAvailability(String id, boolean available) {
+        FoodEntity existing = foodRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Food not found: " + id));
+        existing.setAvailable(available);
+        return convertToResponse(foodRepository.save(existing));
+    }
+
     private FoodEntity convertToEntity(FoodRequest request){
         return FoodEntity.builder()
                 .name(request.getName())
@@ -91,6 +99,7 @@ public class FoodServiceImpl implements FoodService {
                 .category(request.getCategory())
                 .price(request.getPrice())
                 .customizationOptions(request.getCustomizationOptions())
+                .available(true)
                 .build();
     }
 
@@ -103,6 +112,7 @@ public class FoodServiceImpl implements FoodService {
                 .price(entity.getPrice())
                 .imageUrl(entity.getImageUrl())
                 .customizationOptions(entity.getCustomizationOptions())
+                .available(!Boolean.FALSE.equals(entity.getAvailable()))
                 .build();
     }
 }

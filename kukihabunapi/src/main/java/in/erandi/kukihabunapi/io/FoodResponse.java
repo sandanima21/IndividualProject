@@ -18,4 +18,5 @@ public class FoodResponse {
     private double price;
     private String category;
     private CustomizationOptions customizationOptions;
+    private boolean available;
 }

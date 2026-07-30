@@ -52,6 +52,12 @@ public class OrderEntity {
     @Builder.Default
     private String status = "PENDING"; // PENDING | CONFIRMED | COOKING | READY | DELIVERED
 
+    // Set only when status becomes CANCELLED — who cancelled it and why. "ADMIN" cancellations
+    // carry a reason (required, shown to the customer + emailed); "CUSTOMER" self-cancellations
+    // (PaymentController.cancelOrder) never set cancelReason since the customer doesn't type one.
+    private String cancelReason;
+    private String cancelledBy; // "ADMIN" | "CUSTOMER" | null
+
     @Builder.Default
     private String paymentStatus = "UNPAID"; // UNPAID | PAID | CANCELLED | REFUNDED
 

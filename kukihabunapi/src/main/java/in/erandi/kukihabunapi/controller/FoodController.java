@@ -17,6 +17,7 @@ import lombok.AllArgsConstructor;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 
 
 @RestController
@@ -87,6 +88,17 @@ public class FoodController {
     public void deleteFood(@PathVariable String id, @RequestHeader(value = "Authorization", required = false) String authHeader){
         if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         foodService.deleteFood(id);
+    }
+
+    // Pause/resume a food item (e.g. temporarily out of stock) without deleting it.
+    @PatchMapping("/{id}/availability")
+    public FoodResponse setAvailability(@PathVariable String id,
+                                        @RequestBody Map<String, Boolean> body,
+                                        @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
+        Boolean available = body.get("available");
+        if (available == null) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "'available' is required");
+        return foodService.setAvailability(id, available);
     }
 
 }

@@ -15,7 +15,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from './components/Sidebar/Sidebar'
 import Menubar from './components/Menubar/Menubar'
 import Analytics from './pages/Analytics/Analytics'
@@ -29,6 +29,9 @@ import Refunds from './pages/Refunds/Refunds'
 import Offers from './pages/Offers/Offers'
 import Login from './pages/Login/Login'
 import { ToastContainer } from 'react-toastify'
+import { getConversations } from './services/chatService'
+
+const CHAT_LAST_VISIT_KEY = 'admin_chat_last_visit';
 
 // 30 minutes — enough time for a normal work session without risking leaving
 // the panel exposed on an unattended machine.
@@ -36,6 +39,9 @@ const ADMIN_IDLE_MS = 30 * 60 * 1000;
 
 const App = () => {
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [chatUnread, setChatUnread] = useState(0);
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
 
   // sessionStorage is intentionally used here: unlike localStorage it is cleared
   // when the tab closes, so admins are never silently kept logged in.
@@ -59,7 +65,43 @@ const App = () => {
     clearTimeout(idleTimer.current);
     setAdminToken(null);
     setAdminUser(null);
+    // Reset the URL bar to the root path — otherwise it silently keeps whatever
+    // path was last active (e.g. /orders) while the login screen is shown, since
+    // <Login> is rendered by an early return outside of <Routes>.
+    navigate('/', { replace: true });
   };
+
+  // ── Chat unread badge (shown in both Sidebar and Menubar) ──────────────────
+  // Shared here so both surfaces read the same count instead of polling twice.
+  useEffect(() => {
+    if (!adminToken) return;
+    if (!localStorage.getItem(CHAT_LAST_VISIT_KEY)) {
+      localStorage.setItem(CHAT_LAST_VISIT_KEY, new Date().toISOString());
+    }
+
+    const fetchUnread = async () => {
+      if (pathname === '/chat') {
+        setChatUnread(0);
+        return;
+      }
+      try {
+        const convs = await getConversations();
+        const lastVisit = localStorage.getItem(CHAT_LAST_VISIT_KEY);
+        const cutoff = lastVisit ? new Date(lastVisit) : null;
+        if (!cutoff) { setChatUnread(0); return; }
+        const count = convs.filter(c =>
+          c.unreadCount > 0 &&
+          c.lastMessageAt &&
+          new Date(c.lastMessageAt) > cutoff
+        ).length;
+        setChatUnread(count);
+      } catch { /* silent — badge simply stays at its previous value */ }
+    };
+
+    fetchUnread();
+    const iv = setInterval(fetchUnread, 30_000);
+    return () => clearInterval(iv);
+  }, [pathname, adminToken]);
 
   // ── Idle auto-logout ─────────────────────────────────────────────────────
   // Attaches passive listeners to the most common interaction events.
@@ -106,10 +148,10 @@ const App = () => {
         style={{ display: sidebarVisible ? undefined : 'none' }}
       />
 
-      <Sidebar sidebarVisible={sidebarVisible} />
+      <Sidebar sidebarVisible={sidebarVisible} chatUnread={chatUnread} />
 
       <div id="page-content-wrapper">
-        <Menubar toggleSidebar={toggleSidebar} adminUser={adminUser} onLogout={handleLogout} />
+        <Menubar toggleSidebar={toggleSidebar} adminUser={adminUser} onLogout={handleLogout} chatUnread={chatUnread} />
         <ToastContainer theme="dark" />
         <div className="container-fluid">
           <Routes>

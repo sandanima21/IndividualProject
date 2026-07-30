@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { assets } from '../../assets/assets';
 
 const Login = ({ onLogin }) => {
   const [form, setForm] = useState({ username: '', password: '' });
@@ -36,7 +37,7 @@ const Login = ({ onLogin }) => {
         borderRadius: 20, padding: '2.5rem 2rem', boxShadow: '0 24px 80px rgba(0,0,0,0.7)',
       }}>
         <div className="text-center mb-4">
-          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>🍛</div>
+          <img src={assets.logo} alt="KukiHabun" style={{ width: 64, height: 64, borderRadius: 14, marginBottom: 10 }} />
           <h4 className="fw-bold" style={{ color: 'var(--gold)' }}>KukiHabun Admin</h4>
           <p className="small text-muted mb-0">Sign in to continue</p>
         </div>

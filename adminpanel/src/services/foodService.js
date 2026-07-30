@@ -27,3 +27,8 @@ export const deleteFood = async (foodId) => {
   const response = await api.delete(`${API_URL}/${foodId}`);
   return response.status;
 };
+
+export const setFoodAvailability = async (foodId, available) => {
+  const response = await api.patch(`${API_URL}/${foodId}/availability`, { available });
+  return response.data;
+};

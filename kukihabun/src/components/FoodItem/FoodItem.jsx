@@ -83,7 +83,11 @@ const FoodItem = ({ food }) => {
         </div>
         <div className="card-footer d-flex justify-content-between align-items-center bg-transparent border-top">
           <Link className="btn btn-outline-primary btn-sm" to={`/food/${food.id}`}>Details</Link>
-          {quantities[food.id] > 0 ? (
+          {food.available === false ? (
+            <span className="badge" style={{ background: 'rgba(244,115,115,0.15)', color: '#f47373', fontSize: '0.75rem', padding: '6px 10px' }}>
+              <i className="bi bi-slash-circle me-1"></i>Out of Stock
+            </span>
+          ) : quantities[food.id] > 0 ? (
             // Item is in cart — show quantity stepper.
             <div className="d-flex align-items-center gap-2">
               <button className="btn btn-danger btn-sm" onClick={() => decreaseQty(food.id)}>

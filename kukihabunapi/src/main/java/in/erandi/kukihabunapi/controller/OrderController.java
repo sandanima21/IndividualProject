@@ -3,11 +3,13 @@ package in.erandi.kukihabunapi.controller;
 import in.erandi.kukihabunapi.config.JwtUtil;
 import in.erandi.kukihabunapi.io.OrderRequest;
 import in.erandi.kukihabunapi.io.OrderResponse;
+import in.erandi.kukihabunapi.repository.UserRepository;
 import in.erandi.kukihabunapi.service.OrderService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import org.springframework.web.multipart.MultipartFile;
 
@@ -21,11 +23,23 @@ public class OrderController {
     private final OrderService orderService;
     private final JwtUtil jwtUtil;
     private final SimpMessagingTemplate messaging;
+    private final UserRepository userRepository;
 
-    public OrderController(OrderService orderService, JwtUtil jwtUtil, SimpMessagingTemplate messaging) {
+    public OrderController(OrderService orderService, JwtUtil jwtUtil, SimpMessagingTemplate messaging,
+                           UserRepository userRepository) {
         this.orderService = orderService;
         this.jwtUtil = jwtUtil;
         this.messaging = messaging;
+        this.userRepository = userRepository;
+    }
+
+    /** True only if the Authorization header carries a valid JWT belonging to an ADMIN account. */
+    private boolean isAdmin(String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) return false;
+        String token = authHeader.substring(7);
+        if (!jwtUtil.validateToken(token)) return false;
+        String userId = jwtUtil.extractUserId(token);
+        return userRepository.findById(userId).map(u -> "ADMIN".equals(u.getRole())).orElse(false);
     }
 
     @PostMapping
@@ -107,6 +121,22 @@ public class OrderController {
         } catch (Exception e) {
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
+    }
+
+    // Admin cancels an order with a required reason — emails the customer and, if the order
+    // was paid, kicks off the same refund pipeline PaymentController.cancelOrder uses for
+    // customer self-cancellations (Refunds page → History → Refunded).
+    @PostMapping("/{id}/admin-cancel")
+    public ResponseEntity<OrderResponse> adminCancel(
+            @PathVariable String id,
+            @RequestBody Map<String, String> body,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
+        OrderResponse updated = orderService.adminCancelOrder(id, body.get("reason"));
+        if (updated.getUserId() != null) {
+            messaging.convertAndSend("/topic/order-status/" + updated.getUserId(), updated);
+        }
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}/cancel-pending")
