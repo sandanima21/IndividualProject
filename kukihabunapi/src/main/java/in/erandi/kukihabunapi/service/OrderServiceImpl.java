@@ -283,8 +283,11 @@ public class OrderServiceImpl implements OrderService {
 
         OrderResponse response = toResponse(orderRepository.save(order));
         if (response.getUserEmail() != null) {
+            String foodNames = response.getItems() == null ? "" : response.getItems().stream()
+                    .map(OrderItemResponse::getFoodName)
+                    .collect(Collectors.joining(", "));
             emailService.sendOrderCancelled(response.getUserEmail(), response.getUserName(),
-                    response.getDisplayId(), reason, wasPaid);
+                    response.getDisplayId(), foodNames, reason, wasPaid);
         }
         return response;
     }
