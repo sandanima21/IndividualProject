@@ -1,5 +1,6 @@
 package in.erandi.kukihabunapi.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -23,9 +25,13 @@ import java.util.Map;
  *   2. requestRefund()  – calls /merchant/v1/payment/refund; retries once on 401.
  *
  * Environment variables (set in application.properties or as OS env):
- *   PAYHERE_APP_ID      – App ID created in PayHere portal → Apps
- *   PAYHERE_APP_SECRET  – App Secret from the same portal entry
+ *   PAYHERE_APP_ID      – App ID created in PayHere account → Settings → API Keys
+ *   PAYHERE_APP_SECRET  – App Secret from the same entry ("View Credentials")
  *   PAYHERE_SANDBOX     – "true" for sandbox, "false" for live (default: true)
+ *
+ * PayHere issues API Key credentials for sandbox accounts too (contrary to an earlier
+ * assumption here) — https://sandbox.payhere.lk/merchant/v1/oauth/token is a real, documented
+ * sandbox-scoped OAuth endpoint. Only the "Automatic Charging API" permission is needed for refunds.
  */
 @Service
 public class PayHereRefundService {
@@ -61,13 +67,16 @@ public class PayHereRefundService {
      * Submit a refund for the given PayHere payment ID.
      * Automatically manages the OAuth token (cached, auto-renewed on expiry / 401).
      *
+     * @return true if a real API call was made to PayHere, false if it was simulated
+     *         (sandbox mode with no App credentials configured — see below).
      * @throws ResponseStatusException if credentials are missing, or PayHere returns an error.
      */
-    public void requestRefund(String payherePaymentId) {
-        // In sandbox mode without API credentials, simulate the submission (sandbox portal
-        // does not issue OAuth App credentials — those are only available on live accounts)
+    public boolean requestRefund(String payherePaymentId) {
+        // Simulate rather than fail outright if this deployment simply hasn't been given
+        // App credentials yet (sandbox accounts can generate them same as live — see the
+        // class Javadoc — this is just a "not configured" fallback, not a platform limit).
         if (sandbox && (appId == null || appId.isBlank())) {
-            return;
+            return false;
         }
         assertCredentialsPresent();
         String token = getValidToken();
@@ -78,6 +87,7 @@ public class PayHereRefundService {
             tokenCache.invalidate();
             doRefund(getValidToken(), payherePaymentId);
         }
+        return true;
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -101,13 +111,16 @@ public class PayHereRefundService {
 
     @SuppressWarnings("unchecked")
     private String fetchAndCacheToken() {
+        // PayHere's OAuth token endpoint authenticates the client via HTTP Basic Auth
+        // (base64 of "AppID:AppSecret"), not client_id/client_secret as body fields —
+        // sending them as body fields (the previous implementation) gets a silent 401
+        // "Authentication error" no matter how correct the credentials are.
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        headers.setBasicAuth(appId, appSecret);
 
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("grant_type", "client_credentials");
-        body.add("client_id", appId);
-        body.add("client_secret", appSecret);
 
         Map<String, Object> response = restTemplate.postForObject(
                 getBaseUrl() + "/oauth/token",
@@ -138,10 +151,22 @@ public class PayHereRefundService {
                     webhookBaseUrl.stripTrailing() + "/api/v1/payhere/refund-webhook");
         }
 
-        Map<String, Object> response = restTemplate.postForObject(
-                getBaseUrl() + "/payment/refund",
-                new HttpEntity<>(payload, headers),
-                Map.class);
+        Map<String, Object> response;
+        try {
+            response = restTemplate.postForObject(
+                    getBaseUrl() + "/payment/refund",
+                    new HttpEntity<>(payload, headers),
+                    Map.class);
+        } catch (HttpClientErrorException.Unauthorized e) {
+            throw e; // let requestRefund()'s retry-once-with-a-fresh-token logic handle this
+        } catch (HttpStatusCodeException e) {
+            // RestTemplate throws (rather than returning the body) for any non-2xx response,
+            // so a legitimate PayHere rejection (e.g. already refunded, invalid payment) would
+            // otherwise skip the status/msg check below entirely and surface as a raw, opaque
+            // Spring exception instead of a clear message — extract PayHere's actual reason.
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
+                    "PayHere refund rejected: " + extractPayhereMessage(e.getResponseBodyAsString()));
+        }
 
         if (response == null)
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
@@ -153,5 +178,17 @@ public class PayHereRefundService {
         if (!Integer.valueOf(1).equals(status) && !"1".equals(String.valueOf(status)))
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                     "PayHere refund rejected: " + msg);
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractPayhereMessage(String responseBody) {
+        try {
+            Map<String, Object> parsed = new ObjectMapper().readValue(responseBody, Map.class);
+            Object msg = parsed.get("msg");
+            if (msg != null) return String.valueOf(msg);
+        } catch (Exception ignored) {
+            // Not parseable JSON — fall through to returning the raw body below.
+        }
+        return responseBody;
     }
 }
