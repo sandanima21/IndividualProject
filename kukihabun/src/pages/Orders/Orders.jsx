@@ -820,7 +820,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                           <div className={`tracker-dot${done ? ' done' : ''}${active ? ' active' : ''}`}>
                             <i className={`bi ${step.icon}`}></i>
                           </div>
-                          <span className={`tracker-label${done ? ' done' : ''}`}>{step.label}</span>
+                          <span className={`tracker-label${done ? ' done' : ''}${step.label.includes(' ') ? '' : ' tracker-label-nowrap'}`}>{step.label}</span>
                         </div>
                       );
                     })}
@@ -908,7 +908,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
 
               {/* Rider info card — shown when rider has been assigned */}
               {!isHistory && order.orderType === 'delivery' && order.status === 'OUT_FOR_DELIVERY' && order.deliveryPersonId && (
-                <div className="d-flex align-items-center gap-3 p-3 rounded-3 mb-3"
+                <div className="d-flex align-items-center gap-3 p-3 rounded-3 mt-3 mb-3"
                   style={{ background: 'rgba(167,139,250,0.07)', border: '1px solid rgba(167,139,250,0.25)' }}>
                   {order.deliveryPersonPicture
                     ? <img src={order.deliveryPersonPicture} alt="Rider" width={46} height={46} className="rounded-circle flex-shrink-0" style={{ objectFit: 'cover', border: '2px solid rgba(167,139,250,0.5)' }} />

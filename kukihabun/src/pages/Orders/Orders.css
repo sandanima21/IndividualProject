@@ -60,6 +60,15 @@
   color: var(--bs-primary, #0d6efd);
 }
 
+/* Single-word labels (CONFIRMED, DELIVERED, etc.) break mid-word at the widths above
+   since they have no space to wrap on — keep them on one line instead. "On the Way"
+   deliberately keeps the default wrapping behavior, it reads fine on two lines.
+   Compound selector so this reliably outranks .tracker-label in both media blocks below. */
+.tracker-label.tracker-label-nowrap {
+  white-space: nowrap;
+  max-width: none;
+}
+
 /* ── Tracker responsive ── */
 @media (max-width: 576px) {
   .order-tracker::before {
