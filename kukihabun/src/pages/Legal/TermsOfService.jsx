@@ -12,7 +12,7 @@ const TermsOfService = () => (
     <div className="text-center mb-5">
       <p className="explore-label">Legal</p>
       <h1 className="fw-bold" style={{ color: '#f0ece0' }}>Terms of Service</h1>
-      <p style={{ color: 'var(--text-muted)' }}>Last updated: May 2026</p>
+      <p style={{ color: 'var(--text-muted)' }}>Last updated: July 2026</p>
     </div>
 
     <div className="card p-4 p-md-5">
@@ -31,18 +31,21 @@ const TermsOfService = () => (
           <li>All prices are in Sri Lankan Rupees (LKR) and include applicable taxes.</li>
           <li>Orders are confirmed once payment is successfully processed via PayHere.</li>
           <li>Delivery fees are calculated based on distance from our location.</li>
-          <li>You may cancel an order within <strong>15 minutes</strong> of payment for a full refund.</li>
+          <li>You may cancel an order for a full refund any time before the restaurant confirms it.</li>
         </ul>
       </Section>
 
       <Section title="4. Cancellations and Refunds">
-        Customers may cancel orders within 15 minutes of payment. Refunds will be processed within 3–5
-        business days to the original payment method. No cancellations are permitted once preparation has begun.
+        Orders can be cancelled for a full refund at any point before the restaurant confirms them.
+        Once an order is confirmed, it can no longer be cancelled by the customer. If KukiHabun needs
+        to cancel a confirmed order for any reason, a full refund will still be issued. Refunds are
+        processed within 3–5 business days to the original payment method.
       </Section>
 
       <Section title="5. Delivery">
-        We aim to deliver within 30–45 minutes. Delivery times may vary based on distance, traffic, and
-        order volume. Real-time tracking is available for delivery orders.
+        We currently deliver within Colombo, with delivery fees calculated by distance. Delivery times
+        may vary based on distance, traffic, and order volume. Real-time tracking is available once a
+        delivery rider has been assigned to your order.
       </Section>
 
       <Section title="6. Prohibited Conduct">
