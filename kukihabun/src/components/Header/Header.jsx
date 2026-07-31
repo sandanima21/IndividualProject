@@ -59,7 +59,7 @@ const Header = () => {
           </div>
 
           <div className="hero-badges d-flex gap-5 justify-content-center mt-5 flex-wrap">
-            <div className="hero-badge"><i className="bi bi-clock-fill"></i><span>30 Min Delivery</span></div>
+            <div className="hero-badge"><i className="bi bi-clock-fill"></i><span>Fast Delivery</span></div>
             <div className="hero-badge"><i className="bi bi-star-fill"></i><span>Top Rated</span></div>
             <div className="hero-badge"><i className="bi bi-shield-fill-check"></i><span>100% Fresh</span></div>
           </div>

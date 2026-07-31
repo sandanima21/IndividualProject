@@ -20,6 +20,23 @@ const getGreeting = () => {
 /* ── Hero Banner (no iframe — pure CSS + content) ── */
 const HeroBanner = ({ user }) => {
   const firstName = user?.name?.split(' ')[0] || 'there';
+
+  // Real average across all reviews, same calculation the admin panel already uses
+  // (Reviews.jsx's avgOf). Falls back to a sensible default if the fetch fails or
+  // no reviews exist yet, since this is a high-traffic page that shouldn't break.
+  const [ratingDisplay, setRatingDisplay] = useState('4.8★');
+  useEffect(() => {
+    axios.get(`${import.meta.env.VITE_API_URL}/api/reviews`)
+      .then(res => {
+        const reviews = res.data;
+        if (Array.isArray(reviews) && reviews.length > 0) {
+          const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;
+          setRatingDisplay(`${avg.toFixed(1)}★`);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <section style={{
       minHeight: '72vh',
@@ -37,8 +54,8 @@ const HeroBanner = ({ user }) => {
       {/* Decorative rings — hidden on small screens via hero-deco class */}
       <div className="hero-deco" style={{ position: 'absolute', right: '6%', top: '50%', transform: 'translateY(-50%)', width: 420, height: 420, borderRadius: '50%', border: '1px solid rgba(201,168,76,0.07)', pointerEvents: 'none' }} />
       <div className="hero-deco" style={{ position: 'absolute', right: '8%', top: '50%', transform: 'translateY(-50%)', width: 300, height: 300, borderRadius: '50%', border: '1px solid rgba(201,168,76,0.1)', pointerEvents: 'none' }} />
-      <div className="hero-deco" style={{ position: 'absolute', right: '10.5%', top: '50%', transform: 'translateY(-50%)', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%)', pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '5rem' }}>
-        🍛
+      <div className="hero-deco" style={{ position: 'absolute', right: '10.5%', top: '50%', transform: 'translateY(-50%)', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%)', pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <img src="https://firebasestorage.googleapis.com/v0/b/kukihabun-customer.firebasestorage.app/o/home_page_food.png?alt=media" alt="" style={{ width: '5rem', height: '5rem', objectFit: 'contain' }} />
       </div>
 
       <div className="container">
@@ -67,8 +84,7 @@ const HeroBanner = ({ user }) => {
           {[
             { val: '10+', label: 'Years of flavour' },
             { val: '50+', label: 'Signature dishes' },
-            { val: '4.8★', label: 'Customer rating' },
-            { val: '30 min', label: 'Avg. delivery' },
+            { val: ratingDisplay, label: 'Customer rating' },
           ].map(s => (
             <div key={s.label} style={{ display: 'flex', flexDirection: 'column' }}>
               <span style={{ color: 'var(--gold)', fontWeight: 800, fontSize: '1.25rem', lineHeight: 1 }}>{s.val}</span>
