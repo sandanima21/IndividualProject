@@ -19,6 +19,11 @@ const FoodDetails = () => {
   const [data, setData] = useState({});
   const [reviews, setReviews] = useState([]);
 
+  // Land at the top of the page rather than wherever the previous page was scrolled to.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [id]);
+
   useEffect(() => {
     const load = async () => {
       try {
