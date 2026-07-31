@@ -491,7 +491,7 @@ const Cart = () => {
           )}
         </div>
 
-        <div className="col-lg-4" style={{ alignSelf: 'flex-start', position: 'sticky', top: '1.5rem' }}>
+        <div className="col-lg-4" style={{ alignSelf: 'flex-start' }}>
           <div className="card cart-summary">
             <div className="card-body">
               <h5 className="card-title mb-4">Order Summary</h5>
@@ -658,7 +658,8 @@ const Cart = () => {
                 disabled={
                   !isOpen ||
                   (cartItems.length === 0 && !pendingOffer) || placing || !user?.phone ||
-                  (orderType === 'delivery' && !deliveryAddress && !deliveryLat)
+                  (orderType === 'delivery' && !deliveryAddress && !deliveryLat) ||
+                  (orderType === 'delivery' && deliveryLat && deliveryLng && !isWithinColombo(deliveryLat, deliveryLng))
                 }
                 onClick={handleCheckout}
               >
