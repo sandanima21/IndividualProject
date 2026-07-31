@@ -66,7 +66,7 @@ const FoodReviewsTab = () => {
                   <td>
                     <div className="d-flex align-items-center gap-2">
                       {r.userPicture
-                        ? <img src={r.userPicture} alt={r.userName} width={28} height={28} className="rounded-circle" referrerPolicy="no-referrer" onError={e => { e.target.style.display = 'none'; }} />
+                        ? <img src={r.userPicture} alt={r.userName} width={28} height={28} className="rounded-circle" style={{ objectFit: 'cover' }} referrerPolicy="no-referrer" onError={e => { e.target.style.display = 'none'; }} />
                         : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'var(--gold)', fontWeight: 700 }}>{r.userName?.charAt(0)}</div>}
                       <small style={{ color: '#c8c4bc' }}>{r.userName}</small>
                     </div>

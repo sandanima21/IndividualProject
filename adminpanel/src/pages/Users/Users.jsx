@@ -6,7 +6,7 @@ const EMPTY_DELIVERY = { name: '', email: '', username: '', password: '' };
 
 const Avatar = ({ user }) => (
   user.picture
-    ? <img src={user.picture} alt={user.name} width={36} height={36} className="rounded-circle" referrerPolicy="no-referrer" onError={e => { e.target.style.display = 'none'; }} />
+    ? <img src={user.picture} alt={user.name} width={36} height={36} className="rounded-circle" style={{ objectFit: 'cover' }} referrerPolicy="no-referrer" onError={e => { e.target.style.display = 'none'; }} />
     : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(201,168,76,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--gold)', fontWeight: 700, fontSize: '0.9rem' }}>
         {user.name?.charAt(0)?.toUpperCase() || '?'}
       </div>

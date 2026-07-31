@@ -83,7 +83,7 @@ const ExploreMenu = ({ category, setCategory, searchText, setSearchText }) => {
               onClick={() => setCategory(prev => prev === item.name ? 'All' : item.name)}
             >
               <div className="explore-img-wrap">
-                <img src={item.imageUrl} alt={item.name} width={68} height={68} className="rounded-circle" />
+                <img src={item.imageUrl} alt={item.name} width={68} height={68} className="rounded-circle" style={{ objectFit: 'cover' }} />
               </div>
               <span className="explore-cat-label">{item.name}</span>
             </button>

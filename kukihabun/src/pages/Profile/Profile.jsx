@@ -25,6 +25,7 @@ const Profile = () => {
                 alt={user.name}
                 width={100} height={100}
                 className="rounded-circle border mb-3"
+                style={{ objectFit: 'cover' }}
                 referrerPolicy="no-referrer"
               />
               <h4 className="fw-bold">{user.name}</h4>
