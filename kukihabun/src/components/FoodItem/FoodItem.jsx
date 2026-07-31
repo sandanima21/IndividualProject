@@ -69,7 +69,7 @@ const FoodItem = ({ food }) => {
           />
         </Link>
         <div className="card-body d-flex flex-column">
-          <h5 className="card-title flex-fill">{food.name}</h5>
+          <h5 className="card-title">{food.name}</h5>
           <div className="d-flex justify-content-between align-items-center mt-2">
             <span className="h5 mb-0 fw-bold">Rs.{food.price}</span>
             {food.averageRating > 0 && (

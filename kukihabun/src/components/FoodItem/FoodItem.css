@@ -1,14 +1,13 @@
 .food-item-card { max-width: 320px; }
 .food-item-image { height: 160px; width: 100%; object-fit: cover; }
 
-/* Reserve the same vertical space for every title (2 lines) regardless of name
-   length, so a short name doesn't leave a card shorter than one with a name
-   that wraps — longer names beyond 2 lines are truncated with an ellipsis.
-   Bootstrap's h5 renders at 1.25rem with a 1.2 line-height, so two full lines
-   need exactly 3rem (1.25 * 1.2 * 2) — anything less still lets a 2-line
-   title's natural height exceed the floor and make that card taller. */
+/* Every title box is a hard fixed height (not a min-height floor) so it's
+   byte-for-byte identical across every card regardless of name length — a
+   min-height floor still depends on 2-line content staying under it, which
+   is fragile across font-rendering differences. A fixed height + overflow
+   hidden can't vary, full stop. */
 .food-item-card .card-title {
-  min-height: 3rem;
+  height: 3rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
