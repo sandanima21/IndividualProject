@@ -12,11 +12,15 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { assets } from '../../assets/assets';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
 
-const restaurantIcon = L.divIcon({ className: '', html: '<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))">🍛</div>', iconSize: [32, 32], iconAnchor: [16, 32] });
+const restaurantIcon = L.divIcon({
+  html: `<div style="background:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.4);overflow:hidden"><img src="${assets.logo}" style="width:100%;height:100%;object-fit:cover" /></div>`,
+  iconSize: [32, 32], iconAnchor: [16, 16], className: '',
+});
 const riderIcon      = L.divIcon({ className: '', html: '<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))">🛵</div>', iconSize: [32, 32], iconAnchor: [16, 32] });
 const destIcon       = L.divIcon({ className: '', html: '<div style="font-size:28px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5))">🏠</div>', iconSize: [32, 32], iconAnchor: [16, 32] });
 
@@ -81,7 +85,7 @@ const ActiveDeliveryMap = ({ order, riderPos, eta }) => {
     <div style={{ height: 260, borderRadius: 10, overflow: 'hidden', marginBottom: '0.75rem', border: '1px solid rgba(167,139,250,0.25)', position: 'relative' }}>
       {eta != null && (
         <div style={{ position: 'absolute', top: 10, left: 10, zIndex: 1000, background: 'rgba(0,0,0,0.82)', color: '#a78bfa', padding: '5px 12px', borderRadius: 8, fontSize: '0.8rem', fontWeight: 700, border: '1px solid rgba(167,139,250,0.35)', backdropFilter: 'blur(4px)' }}>
-          <i className="bi bi-clock me-1"></i>ETA ~{eta} min
+          <i className="bi bi-clock me-1"></i>Arriving in ~{eta} min
         </div>
       )}
       <MapContainer center={center} zoom={14} zoomAnimation={false} style={{ height: '100%', width: '100%' }}>
@@ -220,7 +224,6 @@ const DeliveryDashboard = () => {
   const [myOrders, setMyOrders]             = useState([]);   // assigned to me today
   const [availableOrders, setAvailableOrders] = useState([]); // READY, unassigned
   const [myReviews, setMyReviews]           = useState([]);
-  const [online, setOnline]                 = useState(false);
   const [activeSection, setActiveSection]   = useState('orders');
 
   // GPS sharing state
@@ -294,23 +297,18 @@ const DeliveryDashboard = () => {
     return () => clearInterval(iv);
   }, [token]);
 
-  // ── Online / offline toggle ──────────────────────────────────────────────
-  const toggleOnline = async () => {
-    const next = !online;
-    try {
-      const res = await fetch(`${API}/api/delivery/rider/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ online: next }),
-      });
-      if (res.status === 401) { handle401(); return; }
-      if (!res.ok) { toast.error('Failed to update status.'); return; }
-      setOnline(next);
-      toast.success(next ? 'You are now online.' : 'You are now offline.');
-    } catch {
-      toast.error('Failed to update status.');
-    }
-  };
+  // ── Mark rider online on mount ───────────────────────────────────────────
+  // Riders are always considered online while the dashboard is open — there's no
+  // manual toggle anymore, but customers/admin still see an "online" badge
+  // (OrderResponse.deliveryPersonOnline / TrackingResponse.riderOnline), so this
+  // keeps that badge accurate via the same endpoint the old toggle used.
+  useEffect(() => {
+    fetch(`${API}/api/delivery/rider/status`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ online: true }),
+    }).catch(() => {});
+  }, [token]);
 
   // ── Accept an available order ────────────────────────────────────────────
   const acceptOrder = async (orderId) => {
@@ -559,11 +557,7 @@ const DeliveryDashboard = () => {
               )}
               {isActive && isMine && (
                 <>
-                  {isSharing ? (
-                    <button className="btn btn-sm btn-outline-warning" onClick={stopSharing}>
-                      <i className="bi bi-broadcast-pin me-1"></i>Stop GPS
-                    </button>
-                  ) : (
+                  {!isSharing && (
                     <button className="btn btn-sm btn-outline-success" onClick={() => startSharing(order.id)}>
                       <i className="bi bi-broadcast me-1"></i>Share GPS
                     </button>
@@ -600,25 +594,12 @@ const DeliveryDashboard = () => {
       <div className="delivery-mobile-topbar">
         <div className="d-flex align-items-center gap-2">
           {user?.picture
-            ? <img src={user.picture} alt="" width={32} height={32} className="rounded-circle" style={{ objectFit: 'cover' }} referrerPolicy="no-referrer" />
-            : <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: '0.9rem' }}>{user?.name?.charAt(0)}</div>
+            ? <img src={user.picture} alt="" width={32} height={32} className="rounded-circle" style={{ objectFit: 'cover', flexShrink: 0 }} referrerPolicy="no-referrer" />
+            : <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: '0.9rem', flexShrink: 0 }}>{user?.name?.charAt(0)}</div>
           }
           <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{user?.name?.split(' ')[0]}</span>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>🛵 Rider</span>
         </div>
-        <button
-          onClick={toggleOnline}
-          style={{
-            padding: '0.35rem 0.9rem', borderRadius: 20, cursor: 'pointer',
-            fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '0.78rem',
-            background: online ? 'rgba(62,207,142,0.15)' : 'rgba(200,196,188,0.08)',
-            color: online ? '#3ecf8e' : 'rgba(240,236,224,0.5)',
-            border: `1px solid ${online ? 'rgba(62,207,142,0.35)' : 'rgba(255,255,255,0.1)'}`,
-          }}
-        >
-          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: online ? '#3ecf8e' : '#666', marginRight: 6, verticalAlign: 'middle' }}></span>
-          {online ? 'Online' : 'Go Online'}
-        </button>
       </div>
 
       <div className="delivery-layout">
@@ -629,32 +610,14 @@ const DeliveryDashboard = () => {
           <div style={{ padding: '0.9rem', background: 'rgba(201,168,76,0.08)', borderRadius: 12, border: '1px solid rgba(201,168,76,0.15)', marginBottom: '1rem' }}>
             <div className="d-flex align-items-center gap-2">
               {user?.picture
-                ? <img src={user.picture} alt="" width={38} height={38} className="rounded-circle" style={{ objectFit: 'cover' }} referrerPolicy="no-referrer" />
-                : <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700 }}>{user?.name?.charAt(0)}</div>
+                ? <img src={user.picture} alt="" width={38} height={38} className="rounded-circle" style={{ objectFit: 'cover', flexShrink: 0 }} referrerPolicy="no-referrer" />
+                : <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, flexShrink: 0 }}>{user?.name?.charAt(0)}</div>
               }
               <div>
                 <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)' }}>{user?.name?.split(' ')[0]}</div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>🛵 Delivery Rider</div>
               </div>
             </div>
-          </div>
-
-          {/* Online / Offline toggle */}
-          <div style={{ marginBottom: '0.75rem' }}>
-            <button
-              onClick={toggleOnline}
-              style={{
-                width: '100%', padding: '0.55rem 1rem', borderRadius: 10,
-                cursor: 'pointer', fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: '0.82rem',
-                background: online ? 'rgba(62,207,142,0.15)' : 'rgba(200,196,188,0.08)',
-                color: online ? '#3ecf8e' : 'rgba(240,236,224,0.5)',
-                border: `1px solid ${online ? 'rgba(62,207,142,0.35)' : 'rgba(255,255,255,0.1)'}`,
-                transition: 'all 0.2s',
-              }}
-            >
-              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: online ? '#3ecf8e' : '#666', marginRight: 8, verticalAlign: 'middle' }}></span>
-              {online ? 'Online' : 'Go Online'}
-            </button>
           </div>
 
           {/* Nav items */}
@@ -679,17 +642,9 @@ const DeliveryDashboard = () => {
           {sharing && (
             <div className="mt-2 p-2 rounded text-center" style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', fontSize: '0.72rem', color: '#a78bfa' }}>
               <i className="bi bi-broadcast-pin me-1"></i>GPS Broadcasting
-              {eta != null && <span className="ms-2">· ~{eta} min</span>}
+              {eta != null && <span className="ms-2">· Arriving in ~{eta} min</span>}
             </div>
           )}
-
-          {/* Bottom controls */}
-          <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <button className="btn btn-sm btn-outline-secondary w-100"
-              onClick={() => { loadMyOrders(); loadAvailableOrders(); }}>
-              <i className="bi bi-arrow-clockwise me-1"></i>Refresh
-            </button>
-          </div>
         </aside>
 
         {/* ── Main content ── */}
@@ -727,24 +682,13 @@ const DeliveryDashboard = () => {
               <h5 className="fw-bold mb-3">
                 <i className="bi bi-bag-check me-2" style={{ color: '#3ecf8e' }}></i>
                 Available Orders
-                {online && availableOrders.length > 0 && (
+                {availableOrders.length > 0 && (
                   <span className="badge ms-2" style={{ background: 'rgba(62,207,142,0.2)', color: '#3ecf8e' }}>
                     {availableOrders.length}
                   </span>
                 )}
               </h5>
-              {!online ? (
-                <div className="text-center py-5">
-                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(200,196,188,0.08)', border: '1px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem', fontSize: '2rem' }}>
-                    🔴
-                  </div>
-                  <p className="fw-semibold mb-2" style={{ color: 'rgba(240,236,224,0.7)' }}>You are currently offline</p>
-                  <p className="small text-muted mb-3">Go online in the sidebar to see and accept delivery orders.</p>
-                  <button className="btn btn-sm btn-success fw-semibold" onClick={toggleOnline}>
-                    <i className="bi bi-circle-fill me-2" style={{ fontSize: '0.55rem' }}></i>Go Online Now
-                  </button>
-                </div>
-              ) : availableOrders.length === 0 ? (
+              {availableOrders.length === 0 ? (
                 <div className="text-center py-5 text-muted">
                   <i className="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
                   No orders ready for pickup right now.
@@ -832,8 +776,8 @@ const DeliveryDashboard = () => {
                   <div className="fw-semibold small mb-3" style={{ color: 'rgba(240,236,224,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Profile Photo</div>
                   <div className="d-flex align-items-center gap-4">
                     {user?.picture
-                      ? <img src={user.picture} alt="Profile" width={80} height={80} className="rounded-circle" style={{ objectFit: 'cover', border: '2px solid var(--gold)' }} referrerPolicy="no-referrer" />
-                      : <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: '1.8rem', border: '2px solid var(--gold)' }}>{user?.name?.charAt(0)}</div>
+                      ? <img src={user.picture} alt="Profile" width={80} height={80} className="rounded-circle" style={{ objectFit: 'cover', border: '2px solid var(--gold)', flexShrink: 0 }} referrerPolicy="no-referrer" />
+                      : <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: '1.8rem', border: '2px solid var(--gold)', flexShrink: 0 }}>{user?.name?.charAt(0)}</div>
                     }
                     <div>
                       <p className="small text-muted mb-2">Customers see this photo when you are delivering their order.</p>
@@ -909,7 +853,7 @@ const DeliveryDashboard = () => {
       {sharing && (
         <div className="delivery-gps-strip">
           <i className="bi bi-broadcast-pin me-1"></i>GPS Broadcasting
-          {eta != null && <span className="ms-2">· ETA ~{eta} min</span>}
+          {eta != null && <span className="ms-2">· Arriving in ~{eta} min</span>}
         </div>
       )}
 
