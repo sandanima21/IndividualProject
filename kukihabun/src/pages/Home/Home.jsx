@@ -55,7 +55,7 @@ const HeroBanner = ({ user }) => {
       <div className="hero-deco" style={{ position: 'absolute', right: '6%', top: '50%', transform: 'translateY(-50%)', width: 420, height: 420, borderRadius: '50%', border: '1px solid rgba(201,168,76,0.07)', pointerEvents: 'none' }} />
       <div className="hero-deco" style={{ position: 'absolute', right: '8%', top: '50%', transform: 'translateY(-50%)', width: 300, height: 300, borderRadius: '50%', border: '1px solid rgba(201,168,76,0.1)', pointerEvents: 'none' }} />
       <div className="hero-deco" style={{ position: 'absolute', right: '10.5%', top: '50%', transform: 'translateY(-50%)', width: 180, height: 180, borderRadius: '50%', background: 'radial-gradient(circle, rgba(201,168,76,0.12) 0%, transparent 70%)', pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <img src="https://firebasestorage.googleapis.com/v0/b/kukihabun-customer.firebasestorage.app/o/home_page_food.png?alt=media" alt="" style={{ width: '5cm', height: '5cm', objectFit: 'contain' }} />
+        <img src="https://firebasestorage.googleapis.com/v0/b/kukihabun-customer.firebasestorage.app/o/home_page_food.png?alt=media" alt="" style={{ width: '13cm', height: '13cm', objectFit: 'contain' }} />
       </div>
 
       <div className="container">
