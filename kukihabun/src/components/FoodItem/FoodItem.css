@@ -1,6 +1,17 @@
 .food-item-card { max-width: 320px; }
 .food-item-image { height: 160px; width: 100%; object-fit: cover; }
 
+/* Reserve the same vertical space for every title (2 lines) regardless of name
+   length, so a short name doesn't leave a card shorter than one with a name
+   that wraps — longer names beyond 2 lines are truncated with an ellipsis. */
+.food-item-card .card-title {
+  min-height: 2.6rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .customize-backdrop {
   position: fixed;
   inset: 0;

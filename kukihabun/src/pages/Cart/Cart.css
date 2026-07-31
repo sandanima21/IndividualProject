@@ -1,13 +1,10 @@
+/* No position:sticky here on purpose — it was causing a small but persistent gap
+   above the card, offsetting it below the first food item instead of aligning
+   flush with it. Sticky positioning is fragile like this depending on ancestor
+   context, so keep this a plain static block instead. */
 .cart-summary {
   background: var(--surface-2) !important;
   border-radius: 10px;
-  position: sticky;
-  top: 100px;
-}
-
-/* Order summary stacks below cart items on mobile */
-@media (max-width: 991px) {
-  .cart-summary { position: static; }
 }
 
 /* Title spacing on small screens */
