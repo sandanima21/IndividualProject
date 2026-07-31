@@ -162,17 +162,15 @@ const Menubar = ({ onLoginSuccess }) => {
                     <span className="badge mt-1" style={{ background: 'var(--gold)', color: '#000' }}>{user.role}</span>
                   </li>
                   <li><hr className="dropdown-divider" /></li>
-                  {isDelivery ? (
-                    <li><Link className="dropdown-item" to="/delivery"><i className="bi bi-truck me-2"></i>Delivery Dashboard</Link></li>
-                  ) : (
+                  {!isDelivery && (
                     <>
                       <li><Link className="dropdown-item" to="/profile"><i className="bi bi-person me-2"></i>My Profile</Link></li>
                       <li><Link className="dropdown-item" to="/orders"><i className="bi bi-bag me-2"></i>My Orders</Link></li>
                       <li><Link className="dropdown-item" to="/orders?tab=history"><i className="bi bi-clock-history me-2"></i>History</Link></li>
                       <li><Link className="dropdown-item" to="/chat"><i className="bi bi-chat-dots me-2"></i>Chat with Owner</Link></li>
+                      <li><hr className="dropdown-divider" /></li>
                     </>
                   )}
-                  <li><hr className="dropdown-divider" /></li>
                   <li>
                     <button className="dropdown-item text-danger" onClick={() => logout()}>
                       <i className="bi bi-box-arrow-right me-2"></i>Sign Out
