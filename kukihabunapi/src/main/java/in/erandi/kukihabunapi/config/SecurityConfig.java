@@ -40,7 +40,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/delivery-reviews/**").permitAll()
                         .requestMatchers("/api/tracking/**").permitAll()
                         .requestMatchers("/api/payments/**").permitAll()
-                        .requestMatchers("/api/v1/payhere/**").permitAll()  // PayHere refund webhook (no JWT)
                         .requestMatchers("/api/otp/**").permitAll()
                         .requestMatchers("/api/offers/**").permitAll()
                         .requestMatchers("/api/categories/**").permitAll()

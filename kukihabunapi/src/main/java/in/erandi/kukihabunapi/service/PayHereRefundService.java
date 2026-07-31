@@ -25,6 +25,10 @@ import java.util.Map;
  *   1. getValidToken()  – returns cached bearer token; fetches a fresh one if expired.
  *   2. requestRefund()  – calls /merchant/v1/payment/refund; retries once on 401.
  *
+ * Refunds are confirmed synchronously — PayHere support confirmed (2026-07-31) that the
+ * refund endpoint does not call back via any notify_url/webhook, unlike checkout payments.
+ * A successful (non-throwing) requestRefund() call means the refund is already final.
+ *
  * Environment variables (set in application.properties or as OS env):
  *   PAYHERE_APP_ID      – App ID created in PayHere account → Settings → API Keys
  *   PAYHERE_APP_SECRET  – App Secret from the same entry ("View Credentials")
@@ -45,9 +49,6 @@ public class PayHereRefundService {
 
     @Value("${payhere.sandbox:true}")
     private boolean sandbox;
-
-    @Value("${payhere.webhook-base-url:}")
-    private String webhookBaseUrl;
 
     private final PayHereTokenCache tokenCache;
     // The default RestTemplate() request factory (JDK's HttpURLConnection) fails to read
@@ -164,13 +165,10 @@ public class PayHereRefundService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(token);
 
+        // No notify_url here — PayHere confirmed (support, 2026-07-31) that refunds don't
+        // invoke any async webhook; the synchronous response below is the final result.
         Map<String, String> payload = new HashMap<>();
         payload.put("payment_id", payherePaymentId);
-        if (webhookBaseUrl != null && !webhookBaseUrl.isBlank()) {
-            // Tell PayHere where to POST the settlement confirmation
-            payload.put("notify_url",
-                    webhookBaseUrl.stripTrailing() + "/api/v1/payhere/refund-webhook");
-        }
 
         Map<String, Object> response;
         try {

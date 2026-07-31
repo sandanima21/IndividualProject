@@ -242,9 +242,13 @@ public class OrderServiceImpl implements OrderService {
         // doesn't issue any — the call is simulated locally rather than actually sent.
         boolean actuallyCalledPayHere = payhereRefundService.requestRefund(payherePaymentId);
 
-        order.setRefundStatus("REFUND_INITIATED");
+        // PayHere confirmed (support, 2026-07-31) that refunds have no async webhook —
+        // the synchronous API response IS the final result. requestRefund() only returns
+        // without throwing when that response was a success, so a real call means the
+        // refund is already done, not "initiated pending confirmation".
+        order.setRefundStatus(actuallyCalledPayHere ? "REFUNDED" : "REFUND_INITIATED");
         order.setRefundNotes(actuallyCalledPayHere
-                ? "Refund submitted to PayHere at " + LocalDateTime.now() + ". Awaiting settlement confirmation via webhook."
+                ? "Refunded via PayHere at " + LocalDateTime.now() + "."
                 : "Refund marked in-progress at " + LocalDateTime.now() + " (sandbox simulation — PayHere sandbox doesn't "
                         + "issue API credentials, so no real API call was made; this won't appear in the PayHere dashboard).");
         order.setUpdatedAt(LocalDateTime.now());
