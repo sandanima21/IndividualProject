@@ -20,7 +20,7 @@ const Sidebar = ({ sidebarVisible, chatUnread }) => {
     return (
       <Link
         key={to}
-        className={`sidebar-item d-flex align-items-center gap-3 px-3 py-2 text-decoration-none ${active ? 'active' : ''}`}
+        className={`sidebar-item d-flex align-items-center gap-3 px-3 py-3 text-decoration-none ${active ? 'active' : ''}`}
         to={to}
       >
         <i className={`bi ${icon}`}></i>

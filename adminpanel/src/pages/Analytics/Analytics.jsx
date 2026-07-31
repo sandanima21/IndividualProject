@@ -97,7 +97,7 @@ const Analytics = () => {
           <div key={card.label} className="col-sm-6 col-xl-3">
             <div className="card p-3" style={{ background: '#1a1a1a', border: '1px solid rgba(201,168,76,0.2)' }}>
               <div className="d-flex justify-content-between align-items-center mb-1">
-                <small style={{ color: '#8a8070' }}>{card.label}</small>
+                <small className="fw-bold" style={{ color: '#8a8070' }}>{card.label}</small>
                 <i className={`bi ${card.icon}`} style={{ color: GOLD, fontSize: '1.3rem' }}></i>
               </div>
               <div className="fw-bold fs-4" style={{ color: GOLD }}>{card.value}</div>
