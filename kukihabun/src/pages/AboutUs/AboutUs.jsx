@@ -67,25 +67,52 @@ const AboutUs = () => {
 
       {/* ── Shop Story ── */}
       <Section id="story" title="Our Story" icon="bi-book-half">
-        <div className="row g-5 align-items-center">
+        <div className="row g-5">
           <div className="col-lg-6">
-            <img
-              src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=700&q=80"
-              alt="KukiHabun kitchen"
-              className="img-fluid rounded-4 w-100"
-              style={{ border: '1px solid rgba(201,168,76,0.15)', maxHeight: 380, objectFit: 'cover' }}
-            />
-            <div className="row g-2 mt-2">
-              {ATMOSPHERE_IMGS.slice(0, 2).map((src, i) => (
-                <div key={src} className="col-6">
-                  <img
-                    src={src}
-                    alt={`KukiHabun ${i === 0 ? 'kitchen' : 'dining area'}`}
-                    className="img-fluid rounded-4 w-100"
-                    style={{ border: '1px solid rgba(201,168,76,0.15)', height: 160, objectFit: 'cover' }}
-                  />
-                </div>
-              ))}
+            {/* Collage: one hero image, two medium images, one wide image — sized by
+                aspect-ratio so it scales cleanly at every breakpoint (rather than a
+                fixed height tied to the story text's height, which is fragile since
+                that text can change length independently of this column). */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gridTemplateRows: '2fr 1fr 1fr',
+              gridTemplateAreas: '"hero hero" "med1 med2" "wide wide"',
+              gap: 20,
+              aspectRatio: '4 / 5',
+            }}>
+              <div style={{ gridArea: 'hero', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(201,168,76,0.15)' }}>
+                <img
+                  src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=700&q=80"
+                  alt="KukiHabun kitchen"
+                  className="w-100 h-100"
+                  style={{ objectFit: 'cover', display: 'block' }}
+                />
+              </div>
+              <div style={{ gridArea: 'med1', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(201,168,76,0.15)' }}>
+                <img
+                  src={ATMOSPHERE_IMGS[0]}
+                  alt="KukiHabun kitchen"
+                  className="w-100 h-100"
+                  style={{ objectFit: 'cover', display: 'block' }}
+                />
+              </div>
+              <div style={{ gridArea: 'med2', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(201,168,76,0.15)' }}>
+                <img
+                  src={ATMOSPHERE_IMGS[1]}
+                  alt="KukiHabun dining area"
+                  className="w-100 h-100"
+                  style={{ objectFit: 'cover', display: 'block' }}
+                />
+              </div>
+              <div style={{ gridArea: 'wide', borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(201,168,76,0.15)' }}>
+                <img
+                  src={ATMOSPHERE_IMGS[2]}
+                  alt="KukiHabun atmosphere"
+                  className="w-100 h-100"
+                  style={{ objectFit: 'cover', display: 'block' }}
+                />
+              </div>
             </div>
           </div>
           <div className="col-lg-6">
