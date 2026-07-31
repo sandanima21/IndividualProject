@@ -17,10 +17,7 @@ const ATMOSPHERE_IMGS = [
 ];
 
 const FUN_FACTS = [
-  { icon: 'bi-fire', text: 'Our special sambol recipe has been passed down through 3 generations' },
   { icon: 'bi-heart-fill', text: 'Every kottu is hand-chopped to order — never pre-made' },
-  { icon: 'bi-leaf', text: 'We source fresh vegetables from local Meegoda farmers daily' },
-  { icon: 'bi-trophy-fill', text: 'Voted "Best Sri Lankan Restaurant — Western Province" 2023' },
   { icon: 'bi-clock-history', text: 'Our watalappam takes 4 hours to prepare the traditional way' },
   { icon: 'bi-people-fill', text: 'Family-run since 2015 — every dish made with homemade love' },
 ];
@@ -78,6 +75,18 @@ const AboutUs = () => {
               className="img-fluid rounded-4 w-100"
               style={{ border: '1px solid rgba(201,168,76,0.15)', maxHeight: 380, objectFit: 'cover' }}
             />
+            <div className="row g-2 mt-2">
+              {ATMOSPHERE_IMGS.slice(0, 2).map((src, i) => (
+                <div key={src} className="col-6">
+                  <img
+                    src={src}
+                    alt={`KukiHabun ${i === 0 ? 'kitchen' : 'dining area'}`}
+                    className="img-fluid rounded-4 w-100"
+                    style={{ border: '1px solid rgba(201,168,76,0.15)', height: 160, objectFit: 'cover' }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
           <div className="col-lg-6">
             <p className="lead mb-4" style={{ color: 'rgba(240,236,224,0.85)' }}>
@@ -105,7 +114,7 @@ const AboutUs = () => {
                 { num: 'Growing Daily', label: 'Serving More Customers Every Year' },
               ].map(({ num, label }) => (
                 <div key={label} className="col-6">
-                  <div className="p-3 rounded-3 text-center" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+                  <div className="p-3 rounded-3 text-center d-flex flex-column justify-content-center" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', minHeight: 100 }}>
                     <div className="fw-bold fs-5 mb-1" style={{ color: 'var(--gold)' }}>{num}</div>
                     <div className="small" style={{ color: 'rgba(240,236,224,0.5)', lineHeight: 1.3 }}>{label}</div>
                   </div>
@@ -164,7 +173,6 @@ const AboutUs = () => {
             <div className="card p-4 h-100" style={{ background: 'rgba(62,207,142,0.04)', border: '1px solid rgba(62,207,142,0.15)' }}>
               <h5 className="fw-bold mb-4"><i className="bi bi-info-circle-fill me-2" style={{ color: '#3ecf8e' }}></i>Delivery Details</h5>
               {[
-                ['bi-clock', 'Estimated Time', '30–45 minutes depending on distance and order volume'],
                 ['bi-geo', 'Coverage', 'We currently deliver within Colombo'],
                 ['bi-credit-card', 'Payment', 'Pay securely online via PayHere before delivery'],
                 ['bi-telephone', 'Phone Required', 'Valid mobile number needed for delivery coordination'],
@@ -189,9 +197,9 @@ const AboutUs = () => {
       <Section id="refund" title="Refund Policy" icon="bi-arrow-counterclockwise">
         <div className="row g-4">
           {[
-            { icon: 'bi-check-circle-fill', color: '#3ecf8e', title: 'Full Refund', desc: 'Cancel within 15 minutes of placing your order for a full refund. Refunds are processed within 3–5 business days to your original payment method.' },
+            { icon: 'bi-check-circle-fill', color: '#3ecf8e', title: 'Full Refund', desc: "Cancel your order before it's confirmed by the restaurant for a full refund. If we ever need to cancel your order after that, you'll also receive a full refund." },
             { icon: 'bi-exclamation-triangle-fill', color: '#ffc107', title: 'Wrong or Missing Items', desc: 'Contact us within 1 hour of delivery if items are missing or incorrect. We will redeliver or issue a partial refund at our discretion.' },
-            { icon: 'bi-x-circle-fill', color: '#f47373', title: 'No Refund After Cooking', desc: 'Once an order moves to "Preparing" status, cancellations and refunds are no longer available as ingredients have been committed.' },
+            { icon: 'bi-x-circle-fill', color: '#f47373', title: 'No Cancellation After Confirmation', desc: 'Once your order has been confirmed by the restaurant, it can no longer be cancelled by you and is not eligible for a self-service refund.' },
           ].map(p => (
             <div key={p.title} className="col-md-4">
               <div className="card p-4 h-100">
@@ -205,7 +213,7 @@ const AboutUs = () => {
         <div className="mt-3">
           <p className="text-muted small">
             For refund queries, reach us at <a href="mailto:kukihabun@gmail.com" style={{ color: 'var(--gold)' }}>kukihabun@gmail.com</a> or
-            call <a href="tel:+94777123456" style={{ color: 'var(--gold)' }}>+94 777 123 456</a>. ·
+            call <a href="tel:+94115678989" style={{ color: 'var(--gold)' }}>+94 115 678 989</a>. ·
             See also <Link to="/terms" style={{ color: 'var(--gold)' }}>Terms & Conditions</Link> and <Link to="/privacy" style={{ color: 'var(--gold)' }}>Privacy Policy</Link>.
           </p>
         </div>
@@ -215,11 +223,10 @@ const AboutUs = () => {
       <Section id="policies" title="Terms & Policies" icon="bi-file-earmark-text">
         <div className="row g-4">
           {[
-            { title: 'Ordering', points: ['Minimum order: Rs. 200', 'Orders confirmed only after successful payment', 'Menu prices inclusive of all taxes', 'We reserve the right to refuse service'] },
-            { title: 'Privacy', points: ['Personal data used solely for order processing', 'We never sell your data to third parties', 'Google sign-in data limited to profile basics', 'Data deleted on account removal request'] },
-            { title: 'Food & Allergens', points: ['All items prepared in a shared kitchen', 'Possible cross-contamination with nuts, gluten, dairy', 'Custom requests handled on best-effort basis', 'Notify us of severe allergies before ordering'] },
+            { title: 'Ordering', points: ['Orders placed only after successful payment', 'Menu prices inclusive of all taxes', 'We reserve the right to refuse service'] },
+            { title: 'Privacy', points: ['Personal data used solely for order processing', 'We never sell your data to third parties', 'Data deleted on account removal request'] },
           ].map(section => (
-            <div key={section.title} className="col-md-4">
+            <div key={section.title} className="col-md-6">
               <div className="card p-4 h-100">
                 <h6 className="fw-bold mb-3" style={{ color: 'var(--gold)' }}>{section.title}</h6>
                 <ul className="list-unstyled mb-0">
