@@ -144,6 +144,9 @@
 
 /* ── Mobile responsive kanban ── */
 @media (max-width: 768px) {
+  .kanban-board {
+    flex-wrap: wrap;
+  }
   .kanban-column {
     flex: 1 1 100%;
     min-width: 0;
