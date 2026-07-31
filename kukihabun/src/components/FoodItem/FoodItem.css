@@ -1,4 +1,4 @@
-.food-item-card { max-width: 320px; }
+.food-item-card { width: 100%; max-width: 320px; }
 .food-item-image { height: 160px; width: 100%; object-fit: cover; }
 
 /* Every title box is a hard fixed height (not a min-height floor) so it's
