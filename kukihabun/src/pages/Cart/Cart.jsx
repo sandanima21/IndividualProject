@@ -593,8 +593,9 @@ const Cart = () => {
                       </div>
                     )}
                   </div>
-                  {/* Confirm / Change Location buttons */}
-                  {deliveryLat && !locationConfirmed && (
+                  {/* Confirm / Change Location buttons — confirming is blocked outside
+                      Colombo, since there's nothing to confirm if we can't deliver there. */}
+                  {deliveryLat && !locationConfirmed && isWithinColombo(deliveryLat, deliveryLng) && (
                     <button
                       type="button"
                       className="btn btn-sm w-100 mt-2 fw-semibold"
