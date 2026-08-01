@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const HOURS = [
-  { day: 'Every Day', time: '10:00 AM – 10:30 PM' },
-  { day: 'Last Order', time: 'By 10:30 PM' },
-  { day: 'Closed', time: 'Before 10:00 AM' },
+  { day: 'Every Day', time: '6:00 AM – 11:30 PM' },
+  { day: 'Last Order', time: 'By 11:30 PM' },
+  { day: 'Closed', time: 'Before 6:00 AM' },
 ];
 
 const ATMOSPHERE_IMGS = [
@@ -61,7 +61,7 @@ const AboutUs = () => {
       {/* Night restaurant badge */}
       <div className="text-center py-3" style={{ background: 'rgba(201,168,76,0.06)', borderBottom: '1px solid rgba(201,168,76,0.15)' }}>
         <span style={{ background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 50, padding: '6px 20px', color: 'var(--gold)', fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.12em' }}>
-          <i className="bi bi-sun-fill me-2"></i>Open Daily · 10:00 AM – 10:30 PM
+          <i className="bi bi-sun-fill me-2"></i>Open Daily · 6:00 AM – 11:30 PM
         </span>
       </div>
 

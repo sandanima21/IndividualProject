@@ -63,17 +63,15 @@ public class OrderServiceImpl implements OrderService {
     private static final double RESTAURANT_LAT = 6.844176631120501;
     private static final double RESTAURANT_LNG = 80.03913846950536;
     private static final ZoneId COLOMBO = ZoneId.of("Asia/Colombo");
-    // Temporarily open 24 hours for testing (2026-08-02) — restore LocalTime.of(10, 0) /
-    // LocalTime.of(22, 30) when done. Displayed UI text is intentionally left unchanged.
-    private static final LocalTime OPEN_TIME = LocalTime.MIN;
-    private static final LocalTime CLOSE_TIME = LocalTime.MAX;
+    private static final LocalTime OPEN_TIME = LocalTime.of(6, 0);
+    private static final LocalTime CLOSE_TIME = LocalTime.of(23, 30);
 
     @Override
     public OrderResponse placeOrder(String userId, OrderRequest request) {
         LocalTime nowInColombo = LocalTime.now(COLOMBO);
         if (nowInColombo.isBefore(OPEN_TIME) || !nowInColombo.isBefore(CLOSE_TIME)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "We're closed right now. Orders are accepted from 10:00 AM to 10:30 PM.");
+                    "We're closed right now. Orders are accepted from 6:00 AM to 11:30 PM.");
         }
 
         List<OrderItemEntity> items = new ArrayList<>(

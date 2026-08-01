@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getAllOrders } from '../../services/orderService';
 import { toast } from 'react-toastify';
+import { asUtcDate } from '../../utils/date';
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement, LineElement,
   PointElement, ArcElement, Title, Tooltip, Legend
@@ -43,9 +44,13 @@ const Analytics = () => {
     const d = new Date(today); d.setDate(d.getDate() - (13 - i));
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
   });
+  // Bucketing by calendar day/month below uses asUtcDate, not raw `new Date(...)` — the
+  // backend sends zone-less LocalDateTime strings that are actually UTC, and parsing them
+  // raw silently misreads them as browser-local time, shifting orders onto the wrong day
+  // (see utils/date.js).
   const dailyRevenue = days.map(label => {
     return delivered
-      .filter(o => new Date(o.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) === label)
+      .filter(o => asUtcDate(o.createdAt)?.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) === label)
       .reduce((s, o) => s + o.total, 0);
   });
 
@@ -56,7 +61,7 @@ const Analytics = () => {
   });
   const monthlyRevenue = months.map(label =>
     delivered
-      .filter(o => new Date(o.createdAt).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) === label)
+      .filter(o => asUtcDate(o.createdAt)?.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) === label)
       .reduce((s, o) => s + o.total, 0)
   );
 
@@ -69,7 +74,7 @@ const Analytics = () => {
 
   const totalRevenue = delivered.reduce((s, o) => s + o.total, 0);
   const todayRevenue = delivered
-    .filter(o => new Date(o.createdAt).toDateString() === today.toDateString())
+    .filter(o => asUtcDate(o.createdAt)?.toDateString() === today.toDateString())
     .reduce((s, o) => s + o.total, 0);
 
   const adminCancelledOrders = orders.filter(o => o.status === 'CANCELLED' && o.cancelledBy === 'ADMIN');

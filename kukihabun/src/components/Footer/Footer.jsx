@@ -61,7 +61,7 @@ const Footer = () => {
                   <div className="kuki-contact-text">
                     <div className="kuki-contact-label">Opening Hours</div>
                     <div className="kuki-contact-value">
-                      Every Day &nbsp;·&nbsp; 4:00 PM – 10:30 PM
+                      Every Day &nbsp;·&nbsp; 6:00 AM – 11:30 PM
                     </div>
                   </div>
                 </div>

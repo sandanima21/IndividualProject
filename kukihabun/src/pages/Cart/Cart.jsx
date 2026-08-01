@@ -266,15 +266,13 @@ const Cart = () => {
 
   const now = new Date();
   const timeInMinutes = now.getHours() * 60 + now.getMinutes();
-  // Temporarily open 24 hours for testing (2026-08-02) — restore 10*60 / 22*60+30 when done.
-  // Displayed UI text (badges, Opening Hours section) is intentionally left unchanged.
-  const OPEN_TIME  = 0;
-  const CLOSE_TIME = 24 * 60;
+  const OPEN_TIME  = 6 * 60;        // 6:00 AM
+  const CLOSE_TIME = 23 * 60 + 30;  // 11:30 PM
   const isOpen = timeInMinutes >= OPEN_TIME && timeInMinutes < CLOSE_TIME;
 
   const handleCheckout = async () => {
     if (!isOpen) {
-      toast.error("We're closed right now. Orders are accepted from 10:00 AM to 10:30 PM.", { autoClose: 6000 });
+      toast.error("We're closed right now. Orders are accepted from 6:00 AM to 11:30 PM.", { autoClose: 6000 });
       return;
     }
 
@@ -672,7 +670,7 @@ const Cart = () => {
 
               {!isOpen && (
                 <p className="text-center mt-2 small" style={{ color: '#f47373' }}>
-                  <i className="bi bi-clock me-1"></i>Orders accepted 10:00 AM – 10:30 PM only.
+                  <i className="bi bi-clock me-1"></i>Orders accepted 6:00 AM – 11:30 PM only.
                 </p>
               )}
               {!user && (
