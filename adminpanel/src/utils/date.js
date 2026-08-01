@@ -9,7 +9,7 @@
  * actually represents) and then explicitly render in Asia/Colombo, so times
  * are correct regardless of the admin's own machine/browser timezone.
  */
-const asUtcDate = (isoString) => {
+export const asUtcDate = (isoString) => {
   if (!isoString) return null;
   const hasZone = /[Zz]|[+-]\d{2}:?\d{2}$/.test(isoString);
   const d = new Date(hasZone ? isoString : `${isoString}Z`);

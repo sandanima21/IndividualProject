@@ -3,7 +3,7 @@ import { getAllOrders } from '../../services/orderService';
 import { getAllReviews } from '../../services/reviewService';
 import { RefundedTable } from '../Refunds/Refunds';
 import { toast } from 'react-toastify';
-import { formatColomboDate, formatColomboTime } from '../../utils/date';
+import { formatColomboDate, formatColomboTime, asUtcDate } from '../../utils/date';
 
 const FILTERS = [
   { key: 'today', label: 'Today' },
@@ -178,12 +178,23 @@ const History = () => {
     o.userName?.toLowerCase().includes(search.toLowerCase()) ||
     o.id.includes(search);
 
+  // History buckets by *completion* time, not order-placement time — an order placed
+  // last week but delivered today must still show up under "Today". updatedAt is the
+  // best available proxy for "when this status was reached" (there's no per-transition
+  // timestamp), same convention as the Active Orders board and the rider "today" list.
+  // Parsed via asUtcDate since the backend sends zone-less LocalDateTime strings that are
+  // actually UTC — raw `new Date(...)` would silently misread them as browser-local time.
+  const isInRange = (o) => {
+    const completedAt = asUtcDate(o.updatedAt || o.createdAt);
+    return completedAt && completedAt >= cutoff;
+  };
+
   // Delivered = completed delivery orders
   const deliveredOrders = allOrders.filter(o =>
     o.status === 'DELIVERED' &&
     o.paymentStatus === 'PAID' &&
     o.orderType === 'delivery' &&
-    new Date(o.createdAt) >= cutoff &&
+    isInRange(o) &&
     matchesSearch(o)
   );
 
@@ -192,7 +203,7 @@ const History = () => {
     o.status === 'DELIVERED' &&
     o.paymentStatus === 'PAID' &&
     o.orderType === 'takeaway' &&
-    new Date(o.createdAt) >= cutoff &&
+    isInRange(o) &&
     matchesSearch(o)
   );
 
@@ -200,7 +211,7 @@ const History = () => {
   const refundedOrders = allOrders.filter(o =>
     o.paymentStatus === 'REFUNDED' &&
     o.refundStatus === 'REFUNDED' &&
-    new Date(o.createdAt) >= cutoff &&
+    isInRange(o) &&
     matchesSearch(o)
   );
 
@@ -210,7 +221,7 @@ const History = () => {
   const adminCancelledOrders = allOrders.filter(o =>
     o.status === 'CANCELLED' &&
     o.cancelledBy === 'ADMIN' &&
-    new Date(o.createdAt) >= cutoff &&
+    isInRange(o) &&
     matchesSearch(o)
   );
 
