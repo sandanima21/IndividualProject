@@ -10,7 +10,7 @@ import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import { formatColomboDateTime, formatColomboTime } from '../../utils/date';
+import { formatColomboDateTime, formatColomboTime, asUtcDate } from '../../utils/date';
 import { assets } from '../../assets/assets';
 
 delete L.Icon.Default.prototype._getIconUrl;
@@ -437,8 +437,10 @@ const Orders = () => {
     if (!col.displayKeys.includes(o.status)) return false;
     if (o.paymentStatus !== 'PAID') return false;
     // Delivered column: today only — compare by updatedAt (delivery time), not createdAt,
-    // so an order placed yesterday but delivered today stays visible until midnight.
-    if (col.key === 'DELIVERED' && new Date(o.updatedAt || o.createdAt) < todayStart) return false;
+    // so an order placed yesterday but delivered today stays visible until midnight. Parsed
+    // via asUtcDate since the backend sends zone-less LocalDateTime strings that are actually
+    // UTC — raw `new Date(...)` would misread them as browser-local time (see utils/date.js).
+    if (col.key === 'DELIVERED' && asUtcDate(o.updatedAt || o.createdAt) < todayStart) return false;
     if (search && !o.userName?.toLowerCase().includes(search.toLowerCase()) && !o.id.includes(search)) return false;
     return true;
   });
