@@ -240,7 +240,7 @@ const SignIn = () => {
         password: loginForm.password,
       })).data);
     } catch (err) {
-      toast.error(err.response?.status === 401 ? 'Invalid email or password.' : 'Login failed.');
+      toast.error(err.response?.status === 401 ? 'Invalid email or password.' : 'Failed the Sign In.');
     } finally { setLoading(false); }
   };
 
