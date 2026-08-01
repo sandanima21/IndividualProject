@@ -362,7 +362,6 @@ const AvailableFoods = () => {
                         <span className="badge" style={{ background: 'rgba(244,115,115,0.15)', color: '#f47373', fontSize: '0.65rem' }}>Out of Stock</span>
                       )}
                     </div>
-                    {item.description && <div className="small text-muted text-truncate mx-auto" style={{ maxWidth: 220 }}>{item.description}</div>}
                   </td>
                   <td style={{ textAlign: 'center' }}>
                     <span className="badge" style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: '0.75rem' }}>{item.category}</span>
