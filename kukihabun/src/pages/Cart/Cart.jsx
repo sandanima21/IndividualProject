@@ -143,7 +143,7 @@ const calcDeliveryFee = (km) => {
 
 const Cart = () => {
   const { foodList, increaseQty, decreaseQty, removeFromCart, clearCart, quantities, user, token, logout, updateUserPhone,
-          customizations, setSpice, toggleAvoid, clearCustomizations } = useContext(StoreContext);
+          customizations, setSpice, toggleAvoid, clearCustomizations, setCustomization } = useContext(StoreContext);
   const navigate = useNavigate();
 
   const [pendingOffer] = useState(() => {
@@ -266,8 +266,10 @@ const Cart = () => {
 
   const now = new Date();
   const timeInMinutes = now.getHours() * 60 + now.getMinutes();
-  const OPEN_TIME  = 10 * 60;  // 10:00 AM
-  const CLOSE_TIME = 22 * 60 + 30;  // 10:30 PM
+  // Temporarily open 24 hours for testing (2026-08-02) — restore 10*60 / 22*60+30 when done.
+  // Displayed UI text (badges, Opening Hours section) is intentionally left unchanged.
+  const OPEN_TIME  = 0;
+  const CLOSE_TIME = 24 * 60;
   const isOpen = timeInMinutes >= OPEN_TIME && timeInMinutes < CLOSE_TIME;
 
   const handleCheckout = async () => {

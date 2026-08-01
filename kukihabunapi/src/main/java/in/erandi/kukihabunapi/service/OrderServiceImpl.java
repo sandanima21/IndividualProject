@@ -63,8 +63,10 @@ public class OrderServiceImpl implements OrderService {
     private static final double RESTAURANT_LAT = 6.844176631120501;
     private static final double RESTAURANT_LNG = 80.03913846950536;
     private static final ZoneId COLOMBO = ZoneId.of("Asia/Colombo");
-    private static final LocalTime OPEN_TIME = LocalTime.of(10, 0);
-    private static final LocalTime CLOSE_TIME = LocalTime.of(22, 30);
+    // Temporarily open 24 hours for testing (2026-08-02) — restore LocalTime.of(10, 0) /
+    // LocalTime.of(22, 30) when done. Displayed UI text is intentionally left unchanged.
+    private static final LocalTime OPEN_TIME = LocalTime.MIN;
+    private static final LocalTime CLOSE_TIME = LocalTime.MAX;
 
     @Override
     public OrderResponse placeOrder(String userId, OrderRequest request) {

@@ -104,14 +104,31 @@ export const StoreProvider = ({ children }) => {
   const increaseQty = (foodId) =>
     setQuantities(prev => ({ ...prev, [foodId]: (prev[foodId] || 0) + 1 }));
 
-  const decreaseQty = (foodId) =>
-    setQuantities(prev => ({ ...prev, [foodId]: prev[foodId] > 1 ? prev[foodId] - 1 : 0 }));
+  // Dropping to zero via "-" is how most of the UI removes an item (FoodItem card,
+  // FoodDetails, the Cart quantity stepper). It must clear the saved customization
+  // too, same as removeFromCart below — otherwise a later "add without customizing"
+  // silently inherits the old selection, since customizations are keyed by food ID
+  // and outlive a single cart membership.
+  const decreaseQty = (foodId) => {
+    const nextQty = quantities[foodId] > 1 ? quantities[foodId] - 1 : 0;
+    setQuantities(prev => ({ ...prev, [foodId]: nextQty }));
+    if (nextQty === 0) {
+      setCustomizations(prev => { const u = { ...prev }; delete u[foodId]; return u; });
+    }
+  };
 
-  const removeItem = (foodId) =>
+  const removeItem = (foodId) => {
     setQuantities(prev => ({ ...prev, [foodId]: 0 }));
+    setCustomizations(prev => { const u = { ...prev }; delete u[foodId]; return u; });
+  };
 
-  const removeFromCart = (foodId) =>
+  // Also drops any saved customization for this food — otherwise a later, unrelated
+  // "add without customizing" re-add would silently inherit the old selection, since
+  // customizations are keyed by food ID and outlive a single cart membership.
+  const removeFromCart = (foodId) => {
     setQuantities(prev => { const u = { ...prev }; delete u[foodId]; return u; });
+    setCustomizations(prev => { const u = { ...prev }; delete u[foodId]; return u; });
+  };
 
   const clearCart = () => setQuantities({});
 
