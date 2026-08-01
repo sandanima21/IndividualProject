@@ -342,44 +342,34 @@ const AvailableFoods = () => {
           <table className="table table-hover mb-0 align-middle">
             <thead>
               <tr>
-                <th style={{ width: 72 }}>Image</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Levels</th>
-                <th style={{ width: 110 }}>Actions</th>
+                <th style={{ width: '20%', textAlign: 'center' }}>Image</th>
+                <th style={{ width: '20%', textAlign: 'center' }}>Name</th>
+                <th style={{ width: '20%', textAlign: 'center' }}>Category</th>
+                <th style={{ width: '20%', textAlign: 'center' }}>Price</th>
+                <th style={{ width: '20%', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(item => (
                 <tr key={item.id} style={item.available === false ? { opacity: 0.55 } : undefined}>
-                  <td>
+                  <td style={{ textAlign: 'center' }}>
                     <img src={item.imageUrl} alt={item.name} width={60} height={48} style={{ objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }} />
                   </td>
-                  <td>
-                    <div className="fw-semibold d-flex align-items-center gap-2">
+                  <td style={{ textAlign: 'center' }}>
+                    <div className="fw-semibold d-flex align-items-center justify-content-center gap-2">
                       {item.name}
                       {item.available === false && (
                         <span className="badge" style={{ background: 'rgba(244,115,115,0.15)', color: '#f47373', fontSize: '0.65rem' }}>Out of Stock</span>
                       )}
                     </div>
-                    {item.description && <div className="small text-muted text-truncate" style={{ maxWidth: 220 }}>{item.description}</div>}
+                    {item.description && <div className="small text-muted text-truncate mx-auto" style={{ maxWidth: 220 }}>{item.description}</div>}
                   </td>
-                  <td>
+                  <td style={{ textAlign: 'center' }}>
                     <span className="badge" style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: '0.75rem' }}>{item.category}</span>
                   </td>
-                  <td className="fw-semibold">Rs.{item.price}</td>
-                  <td>
-                    {item.customizationOptions?.spiceLevels?.length > 0
-                      ? <div className="d-flex flex-wrap gap-1">
-                          {item.customizationOptions.spiceLevels.map(l => (
-                            <span key={l} style={{ background: 'rgba(244,162,78,0.12)', color: '#f4a24e', fontSize: '0.68rem', padding: '2px 8px', borderRadius: 20, border: '1px solid rgba(244,162,78,0.25)' }}>{l}</span>
-                          ))}
-                        </div>
-                      : <span className="text-muted small">—</span>}
-                  </td>
-                  <td>
-                    <div className="d-flex gap-1">
+                  <td className="fw-semibold" style={{ textAlign: 'center' }}>Rs.{item.price}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <div className="d-flex justify-content-center gap-1">
                       <button
                         className={`btn btn-sm px-2 ${item.available === false ? 'btn-outline-success' : 'btn-outline-secondary'}`}
                         title={item.available === false ? 'Resume — back in stock' : 'Pause — out of stock'}
