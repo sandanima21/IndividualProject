@@ -144,25 +144,25 @@ const Categories = () => {
           <table className="table table-hover mb-0 align-middle">
             <thead>
               <tr>
-                <th style={{ width: 72 }}>Image</th>
-                <th>Name</th>
-                <th>Foods</th>
-                <th style={{ width: 90 }}>Actions</th>
+                <th style={{ width: '25%', textAlign: 'center' }}>Image</th>
+                <th style={{ width: '25%', textAlign: 'center' }}>Name</th>
+                <th style={{ width: '25%', textAlign: 'center' }}>Foods</th>
+                <th style={{ width: '25%', textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {list.map(item => (
                 <tr key={item.id}>
-                  <td>
+                  <td style={{ textAlign: 'center' }}>
                     <img src={item.imageUrl} alt={item.name} width={60} height={48} style={{ objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }} />
                   </td>
-                  <td className="fw-semibold">{item.name}</td>
-                  <td>
+                  <td className="fw-semibold" style={{ textAlign: 'center' }}>{item.name}</td>
+                  <td style={{ textAlign: 'center' }}>
                     <span className="badge" style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)', fontSize: '0.75rem' }}>
                       {foodCount(item.name)}
                     </span>
                   </td>
-                  <td>
+                  <td style={{ textAlign: 'center' }}>
                     <button className="btn btn-sm btn-outline-danger px-2" onClick={() => handleDelete(item)} title="Delete">
                       <i className="bi bi-trash"></i>
                     </button>
