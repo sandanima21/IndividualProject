@@ -59,6 +59,32 @@ public class CategoryController {
                 .build());
     }
 
+    @PutMapping("/{id}")
+    public CategoryEntity update(
+            @PathVariable String id,
+            @RequestParam String name,
+            @RequestParam(required = false) MultipartFile file,
+            @RequestHeader(value = "Authorization", required = false) String authHeader
+    ) {
+        if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
+        if (name == null || name.isBlank())
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category name is required");
+        CategoryEntity category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+
+        categoryRepository.findByNameIgnoreCase(name.trim()).ifPresent(existing -> {
+            if (!existing.getId().equals(id))
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A category with this name already exists");
+        });
+
+        category.setName(name.trim());
+        if (file != null && !file.isEmpty()) {
+            if (category.getImageUrl() != null) storageService.delete(category.getImageUrl());
+            category.setImageUrl(storageService.upload(file, "categories"));
+        }
+        return categoryRepository.save(category);
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id, @RequestHeader(value = "Authorization", required = false) String authHeader) {

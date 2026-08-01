@@ -15,6 +15,14 @@ export const addCategory = async (name, imageFile) => {
   return response.data;
 };
 
+export const updateCategory = async (id, name, imageFile) => {
+  const formData = new FormData();
+  formData.append('name', name);
+  if (imageFile) formData.append('file', imageFile);
+  const response = await api.put(`${API_URL}/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  return response.data;
+};
+
 export const deleteCategory = async (id) => {
   const response = await api.delete(`${API_URL}/${id}`);
   return response.status;

@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { getCategoryList, addCategory, deleteCategory } from '../../services/categoryService';
+import { getCategoryList, addCategory, updateCategory, deleteCategory } from '../../services/categoryService';
 import { getFoodList } from '../../services/foodService';
 import { toast } from 'react-toastify';
 
-/* ── Add Category Modal ── */
-const CategoryModal = ({ onClose, onSaved }) => {
-  const [name, setName] = useState('');
+/* ── Add / Edit Category Modal ── */
+const CategoryModal = ({ mode, initial, onClose, onSaved }) => {
+  const [name, setName] = useState(initial?.name || '');
   const [image, setImage] = useState(null);
-  const [preview, setPreview] = useState(null);
+  const [preview, setPreview] = useState(initial?.imageUrl || null);
   const [submitting, setSubmitting] = useState(false);
 
   const handleImage = e => {
@@ -20,16 +20,21 @@ const CategoryModal = ({ onClose, onSaved }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) { toast.error('Category name is required.'); return; }
-    if (!image) { toast.error('Please upload an image.'); return; }
+    if (mode === 'add' && !image) { toast.error('Please upload an image.'); return; }
     setSubmitting(true);
     try {
-      await addCategory(name.trim(), image);
-      toast.success('Category added successfully!');
+      if (mode === 'add') {
+        await addCategory(name.trim(), image);
+        toast.success('Category added successfully!');
+      } else {
+        await updateCategory(initial.id, name.trim(), image);
+        toast.success('Category updated successfully!');
+      }
       onSaved();
       onClose();
     } catch (err) {
       const msg = err?.response?.data?.message || err?.response?.data || null;
-      toast.error(msg || 'Failed to add category.');
+      toast.error(msg || (mode === 'add' ? 'Failed to add category.' : 'Failed to update category.'));
     } finally {
       setSubmitting(false);
     }
@@ -43,7 +48,8 @@ const CategoryModal = ({ onClose, onSaved }) => {
 
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h5 className="fw-bold mb-0">
-            <i className="bi bi-plus-circle me-2" style={{ color: 'var(--gold)' }}></i>Add Category
+            <i className={`bi ${mode === 'add' ? 'bi-plus-circle' : 'bi-pencil-square'} me-2`} style={{ color: 'var(--gold)' }}></i>
+            {mode === 'add' ? 'Add Category' : 'Edit Category'}
           </h5>
           <button className="btn-close btn-close-white" onClick={onClose} />
         </div>
@@ -57,7 +63,9 @@ const CategoryModal = ({ onClose, onSaved }) => {
                     ? <img src={preview} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : <div className="text-center"><i className="bi bi-cloud-upload fs-3 text-muted d-block"></i><small className="text-muted" style={{ fontSize: '0.68rem' }}>Upload</small></div>}
                 </div>
-                <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>Click to upload *</small>
+                <small className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                  {mode === 'edit' ? 'Click to change image' : 'Click to upload *'}
+                </small>
               </label>
               <input type="file" id="categoryImgInput" hidden onChange={handleImage} accept="image/*" />
             </div>
@@ -73,8 +81,8 @@ const CategoryModal = ({ onClose, onSaved }) => {
               <button type="submit" className="btn btn-primary btn-sm px-4" disabled={submitting}>
                 {submitting
                   ? <span className="spinner-border spinner-border-sm me-1" />
-                  : <i className="bi bi-plus-circle me-1"></i>}
-                Add Category
+                  : <i className={`bi ${mode === 'add' ? 'bi-plus-circle' : 'bi-check2'} me-1`}></i>}
+                {mode === 'add' ? 'Add Category' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -89,7 +97,7 @@ const Categories = () => {
   const [list, setList] = useState([]);
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [modal, setModal] = useState(null); // null | { mode: 'add' } | { mode: 'edit', ...category }
 
   const load = async () => {
     try {
@@ -130,7 +138,7 @@ const Categories = () => {
           <i className="bi bi-tags me-2" style={{ color: 'var(--gold)' }}></i>Food Categories
           <span className="badge bg-secondary ms-2">{list.length}</span>
         </h4>
-        <button className="btn btn-primary btn-sm px-3" onClick={() => setShowModal(true)}>
+        <button className="btn btn-primary btn-sm px-3" onClick={() => setModal({ mode: 'add' })}>
           <i className="bi bi-plus-circle me-1"></i>Add Category
         </button>
       </div>
@@ -163,9 +171,14 @@ const Categories = () => {
                     </span>
                   </td>
                   <td style={{ textAlign: 'center' }}>
-                    <button className="btn btn-sm btn-outline-danger px-2" onClick={() => handleDelete(item)} title="Delete">
-                      <i className="bi bi-trash"></i>
-                    </button>
+                    <div className="d-flex justify-content-center gap-1">
+                      <button className="btn btn-sm btn-outline-warning px-2" title="Edit" onClick={() => setModal({ mode: 'edit', ...item })}>
+                        <i className="bi bi-pencil"></i>
+                      </button>
+                      <button className="btn btn-sm btn-outline-danger px-2" onClick={() => handleDelete(item)} title="Delete">
+                        <i className="bi bi-trash"></i>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -174,8 +187,13 @@ const Categories = () => {
         </div>
       )}
 
-      {showModal && (
-        <CategoryModal onClose={() => setShowModal(false)} onSaved={load} />
+      {modal && (
+        <CategoryModal
+          mode={modal.mode}
+          initial={modal.mode === 'edit' ? modal : null}
+          onClose={() => setModal(null)}
+          onSaved={load}
+        />
       )}
     </div>
   );
