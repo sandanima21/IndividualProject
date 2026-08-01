@@ -135,7 +135,7 @@ const DeliveryReviewsTab = () => {
             <div key={riderId} className="card px-3 py-2 d-flex flex-row align-items-center gap-3" style={{ minWidth: 200, border: '1px solid rgba(167,139,250,0.25)' }}>
               <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>🛵</div>
               <div>
-                <div className="fw-semibold small" style={{ color: '#a78bfa' }}>{riderMap[riderId] || 'Rider'}</div>
+                <div className="fw-semibold small" style={{ color: '#a78bfa' }}>{riderMap[riderId] || <span className="text-muted fst-italic">Unavailable driver</span>}</div>
                 <div className="d-flex align-items-center gap-1">
                   <StarRating value={Math.round(stats.sum / stats.count)} />
                   <small className="text-muted">({stats.count})</small>
@@ -167,7 +167,7 @@ const DeliveryReviewsTab = () => {
                   </td>
                   <td>
                     <span style={{ color: '#a78bfa', fontSize: '0.85rem' }}>
-                      <i className="bi bi-bicycle me-1"></i>{riderMap[r.deliveryPersonId] || <span className="text-muted small">{r.deliveryPersonId?.slice(-6) || '—'}</span>}
+                      <i className="bi bi-bicycle me-1"></i>{riderMap[r.deliveryPersonId] || <span className="text-muted small fst-italic">Unavailable driver</span>}
                     </span>
                   </td>
                   <td><StarRating value={r.rating} /></td>
