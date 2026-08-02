@@ -172,9 +172,9 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
   };
 
   return (
-    <tr style={{ background: '#111' }}>
+    <tr style={{ background: '#1a1a1a' }}>
       <td colSpan={8} style={{ padding: '0 12px 12px 12px' }}>
-        <div style={{ borderRadius: '0 0 10px 10px', padding: '14px 16px', background: '#161616', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
+        <div style={{ borderRadius: '0 0 10px 10px', padding: '14px 16px', background: '#1a1a1a', borderTop: '1px solid rgba(255,255,255,0.04)' }}>
 
           {/* Section label */}
           <div style={{ fontSize: '0.68rem', color: 'rgba(200,196,188,0.35)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 12 }}>

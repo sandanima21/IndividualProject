@@ -84,8 +84,8 @@ const OrderRow = ({ order, reviewsForOrder }) => {
       </tr>
       {expanded && hasReviews && (
         <tr>
-          <td colSpan={6} style={{ padding: '0 12px 12px 12px', background: '#111' }}>
-            <div style={{ borderRadius: 10, padding: '12px 16px', background: '#1e1e1e', marginTop: 2 }}>
+          <td colSpan={6} style={{ padding: '0 12px 12px 12px', background: '#1a1a1a' }}>
+            <div style={{ borderRadius: 10, padding: '12px 16px', background: '#1a1a1a', marginTop: 2 }}>
               <div style={{ fontSize: '0.7rem', color: 'rgba(200,196,188,0.4)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 10 }}>
                 Customer Reviews
               </div>
