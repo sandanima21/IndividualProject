@@ -99,7 +99,7 @@ const DeliveryReviewsTab = () => {
       .then(([reviewsData, riders]) => {
         setReviews(reviewsData);
         const map = {};
-        riders.forEach(r => { map[r.id] = r.name; });
+        riders.forEach(r => { map[r.id] = { name: r.name, picture: r.picture }; });
         setRiderMap(map);
       })
       .catch(() => toast.error('Failed to load delivery reviews.'))
@@ -110,15 +110,6 @@ const DeliveryReviewsTab = () => {
 
   const avg = avgOf(reviews);
 
-  // Group average per rider
-  const riderStats = {};
-  reviews.forEach(r => {
-    if (!r.deliveryPersonId) return;
-    if (!riderStats[r.deliveryPersonId]) riderStats[r.deliveryPersonId] = { sum: 0, count: 0 };
-    riderStats[r.deliveryPersonId].sum += r.rating;
-    riderStats[r.deliveryPersonId].count++;
-  });
-
   return (
     <>
       <div className="d-flex align-items-center gap-3 mb-4">
@@ -127,24 +118,6 @@ const DeliveryReviewsTab = () => {
           <span className="text-muted small">Overall avg: <StarRating value={Math.round(avg)} /> <strong style={{ color: '#a78bfa' }}>{avg}</strong></span>
         )}
       </div>
-
-      {/* Rider summary cards */}
-      {Object.keys(riderStats).length > 0 && (
-        <div className="d-flex gap-3 flex-wrap mb-4">
-          {Object.entries(riderStats).map(([riderId, stats]) => (
-            <div key={riderId} className="card px-3 py-2 d-flex flex-row align-items-center gap-3" style={{ minWidth: 200, border: '1px solid rgba(167,139,250,0.25)' }}>
-              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>🛵</div>
-              <div>
-                <div className="fw-semibold small" style={{ color: '#a78bfa' }}>{riderMap[riderId] || <span className="text-muted fst-italic">Unavailable driver</span>}</div>
-                <div className="d-flex align-items-center gap-1">
-                  <StarRating value={Math.round(stats.sum / stats.count)} />
-                  <small className="text-muted">({stats.count})</small>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       {reviews.length === 0 ? (
         <div className="text-center py-5 text-muted">
@@ -166,9 +139,12 @@ const DeliveryReviewsTab = () => {
                     </div>
                   </td>
                   <td>
-                    <span style={{ color: '#a78bfa', fontSize: '0.85rem' }}>
-                      <i className="bi bi-bicycle me-1"></i>{riderMap[r.deliveryPersonId] || <span className="text-muted small fst-italic">Unavailable driver</span>}
-                    </span>
+                    <div className="d-flex align-items-center gap-2">
+                      {riderMap[r.deliveryPersonId]?.picture
+                        ? <img src={riderMap[r.deliveryPersonId].picture} alt="" width={28} height={28} className="rounded-circle" style={{ objectFit: 'cover', flexShrink: 0 }} referrerPolicy="no-referrer" onError={e => { e.target.style.display = 'none'; }} />
+                        : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: '#a78bfa', flexShrink: 0 }}><i className="bi bi-bicycle"></i></div>}
+                      <small style={{ color: '#a78bfa' }}>{riderMap[r.deliveryPersonId]?.name || <span className="text-muted fst-italic">Unavailable driver</span>}</small>
+                    </div>
                   </td>
                   <td><StarRating value={r.rating} /></td>
                   <td style={{ maxWidth: 250, color: '#c8c4bc', fontSize: '0.85rem' }}>{r.comment || <span className="text-muted">—</span>}</td>
