@@ -289,7 +289,7 @@ const SignIn = () => {
       const data = (await axios.post(`${API}/signup`, {
         name: profile.name,
         email: otpEmail,
-        username: profile.username.trim().toLowerCase(),
+        username: profile.username.trim(),
         password: profile.password,
       })).data;
       setSignupAuthData(data);   // keep token so step 4 can call /verify-phone
@@ -559,7 +559,7 @@ const SignIn = () => {
                   <input
                     className="signin-input" placeholder="Username (e.g. johndoe, min 3 chars)" required
                     value={profile.username}
-                    onChange={e => setProfile(p => ({ ...p, username: e.target.value.replace(/\s/g, '').toLowerCase() }))}
+                    onChange={e => setProfile(p => ({ ...p, username: e.target.value.replace(/\s/g, '') }))}
                   />
                   <div className="pw-wrap">
                     <input
