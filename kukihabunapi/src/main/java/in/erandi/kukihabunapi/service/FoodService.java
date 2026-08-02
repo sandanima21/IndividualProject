@@ -19,6 +19,8 @@ public interface FoodService {
 
     void deleteFood(String id);
 
+    void deleteFoodsByCategory(String category);
+
     FoodResponse updateFood(String id, FoodRequest request, MultipartFile file);
 
     FoodResponse setAvailability(String id, boolean available);

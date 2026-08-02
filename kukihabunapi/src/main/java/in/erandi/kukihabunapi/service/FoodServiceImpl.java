@@ -65,6 +65,14 @@ public class FoodServiceImpl implements FoodService {
         }
     }
 
+    // Used when a category is deleted — routes every matching food through deleteFood(id)
+    // rather than a bulk repository delete, so each food's image is cleaned up too.
+    @Override
+    public void deleteFoodsByCategory(String category) {
+        List<FoodEntity> matching = foodRepository.findByCategoryIgnoreCase(category);
+        matching.forEach(food -> deleteFood(food.getId()));
+    }
+
     @Override
     public FoodResponse updateFood(String id, FoodRequest request, MultipartFile file) {
         FoodEntity existing = foodRepository.findById(id)

@@ -5,6 +5,7 @@ import in.erandi.kukihabunapi.entity.CategoryEntity;
 import in.erandi.kukihabunapi.repository.CategoryRepository;
 import in.erandi.kukihabunapi.repository.UserRepository;
 import in.erandi.kukihabunapi.service.FirebaseStorageService;
+import in.erandi.kukihabunapi.service.FoodService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +23,7 @@ public class CategoryController {
     private final FirebaseStorageService storageService;
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    private final FoodService foodService;
 
     /** True only if the Authorization header carries a valid JWT belonging to an ADMIN account. */
     private boolean isAdmin(String authHeader) {
@@ -91,6 +93,10 @@ public class CategoryController {
         if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         CategoryEntity category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        // Cascade: any food still assigned to this category is deleted along with it —
+        // foods reference their category by name, not id, so there'd be no other way
+        // to find them once the category document is gone.
+        foodService.deleteFoodsByCategory(category.getName());
         if (category.getImageUrl() != null) storageService.delete(category.getImageUrl());
         categoryRepository.deleteById(id);
     }

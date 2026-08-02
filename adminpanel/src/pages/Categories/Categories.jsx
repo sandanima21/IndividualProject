@@ -92,12 +92,67 @@ const CategoryModal = ({ mode, initial, onClose, onSaved }) => {
   );
 };
 
+/* ── Delete Category Confirmation Modal ── */
+const DeleteCategoryModal = ({ category, foodCount, onClose, onConfirm }) => {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirm = async () => {
+    setDeleting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1055, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+      onClick={deleting ? undefined : onClose}>
+      <div style={{ background: '#1a1a1a', border: '1px solid rgba(244,115,115,0.3)', borderRadius: 18, width: '100%', maxWidth: 440, padding: '1.75rem' }}
+        onClick={e => e.stopPropagation()}>
+
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h5 className="fw-bold mb-0" style={{ color: '#f47373' }}>
+            <i className="bi bi-exclamation-triangle me-2"></i>Delete Category
+          </h5>
+          <button className="btn-close btn-close-white" onClick={onClose} disabled={deleting} />
+        </div>
+
+        <p className="mb-2">
+          Do you really want to delete <strong>"{category.name}"</strong>?
+        </p>
+        {foodCount > 0 ? (
+          <p className="small mb-4" style={{ color: '#f47373' }}>
+            <i className="bi bi-info-circle me-1"></i>
+            {foodCount} food item{foodCount > 1 ? 's' : ''} {foodCount > 1 ? 'are' : 'is'} under this category — {foodCount > 1 ? 'they' : 'it'} will also be permanently deleted.
+          </p>
+        ) : (
+          <p className="small text-muted mb-4">No foods are currently under this category.</p>
+        )}
+
+        <div className="d-flex justify-content-end gap-2">
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onClose} disabled={deleting}>
+            No
+          </button>
+          <button type="button" className="btn btn-danger btn-sm px-4" onClick={handleConfirm} disabled={deleting}>
+            {deleting
+              ? <span className="spinner-border spinner-border-sm me-1" />
+              : <i className="bi bi-trash me-1"></i>}
+            Yes, Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ─── Main page ─── */
 const Categories = () => {
   const [list, setList] = useState([]);
   const [foods, setFoods] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null); // null | { mode: 'add' } | { mode: 'edit', ...category }
+  const [deleteTarget, setDeleteTarget] = useState(null); // null | category to confirm-delete
 
   const load = async () => {
     try {
@@ -116,15 +171,11 @@ const Categories = () => {
   const foodCount = (categoryName) =>
     foods.filter(f => f.category?.trim().toLowerCase() === categoryName.trim().toLowerCase()).length;
 
-  const handleDelete = async (category) => {
-    const count = foodCount(category.name);
-    const message = count > 0
-      ? `${count} food item(s) use "${category.name}". Deleting it won't remove those foods, but the category will no longer be manageable or shown to customers. Delete anyway?`
-      : `Delete "${category.name}"?`;
-    if (!window.confirm(message)) return;
+  const confirmDelete = async () => {
     try {
-      await deleteCategory(category.id);
-      toast.success('Deleted.');
+      await deleteCategory(deleteTarget.id);
+      toast.success('Category and its foods were deleted.');
+      setDeleteTarget(null);
       load();
     } catch {
       toast.error('Delete failed.');
@@ -175,7 +226,7 @@ const Categories = () => {
                       <button className="btn btn-sm btn-outline-warning px-2" title="Edit" onClick={() => setModal({ mode: 'edit', ...item })}>
                         <i className="bi bi-pencil"></i>
                       </button>
-                      <button className="btn btn-sm btn-outline-danger px-2" onClick={() => handleDelete(item)} title="Delete">
+                      <button className="btn btn-sm btn-outline-danger px-2" onClick={() => setDeleteTarget(item)} title="Delete">
                         <i className="bi bi-trash"></i>
                       </button>
                     </div>
@@ -193,6 +244,15 @@ const Categories = () => {
           initial={modal.mode === 'edit' ? modal : null}
           onClose={() => setModal(null)}
           onSaved={load}
+        />
+      )}
+
+      {deleteTarget && (
+        <DeleteCategoryModal
+          category={deleteTarget}
+          foodCount={foodCount(deleteTarget.name)}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
         />
       )}
     </div>
