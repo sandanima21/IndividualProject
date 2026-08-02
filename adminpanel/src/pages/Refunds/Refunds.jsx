@@ -33,8 +33,11 @@ export const RefundStatusBadge = ({ status }) => {
   );
 };
 
-// Status-change modal — REFUNDED archives the order (webhook handles this automatically for PayHere refunds)
-const isAutoNote = (note) => !!note?.startsWith('Refund submitted to PayHere at');
+// Status-change modal — REFUNDED archives the order. PayHere refunds are synchronous
+// (no webhook), so processPayhereRefund() sets the final status directly; these prefixes
+// must match the auto-generated refundNotes text set in OrderServiceImpl.processPayhereRefund.
+const isAutoNote = (note) =>
+  !!note && (note.startsWith('Refunded via PayHere at') || note.startsWith('Refund marked in-progress at'));
 
 const RefundActionModal = ({ order, onSave, onClose }) => {
   const [selectedStatus, setSelectedStatus] = useState(order.refundStatus || 'PENDING_REFUND');
@@ -135,8 +138,14 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
   const handlePayhereRefund = async () => {
     setSubmittingRefund(true);
     try {
-      await processPayhereRefund(order.id);
-      toast.success('Refund submitted to PayHere. Status updated to In Progress.');
+      const updated = await processPayhereRefund(order.id);
+      // PayHere refunds are synchronous — a real call means it's already done, not "in
+      // progress". Only the no-credentials sandbox simulation leaves it as REFUND_INITIATED.
+      toast.success(
+        updated.refundStatus === 'REFUNDED'
+          ? 'Refund completed via PayHere.'
+          : 'Refund simulated locally — no live PayHere credentials configured, so no request was actually sent.'
+      );
       onReceiptUploaded();
     } catch (err) {
       const msg = err.response?.data?.error || err.message || 'PayHere refund request failed.';
@@ -257,10 +266,17 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
 
           {/* PayHere refund action */}
           <div style={{ marginTop: 16, marginBottom: 4 }}>
-            {order.refundStatus === 'REFUND_INITIATED' ? (
+            {order.refundStatus === 'REFUNDED' ? (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 8, background: 'rgba(62,207,142,0.08)', border: '1px solid rgba(62,207,142,0.2)', fontSize: '0.78rem', color: '#3ecf8e' }}>
+                <i className="bi bi-check-circle"></i>
+                Refund completed — no further action needed.
+              </div>
+            ) : order.refundStatus === 'REFUND_INITIATED' ? (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 14px', borderRadius: 8, background: 'rgba(74,158,255,0.08)', border: '1px solid rgba(74,158,255,0.2)', fontSize: '0.78rem', color: '#4a9eff' }}>
                 <i className="bi bi-check2-circle"></i>
-                Refund in progress · processing (up to 5–10 business days)
+                {order.refundNotes?.startsWith('Refund marked in-progress at')
+                  ? 'Refund simulated locally — no live PayHere credentials configured, so no request was sent to PayHere.'
+                  : 'Refund in progress.'}
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -282,34 +298,41 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
             )}
           </div>
 
-          {/* Receipt upload */}
-          <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 14 }}>
-            {order.refundReceiptUrl ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <img src={order.refundReceiptUrl} alt="Receipt" onClick={() => window.open(order.refundReceiptUrl, '_blank')}
-                  style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(62,207,142,0.3)', cursor: 'pointer' }} />
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: '#3ecf8e', fontWeight: 600 }}>
-                    <i className="bi bi-check-circle me-1"></i>Receipt uploaded
+          {/* Receipt upload — read-only once refunded (the order is archived at that
+              point); if none was ever uploaded, there's nothing left to show either. */}
+          {(order.refundReceiptUrl || order.refundStatus !== 'REFUNDED') && (
+            <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 14 }}>
+              {order.refundReceiptUrl ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <img src={order.refundReceiptUrl} alt="Receipt" onClick={() => window.open(order.refundReceiptUrl, '_blank')}
+                    style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid rgba(62,207,142,0.3)', cursor: 'pointer' }} />
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: '#3ecf8e', fontWeight: 600 }}>
+                      <i className="bi bi-check-circle me-1"></i>Receipt uploaded
+                    </div>
+                    {order.refundStatus !== 'REFUNDED' && (
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 4, cursor: 'pointer', fontSize: '0.7rem', color: 'rgba(200,196,188,0.5)', textDecoration: 'underline' }}>
+                        Replace
+                        <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={handleFile} />
+                      </label>
+                    )}
                   </div>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 4, cursor: 'pointer', fontSize: '0.7rem', color: 'rgba(200,196,188,0.5)', textDecoration: 'underline' }}>
-                    Replace
-                    <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={handleFile} />
-                  </label>
                 </div>
-              </div>
-            ) : (
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 7, cursor: uploading ? 'default' : 'pointer', background: 'rgba(74,158,255,0.1)', border: '1px solid rgba(74,158,255,0.3)', color: '#74aaff', fontSize: '0.75rem', fontWeight: 600 }}>
-                {uploading
-                  ? <><span className="spinner-border spinner-border-sm"></span> Uploading…</>
-                  : <><i className="bi bi-upload"></i> Upload Refund Receipt</>}
-                <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={handleFile} disabled={uploading} />
-              </label>
-            )}
-            <div style={{ fontSize: '0.68rem', color: 'rgba(200,196,188,0.35)' }}>
-              Customer will see this in their order history.
+              ) : (
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 7, cursor: uploading ? 'default' : 'pointer', background: 'rgba(74,158,255,0.1)', border: '1px solid rgba(74,158,255,0.3)', color: '#74aaff', fontSize: '0.75rem', fontWeight: 600 }}>
+                  {uploading
+                    ? <><span className="spinner-border spinner-border-sm"></span> Uploading…</>
+                    : <><i className="bi bi-upload"></i> Upload Refund Receipt</>}
+                  <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{ display: 'none' }} onChange={handleFile} disabled={uploading} />
+                </label>
+              )}
+              {order.refundStatus !== 'REFUNDED' && (
+                <div style={{ fontSize: '0.68rem', color: 'rgba(200,196,188,0.35)' }}>
+                  Customer will see this in their order history.
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </div>
       </td>
     </tr>

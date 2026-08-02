@@ -228,6 +228,9 @@ public class OrderServiceImpl implements OrderService {
         OrderEntity order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Order not found"));
 
+        if ("REFUNDED".equals(order.getRefundStatus()))
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This order has already been refunded.");
+
         String payherePaymentId = paymentRepository.findByOrderId(orderId)
                 .map(p -> p.getPayherePaymentId())
                 .orElseThrow(() -> new ResponseStatusException(
