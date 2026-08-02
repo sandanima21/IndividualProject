@@ -27,6 +27,10 @@ public class DeliveryReviewEntity {
     private String customerId;
     private String customerName;
 
+    // Denormalized from the order at review time, same as customerName —
+    // lets the rider see where the delivery was without a separate order lookup.
+    private String deliveryAddress;
+
     private int rating;       // 1–5
     private String comment;
 

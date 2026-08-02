@@ -13,6 +13,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { assets } from '../../assets/assets';
+import { formatColomboDateTime } from '../../utils/date';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
@@ -748,7 +749,7 @@ const DeliveryDashboard = () => {
                         </div>
                         <span style={{ color: '#c8c4bc', fontWeight: 600, fontSize: '0.88rem' }}>{r.customerName}</span>
                       </div>
-                      <small style={{ color: 'rgba(200,196,188,0.5)' }}>{new Date(r.createdAt).toLocaleDateString()}</small>
+                      <small style={{ color: 'rgba(200,196,188,0.5)' }}>{formatColomboDateTime(r.createdAt)}</small>
                     </div>
                     <div className="mb-2">
                       {[1,2,3,4,5].map(n => (
@@ -757,6 +758,11 @@ const DeliveryDashboard = () => {
                       ))}
                     </div>
                     {r.comment && <p className="mb-0 small" style={{ color: '#c8c4bc' }}>{r.comment}</p>}
+                    {r.deliveryAddress && (
+                      <div className="small mt-2" style={{ color: 'rgba(200,196,188,0.5)' }}>
+                        <i className="bi bi-geo-alt me-1"></i>{r.deliveryAddress}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
