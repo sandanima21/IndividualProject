@@ -262,6 +262,7 @@ const AvailableFoods = () => {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [modal, setModal] = useState(null); // null | { mode: 'add' } | { mode: 'edit', ...food }
 
   const load = async () => {
@@ -304,7 +305,8 @@ const AvailableFoods = () => {
   };
 
   const filtered = list.filter(f =>
-    !search || f.name?.toLowerCase().includes(search.toLowerCase()) || f.category?.toLowerCase().includes(search.toLowerCase())
+    (!search || f.name?.toLowerCase().includes(search.toLowerCase()) || f.category?.toLowerCase().includes(search.toLowerCase())) &&
+    (categoryFilter === 'all' || f.category === categoryFilter)
   );
 
   return (
@@ -316,6 +318,15 @@ const AvailableFoods = () => {
           <span className="badge bg-secondary ms-2">{list.length}</span>
         </h4>
         <div className="d-flex gap-2">
+          <select
+            className="form-select form-select-sm"
+            style={{ width: 170 }}
+            value={categoryFilter}
+            onChange={e => setCategoryFilter(e.target.value)}
+          >
+            <option value="all">All Categories</option>
+            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </select>
           <div className="position-relative">
             <i className="bi bi-search position-absolute" style={{ left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,168,76,0.6)', fontSize: '0.85rem', pointerEvents: 'none' }}></i>
             <input

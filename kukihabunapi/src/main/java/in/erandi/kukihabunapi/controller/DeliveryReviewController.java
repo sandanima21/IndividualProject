@@ -73,6 +73,7 @@ public class DeliveryReviewController {
                 .deliveryPersonId(order.getDeliveryPersonId())
                 .customerId(customerId)
                 .customerName(customer != null ? customer.getName() : "Customer")
+                .orderDisplayId(order.getDisplayId())
                 .deliveryAddress(order.getDeliveryAddress())
                 .rating(rating)
                 .comment(comment)

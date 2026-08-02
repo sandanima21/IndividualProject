@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { StoreContext } from '../../context/StoreContext';
 import { changePassword } from '../../service/authservice';
+import { toE164 } from '../../utils/phone';
 
 const RULES = [
   { label: 'At least 8 characters',    test: pw => pw.length >= 8 },
@@ -17,6 +18,7 @@ const ChangePassword = () => {
   const navigate = useNavigate();
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [phone, setPhone] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -29,16 +31,28 @@ const ChangePassword = () => {
   if (!user) return null;
 
   const pwOk = RULES.every(r => r.test(pw));
+  // Delivery riders must provide a contact number here if they don't already have
+  // one — customers need it to reach them mid-delivery (see DeliveryDashboard's
+  // own "No phone number" warning, which today is skippable; this step isn't).
+  const needsPhone = user.role === 'DELIVERY' && !user.phone;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!pwOk) { toast.error('Password does not meet requirements.'); return; }
     if (pw !== confirm) { toast.error('Passwords do not match.'); return; }
+    let formattedPhone = null;
+    if (needsPhone) {
+      formattedPhone = toE164(phone);
+      if (formattedPhone.length < 12) {
+        toast.error('Enter a valid 9-digit Sri Lankan phone number.');
+        return;
+      }
+    }
     setLoading(true);
     try {
-      await changePassword(pw, token);
+      await changePassword(pw, token, formattedPhone);
       // Mark mustChangePassword as false in local state
-      const updated = { ...user, mustChangePassword: false };
+      const updated = { ...user, mustChangePassword: false, ...(formattedPhone ? { phone: formattedPhone } : {}) };
       login(updated, token);
       toast.success('Password updated! You can now use your new password.');
       if (user.role === 'DELIVERY') navigate('/delivery');
@@ -66,6 +80,32 @@ const ChangePassword = () => {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {/* Contact number — delivery riders only, and only if not already on file */}
+          {needsPhone && (
+            <div className="mb-3">
+              <label className="form-label small">Contact Number <span className="text-danger">*</span></label>
+              <div style={{ position: 'relative' }}>
+                <div style={{
+                  position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
+                  color: 'var(--gold)', fontWeight: 700, fontSize: '0.9rem', pointerEvents: 'none',
+                  borderRight: '1px solid rgba(201,168,76,0.3)', paddingRight: 10,
+                }}>
+                  +94
+                </div>
+                <input
+                  type="tel"
+                  className="form-control"
+                  placeholder="77 123 4567"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value.replace(/\D/g, ''))}
+                  required
+                  style={{ paddingLeft: '3.5rem' }}
+                />
+              </div>
+              <small className="text-muted">Customers will use this to reach you during delivery.</small>
+            </div>
+          )}
+
           {/* New password */}
           <div className="mb-3">
             <label className="form-label small">New Password</label>

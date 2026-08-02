@@ -17,11 +17,47 @@ const avgOf = (arr) => arr.length
   ? (arr.reduce((s, r) => s + r.rating, 0) / arr.length).toFixed(1)
   : '0.0';
 
+/* ─── Shared "filter by rating" pill row ─── */
+const RatingFilter = ({ value, onChange, color = 'var(--gold)' }) => (
+  <div className="d-flex align-items-center gap-1 flex-wrap">
+    <button
+      type="button"
+      className="btn btn-sm"
+      style={{
+        borderRadius: 50, fontWeight: 600, fontSize: '0.75rem', padding: '3px 12px',
+        background: value === 'all' ? color : 'rgba(255,255,255,0.04)',
+        color: value === 'all' ? '#000' : 'rgba(200,196,188,0.6)',
+        border: `1px solid ${value === 'all' ? color : 'rgba(255,255,255,0.1)'}`,
+      }}
+      onClick={() => onChange('all')}
+    >
+      All
+    </button>
+    {[5, 4, 3, 2, 1].map(n => (
+      <button
+        key={n}
+        type="button"
+        className="btn btn-sm d-inline-flex align-items-center gap-1"
+        style={{
+          borderRadius: 50, fontWeight: 600, fontSize: '0.75rem', padding: '3px 10px',
+          background: value === String(n) ? color : 'rgba(255,255,255,0.04)',
+          color: value === String(n) ? '#000' : 'rgba(200,196,188,0.6)',
+          border: `1px solid ${value === String(n) ? color : 'rgba(255,255,255,0.1)'}`,
+        }}
+        onClick={() => onChange(String(n))}
+      >
+        {n}<i className="bi bi-star-fill" style={{ fontSize: '0.65rem' }}></i>
+      </button>
+    ))}
+  </div>
+);
+
 /* ─── Food Reviews tab ─── */
 const FoodReviewsTab = () => {
   const [reviews, setReviews] = useState([]);
   const [foodMap, setFoodMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [ratingFilter, setRatingFilter] = useState('all');
 
   useEffect(() => {
     Promise.all([
@@ -40,19 +76,23 @@ const FoodReviewsTab = () => {
 
   if (loading) return <div className="py-5 text-center"><div className="spinner-border" style={{ color: 'var(--gold)' }}></div></div>;
 
-  const avg = avgOf(reviews);
+  const filtered = reviews.filter(r => ratingFilter === 'all' || r.rating === Number(ratingFilter));
+  const avg = avgOf(filtered);
 
   return (
     <>
-      <div className="d-flex align-items-center gap-3 mb-4">
-        <span className="badge bg-secondary">{reviews.length} reviews</span>
-        {reviews.length > 0 && (
-          <span className="text-muted small">Avg: <StarRating value={Math.round(avg)} /> <strong style={{ color: 'var(--gold)' }}>{avg}</strong></span>
-        )}
+      <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+        <div className="d-flex align-items-center gap-3">
+          <span className="badge bg-secondary">{filtered.length} reviews</span>
+          {filtered.length > 0 && (
+            <span className="text-muted small">Avg: <StarRating value={Math.round(avg)} /> <strong style={{ color: 'var(--gold)' }}>{avg}</strong></span>
+          )}
+        </div>
+        <RatingFilter value={ratingFilter} onChange={setRatingFilter} />
       </div>
-      {reviews.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-5 text-muted">
-          <i className="bi bi-star fs-1 d-block mb-2 opacity-25"></i>No food reviews yet.
+          <i className="bi bi-star fs-1 d-block mb-2 opacity-25"></i>No food reviews {ratingFilter !== 'all' ? 'match this filter.' : 'yet.'}
         </div>
       ) : (
         <div className="card">
@@ -61,7 +101,7 @@ const FoodReviewsTab = () => {
               <tr><th>Customer</th><th>Food</th><th>Rating</th><th>Comment</th><th>Date</th></tr>
             </thead>
             <tbody>
-              {reviews.map(r => (
+              {filtered.map(r => (
                 <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <td>
                     <div className="d-flex align-items-center gap-2">
@@ -90,6 +130,8 @@ const DeliveryReviewsTab = () => {
   const [reviews, setReviews] = useState([]);
   const [riderMap, setRiderMap] = useState({});
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [ratingFilter, setRatingFilter] = useState('all');
 
   useEffect(() => {
     Promise.all([
@@ -108,20 +150,41 @@ const DeliveryReviewsTab = () => {
 
   if (loading) return <div className="py-5 text-center"><div className="spinner-border" style={{ color: 'var(--gold)' }}></div></div>;
 
-  const avg = avgOf(reviews);
+  const filtered = reviews.filter(r => {
+    const riderName = riderMap[r.deliveryPersonId]?.name || '';
+    const matchesSearch = !search || riderName.toLowerCase().includes(search.toLowerCase());
+    const matchesRating = ratingFilter === 'all' || r.rating === Number(ratingFilter);
+    return matchesSearch && matchesRating;
+  });
+  const avg = avgOf(filtered);
 
   return (
     <>
-      <div className="d-flex align-items-center gap-3 mb-4">
-        <span className="badge bg-secondary">{reviews.length} reviews</span>
-        {reviews.length > 0 && (
-          <span className="text-muted small">Overall avg: <StarRating value={Math.round(avg)} /> <strong style={{ color: '#a78bfa' }}>{avg}</strong></span>
-        )}
+      <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-4">
+        <div className="d-flex align-items-center gap-3">
+          <span className="badge bg-secondary">{filtered.length} reviews</span>
+          {filtered.length > 0 && (
+            <span className="text-muted small">Overall avg: <StarRating value={Math.round(avg)} /> <strong style={{ color: '#a78bfa' }}>{avg}</strong></span>
+          )}
+        </div>
+        <div className="d-flex align-items-center gap-2 flex-wrap">
+          <div className="position-relative">
+            <i className="bi bi-search position-absolute" style={{ left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(167,139,250,0.6)', fontSize: '0.82rem', pointerEvents: 'none' }}></i>
+            <input
+              className="form-control form-control-sm"
+              placeholder="Search by rider name..."
+              style={{ width: 190, paddingLeft: '2rem' }}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
+          <RatingFilter value={ratingFilter} onChange={setRatingFilter} color="#a78bfa" />
+        </div>
       </div>
 
-      {reviews.length === 0 ? (
+      {filtered.length === 0 ? (
         <div className="text-center py-5 text-muted">
-          <i className="bi bi-bicycle fs-1 d-block mb-2 opacity-25"></i>No delivery reviews yet.
+          <i className="bi bi-bicycle fs-1 d-block mb-2 opacity-25"></i>No delivery reviews {search || ratingFilter !== 'all' ? 'match this filter.' : 'yet.'}
         </div>
       ) : (
         <div className="card">
@@ -130,7 +193,7 @@ const DeliveryReviewsTab = () => {
               <tr><th>Customer</th><th>Rider</th><th>Rating</th><th>Comment</th><th>Date</th></tr>
             </thead>
             <tbody>
-              {reviews.map(r => (
+              {filtered.map(r => (
                 <tr key={r.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <td>
                     <div className="d-flex align-items-center gap-2">

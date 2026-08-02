@@ -272,9 +272,21 @@ public class AuthController {
         }
         return userRepository.findById(userId)
                 .map(user -> {
+                    // Delivery riders must provide a contact number at this same step if they
+                    // don't already have one on file — customers need it to reach them mid-delivery.
+                    String phone = body.get("phone");
+                    boolean phoneRequired = "DELIVERY".equals(user.getRole())
+                            && (user.getPhone() == null || user.getPhone().isBlank());
+                    if (phoneRequired && (phone == null || phone.isBlank())) {
+                        return ResponseEntity.badRequest().body(Map.<String, Object>of("error", "Phone number is required."));
+                    }
+
                     user.setPassword(passwordEncoder.encode(newPassword));
                     user.setPasswordSet(true);
                     user.setMustChangePassword(false);
+                    if (phone != null && !phone.isBlank()) {
+                        user.setPhone(phone);
+                    }
                     userRepository.save(user);
                     return ResponseEntity.ok(Map.<String, Object>of("message", "Password updated successfully."));
                 })

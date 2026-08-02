@@ -7,10 +7,10 @@ export const googleSignIn = async (accessToken) => {
     return response.data;
 };
 
-export const changePassword = async (newPassword, token) => {
+export const changePassword = async (newPassword, token, phone) => {
     const response = await axios.post(
         `${API_URL}/change-password`,
-        { newPassword },
+        { newPassword, ...(phone ? { phone } : {}) },
         { headers: { Authorization: `Bearer ${token}` } }
     );
     return response.data;

@@ -42,59 +42,63 @@ const ExploreMenu = ({ category, setCategory, searchText, setSearchText }) => {
         </p>
       </div>
 
-      {/* Search bar */}
-      {setSearchText && (
-        <div className="d-flex justify-content-center mb-4 px-3">
-          <div className="position-relative" style={{ maxWidth: 480, width: '100%' }}>
-            <i className="bi bi-search position-absolute" style={{ left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--gold)', pointerEvents: 'none', zIndex: 1 }}></i>
-            <input
-              className="form-control"
-              style={{ paddingLeft: '2.4rem', paddingRight: searchText ? '2.4rem' : '1rem', borderRadius: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(201,168,76,0.25)', color: 'var(--text)' }}
-              placeholder="Search for dishes..."
-              value={searchText}
-              onChange={e => setSearchText(e.target.value)}
-            />
-            {searchText && (
-              <button
-                className="btn btn-sm position-absolute border-0 bg-transparent"
-                style={{ right: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
-                onClick={() => setSearchText('')}
-              >
-                <i className="bi bi-x-circle"></i>
-              </button>
-            )}
+      {/* Search bar + categories stick together just under the navbar while the
+          customer scrolls through the food list below, instead of scrolling away. */}
+      <div className="explore-sticky-bar">
+        {/* Search bar */}
+        {setSearchText && (
+          <div className="d-flex justify-content-center mb-4 px-3">
+            <div className="position-relative" style={{ maxWidth: 480, width: '100%' }}>
+              <i className="bi bi-search position-absolute" style={{ left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--gold)', pointerEvents: 'none', zIndex: 1 }}></i>
+              <input
+                className="form-control"
+                style={{ paddingLeft: '2.4rem', paddingRight: searchText ? '2.4rem' : '1rem', borderRadius: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(201,168,76,0.25)', color: 'var(--text)' }}
+                placeholder="Search for dishes..."
+                value={searchText}
+                onChange={e => setSearchText(e.target.value)}
+              />
+              {searchText && (
+                <button
+                  className="btn btn-sm position-absolute border-0 bg-transparent"
+                  style={{ right: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }}
+                  onClick={() => setSearchText('')}
+                >
+                  <i className="bi bi-x-circle"></i>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Categories — horizontal scroll on mobile, wrapping grid on desktop */}
-      <div className="explore-categories-wrapper">
-        {isMobile && canLeft && (
-          <button className="scroll-arrow scroll-arrow-left" onClick={() => scrollBy(-1)} aria-label="Scroll left">
-            <i className="bi bi-chevron-left"></i>
-          </button>
         )}
 
-        <div className="explore-categories" ref={scrollRef} onScroll={updateArrows}>
-          {categoryList.map((item) => (
-            <button
-              key={item.id}
-              className={`explore-cat-btn ${item.name === category ? 'active' : ''}`}
-              onClick={() => setCategory(prev => prev === item.name ? 'All' : item.name)}
-            >
-              <div className="explore-img-wrap">
-                <img src={item.imageUrl} alt={item.name} width={68} height={68} className="rounded-circle" style={{ objectFit: 'cover' }} />
-              </div>
-              <span className="explore-cat-label">{item.name}</span>
+        {/* Categories — horizontal scroll on mobile, wrapping grid on desktop */}
+        <div className="explore-categories-wrapper">
+          {isMobile && canLeft && (
+            <button className="scroll-arrow scroll-arrow-left" onClick={() => scrollBy(-1)} aria-label="Scroll left">
+              <i className="bi bi-chevron-left"></i>
             </button>
-          ))}
-        </div>
+          )}
 
-        {isMobile && canRight && (
-          <button className="scroll-arrow scroll-arrow-right" onClick={() => scrollBy(1)} aria-label="Scroll right">
-            <i className="bi bi-chevron-right"></i>
-          </button>
-        )}
+          <div className="explore-categories" ref={scrollRef} onScroll={updateArrows}>
+            {categoryList.map((item) => (
+              <button
+                key={item.id}
+                className={`explore-cat-btn ${item.name === category ? 'active' : ''}`}
+                onClick={() => setCategory(prev => prev === item.name ? 'All' : item.name)}
+              >
+                <div className="explore-img-wrap">
+                  <img src={item.imageUrl} alt={item.name} width={68} height={68} className="rounded-circle" style={{ objectFit: 'cover' }} />
+                </div>
+                <span className="explore-cat-label">{item.name}</span>
+              </button>
+            ))}
+          </div>
+
+          {isMobile && canRight && (
+            <button className="scroll-arrow scroll-arrow-right" onClick={() => scrollBy(1)} aria-label="Scroll right">
+              <i className="bi bi-chevron-right"></i>
+            </button>
+          )}
+        </div>
       </div>
 
       <hr className="border-gold mt-5" />

@@ -1,5 +1,21 @@
 .explore-menu { position: relative; }
 
+/* Sticks below the sticky navbar (.kuki-header, z-index: 1000) while scrolling
+   through the food list. Offsets match index.css's scroll-margin-top, which is
+   sized to the navbar's own two-row/one-row height at the same breakpoint. */
+.explore-sticky-bar {
+  position: sticky;
+  top: 120px;
+  z-index: 900;
+  background: var(--black);
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+@media (max-width: 991px) {
+  .explore-sticky-bar { top: 80px; }
+}
+
 .explore-label {
   font-size: 0.78rem;
   font-weight: 600;

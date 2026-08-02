@@ -2,15 +2,9 @@
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { auth } from '../../firebase';
 import axios from 'axios';
+import { toE164 } from '../../utils/phone';
 
 const API = `${import.meta.env.VITE_API_URL}/api/auth`;
-
-const toE164 = (raw) => {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.startsWith('0'))  return '+94' + digits.slice(1);
-  if (digits.startsWith('94')) return '+' + digits;
-  return '+94' + digits;
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 

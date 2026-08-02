@@ -114,6 +114,18 @@ const AboutUs = () => {
                 />
               </div>
             </div>
+
+            {/* Extra banner image — the collage above is a fixed aspect-ratio block, but
+                the story text + stats grid on the right runs taller than it, so this fills
+                the gap that would otherwise be left blank below the collage. */}
+            <div style={{ marginTop: 20, borderRadius: 16, overflow: 'hidden', border: '1px solid rgba(201,168,76,0.15)', aspectRatio: '16 / 9' }}>
+              <img
+                src={ATMOSPHERE_IMGS[3]}
+                alt="KukiHabun restaurant"
+                className="w-100 h-100"
+                style={{ objectFit: 'cover', display: 'block' }}
+              />
+            </div>
           </div>
           <div className="col-lg-6">
             <p className="lead mb-4" style={{ color: 'rgba(240,236,224,0.85)' }}>

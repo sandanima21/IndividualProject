@@ -607,20 +607,6 @@ const DeliveryDashboard = () => {
 
         {/* ── Sidebar (desktop only) ── */}
         <aside className="delivery-sidebar">
-          {/* Profile card */}
-          <div style={{ padding: '0.9rem', background: 'rgba(201,168,76,0.08)', borderRadius: 12, border: '1px solid rgba(201,168,76,0.15)', marginBottom: '1rem' }}>
-            <div className="d-flex align-items-center gap-2">
-              {user?.picture
-                ? <img src={user.picture} alt="" width={38} height={38} className="rounded-circle" style={{ objectFit: 'cover', flexShrink: 0 }} referrerPolicy="no-referrer" />
-                : <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, flexShrink: 0 }}>{user?.name?.charAt(0)}</div>
-              }
-              <div>
-                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text)' }}>{user?.name?.split(' ')[0]}</div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>🛵 Delivery Rider</div>
-              </div>
-            </div>
-          </div>
-
           {/* Nav items */}
           {NAV.map(item => (
             <button key={item.id} style={navStyle(item.id)} onClick={() => setActiveSection(item.id)}>
@@ -751,6 +737,11 @@ const DeliveryDashboard = () => {
                       </div>
                       <small style={{ color: 'rgba(200,196,188,0.5)' }}>{formatColomboDateTime(r.createdAt)}</small>
                     </div>
+                    {(r.orderDisplayId || r.orderId) && (
+                      <div className="small mb-2" style={{ color: 'var(--gold)', fontFamily: 'monospace', fontSize: '0.72rem' }}>
+                        {r.orderDisplayId || `#${r.orderId.slice(-6).toUpperCase()}`}
+                      </div>
+                    )}
                     <div className="mb-2">
                       {[1,2,3,4,5].map(n => (
                         <i key={n} className={`bi ${n <= r.rating ? 'bi-star-fill text-warning' : 'bi-star'} me-1`}
