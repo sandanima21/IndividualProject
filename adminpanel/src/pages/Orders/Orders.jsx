@@ -278,7 +278,7 @@ const DetailModal = ({ order, onClose, onStatusMove, onAdminCancel }) => {
         ) : (
           <div>
             <label className="form-label small" style={{ color: 'rgba(200,196,188,0.7)' }}>
-              Message for Customer <span className="text-danger">*</span>
+              Reason <span className="text-danger">*</span>
               <span className="text-muted"> — this will be emailed and shown on their order</span>
             </label>
             <textarea
