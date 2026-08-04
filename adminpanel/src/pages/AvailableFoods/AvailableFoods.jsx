@@ -263,7 +263,7 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="row g-3 gy-4">
+          <div className="row g-3 gy-5">
 
             {/* Image upload */}
             <div className="col-12 text-center">
@@ -316,7 +316,7 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
             <div className="col-12">
               <label className="form-label small d-block mb-2">
                 <i className="bi bi-rulers me-1" style={{ color: 'var(--gold)' }}></i>
-                Portions <span className="text-muted small">(optional — e.g. Small/Medium/Large, each with its own price)</span>
+                Portions
               </label>
               <PortionBuilder portions={portions} setPortions={setPortions} />
               {portions.length === 0 && (
