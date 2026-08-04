@@ -25,11 +25,15 @@ const Login = ({ onLogin }) => {
   const [forgotEmail, setForgotEmail] = useState('');
   const [resetOtp, setResetOtp] = useState('');
   const [resetPw, setResetPw] = useState({ password: '', confirm: '' });
+  // Only ever set when the backend is running in demo mode (no real email inbox to check) —
+  // see AuthController.forgotPassword. null in normal operation.
+  const [demoOtp, setDemoOtp] = useState(null);
 
   const resetForgot = () => {
     setForgotStep('email');
     setForgotEmail(''); setResetOtp('');
     setResetPw({ password: '', confirm: '' });
+    setDemoOtp(null);
   };
 
   const handleSubmit = async (e) => {
@@ -56,9 +60,18 @@ const Login = ({ onLogin }) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${API}/forgot-password`, { email: forgotEmail });
+      const { data } = await axios.post(`${API}/forgot-password`, { email: forgotEmail });
       setForgotStep('reset');
-      toast.success('Reset code sent! Check your inbox.');
+      if (data.demoOtp) {
+        // Demo-mode deployment — no real inbox behind this email, so the backend hands the
+        // code straight back. Prefill it and say so plainly rather than silently auto-filling.
+        setDemoOtp(data.demoOtp);
+        setResetOtp(data.demoOtp);
+        toast.info(`Demo mode — reset code ${data.demoOtp} filled in for you.`, { autoClose: 8000 });
+      } else {
+        setDemoOtp(null);
+        toast.success('Reset code sent! Check your inbox.');
+      }
     } catch (err) {
       toast.error(err.response?.status === 404
         ? 'No account found with that email.'
@@ -179,6 +192,15 @@ const Login = ({ onLogin }) => {
             <p className="small text-muted text-center mb-3">
               Enter the 6-digit code sent to <strong style={{ color: 'var(--gold)' }}>{forgotEmail}</strong>.
             </p>
+            {demoOtp && (
+              <div style={{
+                background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)',
+                borderRadius: 10, padding: '0.6rem 0.9rem', marginBottom: 14,
+                fontSize: '0.76rem', color: 'rgba(240,236,224,0.75)', textAlign: 'center',
+              }}>
+                Portfolio demo mode — no inbox to check, so your code (<strong style={{ color: 'var(--gold)' }}>{demoOtp}</strong>) is filled in below.
+              </div>
+            )}
             <div className="mb-3">
               <input
                 type="text" inputMode="numeric" maxLength={6} autoFocus

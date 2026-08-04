@@ -12,6 +12,7 @@ import in.erandi.kukihabunapi.service.AuthService;
 import in.erandi.kukihabunapi.service.EmailService;
 import in.erandi.kukihabunapi.service.FirebasePhoneService;
 import in.erandi.kukihabunapi.service.LoginRateLimiter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -35,6 +36,10 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
     private final LoginRateLimiter loginRateLimiter;
+
+    // Public-portfolio deployments only — see application.properties for the safety caveat.
+    @Value("${app.demo-mode:false}")
+    private boolean demoMode;
 
     public AuthController(AuthService authService, UserRepository userRepository,
                           EmailOtpRepository emailOtpRepository, PasswordResetOtpRepository passwordResetOtpRepository,
@@ -158,10 +163,17 @@ public class AuthController {
                 .build());
 
         boolean sent = emailService.sendPasswordResetOtp(email, code);
-        return ResponseEntity.ok(Map.of(
+
+        Map<String, Object> response = new java.util.HashMap<>(Map.of(
                 "message", sent ? "Reset code sent to " + email : "Email unavailable — check server logs.",
                 "expiresInSeconds", 300
         ));
+        // Demo-mode only (see application.properties) — surfaces the code so a public portfolio
+        // visitor without access to the seeded account's real inbox can still complete the flow.
+        if (demoMode) {
+            response.put("demoOtp", code);
+        }
+        return ResponseEntity.ok(response);
     }
 
     /** Step 2: verify the code and set the new password in one call. */

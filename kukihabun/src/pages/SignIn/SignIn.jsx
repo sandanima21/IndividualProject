@@ -87,6 +87,9 @@ const SignIn = () => {
   const [resetPwFocused, setResetPwFocused]   = useState(false);
   const [resetCountdown, setResetCountdown]   = useState(300);
   const resetCountdownRef = useRef(null);
+  // Only ever set when the backend is running in demo mode (no real email inbox to check) —
+  // see AuthController.forgotPassword. null in normal operation.
+  const [demoOtp, setDemoOtp] = useState(null);
 
   // ── Sign-up multi-step ────────────────────────────────────────────────────────
   // signupStep: 'email' → 'otp' → 'profile' → 'phone'
@@ -220,6 +223,7 @@ const SignIn = () => {
     setForgotStep('email');
     setForgotEmail(''); setResetOtp(''); setResetOtpError('');
     setResetPw({ password: '', confirm: '' });
+    setDemoOtp(null);
     clearInterval(resetCountdownRef.current);
   };
 
@@ -287,9 +291,18 @@ const SignIn = () => {
     }
     setLoading(true);
     try {
-      await sendPasswordResetOtp(forgotEmail);
+      const data = await sendPasswordResetOtp(forgotEmail);
       setForgotStep('reset');
-      toast.success('Reset code sent! Check your inbox.');
+      if (data.demoOtp) {
+        // Demo-mode deployment — no real inbox behind this email, so the backend hands the
+        // code straight back. Prefill it and say so plainly rather than silently auto-filling.
+        setDemoOtp(data.demoOtp);
+        setResetOtp(data.demoOtp);
+        toast.info(`Demo mode — reset code ${data.demoOtp} filled in for you.`, { autoClose: 8000 });
+      } else {
+        setDemoOtp(null);
+        toast.success('Reset code sent! Check your inbox.');
+      }
     } catch (err) {
       toast.error(err.response?.status === 404
         ? 'No account found with that email.'
@@ -831,6 +844,17 @@ const SignIn = () => {
                   <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{forgotEmail}</span>
                   {' '}and choose a new password.
                 </p>
+
+                {demoOtp && (
+                  <div style={{
+                    background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.35)',
+                    borderRadius: 10, padding: '0.6rem 0.9rem', marginBottom: 16,
+                    fontSize: '0.76rem', color: 'rgba(240,236,224,0.75)', textAlign: 'center',
+                  }}>
+                    <i className="bi bi-info-circle me-1" style={{ color: 'var(--gold)' }} />
+                    Portfolio demo mode — no inbox to check, so your code (<strong style={{ color: 'var(--gold)' }}>{demoOtp}</strong>) is filled in below.
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
                   <svg width="88" height="88" viewBox="0 0 88 88">
