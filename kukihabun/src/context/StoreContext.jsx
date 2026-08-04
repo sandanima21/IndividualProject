@@ -26,6 +26,14 @@ export const StoreContext = createContext(null);
 
 // User-scoped cart key prevents cart bleed between accounts on shared devices.
 const cartKey = (userId) => `kukihabun_cart_${userId || 'guest'}`;
+const portionsKey = (userId) => `kukihabun_cart_portions_${userId || 'guest'}`;
+
+// Composite cart line key. Foods without a portion keep the plain food id as their
+// key (identical to before portions existed — zero behaviour change for them). A
+// portion selection gets its own key so the same food can have multiple simultaneous
+// cart lines (e.g. one Small + one Large of the same dish).
+export const lineKey = (foodId, portionName) => portionName ? `${foodId}::${portionName}` : foodId;
+const baseFoodId = (key) => key.split('::')[0];
 
 export const StoreProvider = ({ children }) => {
   const [foodList, setFoodList] = useState([]);
@@ -53,6 +61,20 @@ export const StoreProvider = ({ children }) => {
     localStorage.setItem(cartKey(user?.id), JSON.stringify(quantities));
   }, [quantities, user]);
 
+  // Selected portion (name + price) per cart line key — only present for lines that
+  // came from a food with portions. Persisted the same way as quantities since it's
+  // needed to price the cart correctly across a page refresh.
+  const [selectedPortions, setSelectedPortions] = useState(() => {
+    const saved = localStorage.getItem("kukihabun_user");
+    const u = saved ? JSON.parse(saved) : null;
+    const stored = localStorage.getItem(portionsKey(u?.id));
+    return stored ? JSON.parse(stored) : {};
+  });
+
+  useEffect(() => {
+    localStorage.setItem(portionsKey(user?.id), JSON.stringify(selectedPortions));
+  }, [selectedPortions, user]);
+
   // ── Auth ─────────────────────────────────────────────────────────────────
 
   const login = (userData, jwtToken) => {
@@ -63,18 +85,21 @@ export const StoreProvider = ({ children }) => {
     // Swap in this user's saved cart; fall back to empty if they've never ordered.
     const saved = localStorage.getItem(cartKey(userData?.id));
     setQuantities(saved ? JSON.parse(saved) : {});
+    const savedPortions = localStorage.getItem(portionsKey(userData?.id));
+    setSelectedPortions(savedPortions ? JSON.parse(savedPortions) : {});
   };
 
   const logout = useCallback(() => {
     clearTimeout(inactivityTimer.current);
     // Flush the current cart before clearing auth so the next login can reload it.
     localStorage.setItem(cartKey(user?.id), JSON.stringify(quantities));
+    localStorage.setItem(portionsKey(user?.id), JSON.stringify(selectedPortions));
     localStorage.removeItem("kukihabun_user");
     localStorage.removeItem("kukihabun_token");
     // Hard redirect instead of navigate() so stale React state (e.g. role-based
     // redirects for DELIVERY users) can't fire after the user object is gone.
     window.location.replace('/');
-  }, [user, quantities]);
+  }, [user, quantities, selectedPortions]);
 
   // ── Inactivity auto-logout ────────────────────────────────────────────────
 
@@ -100,45 +125,89 @@ export const StoreProvider = ({ children }) => {
   }, [user, logout]);
 
   // ── Cart operations ───────────────────────────────────────────────────────
+  // `key` below is a cart line key from lineKey() — a plain food id for foods without
+  // a portion (unchanged from before portions existed), or `${foodId}::${portionName}`
+  // for a specific portion line. `customizations` stays keyed by the plain food id
+  // (spice/avoid choices apply to the dish regardless of which portion), so it's only
+  // cleared once *no* line — of any portion — for that food remains in the cart.
 
-  const increaseQty = (foodId) =>
-    setQuantities(prev => ({ ...prev, [foodId]: (prev[foodId] || 0) + 1 }));
-
-  // Dropping to zero via "-" is how most of the UI removes an item (FoodItem card,
-  // FoodDetails, the Cart quantity stepper). It must clear the saved customization
-  // too, same as removeFromCart below — otherwise a later "add without customizing"
-  // silently inherits the old selection, since customizations are keyed by food ID
-  // and outlive a single cart membership.
-  const decreaseQty = (foodId) => {
-    const nextQty = quantities[foodId] > 1 ? quantities[foodId] - 1 : 0;
-    setQuantities(prev => ({ ...prev, [foodId]: nextQty }));
-    if (nextQty === 0) {
+  const clearFoodCustomizationIfOrphaned = (nextQuantities, key) => {
+    const foodId = baseFoodId(key);
+    const stillHasLine = Object.entries(nextQuantities).some(([k, q]) => q > 0 && baseFoodId(k) === foodId);
+    if (!stillHasLine) {
       setCustomizations(prev => { const u = { ...prev }; delete u[foodId]; return u; });
     }
   };
 
-  const removeItem = (foodId) => {
-    setQuantities(prev => ({ ...prev, [foodId]: 0 }));
-    setCustomizations(prev => { const u = { ...prev }; delete u[foodId]; return u; });
+  // Adds one unit of a specific portion of a food as its own cart line — the same
+  // food can have multiple simultaneous lines this way (e.g. 1x Small + 1x Large).
+  const addPortionToCart = (foodId, portion) => {
+    const key = lineKey(foodId, portion.name);
+    setQuantities(prev => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
+    setSelectedPortions(prev => ({ ...prev, [key]: { name: portion.name, price: portion.price } }));
+  };
+
+  const increaseQty = (key) =>
+    setQuantities(prev => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
+
+  // Dropping to zero via "-" is how most of the UI removes an item (FoodItem card,
+  // FoodDetails, the Cart quantity stepper). It must clear the saved customization
+  // too, same as removeFromCart below — otherwise a later "add without customizing"
+  // silently inherits the old selection, since customizations outlive a single cart
+  // membership.
+  const decreaseQty = (key) => {
+    const nextQty = quantities[key] > 1 ? quantities[key] - 1 : 0;
+    const nextQuantities = { ...quantities, [key]: nextQty };
+    setQuantities(nextQuantities);
+    if (nextQty === 0) {
+      setSelectedPortions(prev => { const u = { ...prev }; delete u[key]; return u; });
+      clearFoodCustomizationIfOrphaned(nextQuantities, key);
+    }
+  };
+
+  const removeItem = (key) => {
+    const nextQuantities = { ...quantities, [key]: 0 };
+    setQuantities(nextQuantities);
+    setSelectedPortions(prev => { const u = { ...prev }; delete u[key]; return u; });
+    clearFoodCustomizationIfOrphaned(nextQuantities, key);
   };
 
   // Also drops any saved customization for this food — otherwise a later, unrelated
   // "add without customizing" re-add would silently inherit the old selection, since
-  // customizations are keyed by food ID and outlive a single cart membership.
-  const removeFromCart = (foodId) => {
-    setQuantities(prev => { const u = { ...prev }; delete u[foodId]; return u; });
-    setCustomizations(prev => { const u = { ...prev }; delete u[foodId]; return u; });
+  // customizations outlive a single cart membership.
+  const removeFromCart = (key) => {
+    const nextQuantities = { ...quantities }; delete nextQuantities[key];
+    setQuantities(nextQuantities);
+    setSelectedPortions(prev => { const u = { ...prev }; delete u[key]; return u; });
+    clearFoodCustomizationIfOrphaned(nextQuantities, key);
   };
 
-  const clearCart = () => setQuantities({});
+  const clearCart = () => { setQuantities({}); setSelectedPortions({}); };
 
   // Merge an order's items back into the cart without touching other quantities.
-  const reorderItems = (items) =>
+  // item.portionName/price come from the order response (backend already resolved
+  // the real price at order time), so a reordered portion line prices correctly
+  // even if that portion's price has since changed on the food itself.
+  const reorderItems = (items) => {
     setQuantities(prev => {
       const next = { ...prev };
-      items.forEach(item => { next[item.foodId] = (next[item.foodId] || 0) + item.quantity; });
+      items.forEach(item => {
+        const key = lineKey(item.foodId, item.portionName);
+        next[key] = (next[key] || 0) + item.quantity;
+      });
       return next;
     });
+    const portioned = items.filter(i => i.portionName);
+    if (portioned.length > 0) {
+      setSelectedPortions(prev => {
+        const next = { ...prev };
+        portioned.forEach(item => {
+          next[lineKey(item.foodId, item.portionName)] = { name: item.portionName, price: item.price };
+        });
+        return next;
+      });
+    }
+  };
 
   // ── User profile helpers ──────────────────────────────────────────────────
 
@@ -200,6 +269,7 @@ export const StoreProvider = ({ children }) => {
       foodList, categoryList, increaseQty, decreaseQty, removeItem,
       quantities, removeFromCart, clearCart, reorderItems, user, token, login, logout, updateUserPhone, updateUser,
       customizations, setSpice, toggleAvoid, clearCustomizations, setCustomization,
+      selectedPortions, addPortionToCart,
     }}>
       {children}
     </StoreContext.Provider>

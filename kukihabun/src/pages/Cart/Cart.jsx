@@ -11,7 +11,7 @@
 
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import './Cart.css';
-import { StoreContext } from '../../context/StoreContext';
+import { StoreContext, lineKey } from '../../context/StoreContext';
 
 const OFFER_KEY = 'kukihabun_pending_offer';
 import { Link, useNavigate } from 'react-router-dom';
@@ -143,7 +143,7 @@ const calcDeliveryFee = (km) => {
 
 const Cart = () => {
   const { foodList, increaseQty, decreaseQty, removeFromCart, clearCart, quantities, user, token, logout, updateUserPhone,
-          customizations, setSpice, toggleAvoid, clearCustomizations, setCustomization } = useContext(StoreContext);
+          customizations, setSpice, toggleAvoid, clearCustomizations, setCustomization, selectedPortions } = useContext(StoreContext);
   const navigate = useNavigate();
 
   const [pendingOffer] = useState(() => {
@@ -175,8 +175,22 @@ const Cart = () => {
   const suggestAbort = useRef(null);
   const roadAbort = useRef(null);
 
-  const cartItems = foodList.filter(food => quantities[food.id] > 0);
-  const foodSubtotal = cartItems.reduce((acc, food) => acc + food.price * quantities[food.id], 0);
+  // One entry per cart line — a food with no portion selected keeps a plain-foodId
+  // line (unchanged from before portions existed); a portion selection gets its own
+  // line (via lineKey), so the same food can appear more than once with different
+  // portions/prices.
+  const cartLines = Object.entries(quantities)
+    .filter(([, qty]) => qty > 0)
+    .map(([key, qty]) => {
+      const foodId = key.split('::')[0];
+      const food = foodList.find(f => f.id === foodId);
+      if (!food) return null;
+      const portion = selectedPortions[key] || null;
+      const price = portion ? portion.price : food.price;
+      return { key, food, qty, portion, price };
+    })
+    .filter(Boolean);
+  const foodSubtotal = cartLines.reduce((acc, line) => acc + line.price * line.qty, 0);
   const offerSubtotal = pendingOffer?.price ?? 0;
   const subtotal = foodSubtotal + offerSubtotal;
   const distKm = distanceInfo?.km ?? null;
@@ -284,11 +298,12 @@ const Cart = () => {
     placingRef.current = true;
     setPlacing(true);
     try {
-      const items = cartItems.map(food => {
-        const { spiceLevel = null, ingredientsToAvoid = [], ...customOptions } = customizations[food.id] || {};
+      const items = cartLines.map(line => {
+        const { spiceLevel = null, ingredientsToAvoid = [], ...customOptions } = customizations[line.food.id] || {};
         return {
-          foodId: food.id,
-          quantity: quantities[food.id],
+          foodId: line.food.id,
+          quantity: line.qty,
+          portionName: line.portion?.name || null,
           spiceLevel,
           ingredientsToAvoid,
           customOptions: Object.keys(customOptions).length > 0 ? customOptions : null,
@@ -303,7 +318,7 @@ const Cart = () => {
         offerImageUrl: pendingOffer?.imageUrl ?? null,
       }, token);
       const payData = await initiatePayment(order.id, token);
-      pendingCartItems.current = [...cartItems];
+      pendingCartItems.current = [...cartLines];
       pendingOrderId.current = order.id;
       setPayhereData(payData);
     } catch (err) {
@@ -398,32 +413,37 @@ const Cart = () => {
             </div>
           )}
 
-          {cartItems.length === 0 && !pendingOffer ? (
+          {cartLines.length === 0 && !pendingOffer ? (
             <div className="text-center py-5">
               <i className="bi bi-cart-x fs-1 text-muted"></i>
               <p className="mt-3 text-muted">Your cart is empty. Start adding some delicious food!</p>
               <Link to="/explore" className="btn btn-primary mt-2">Explore Menu</Link>
             </div>
-          ) : cartItems.length > 0 ? (
-            cartItems.map(food => (
-              <div key={food.id} className="card mb-3">
+          ) : cartLines.length > 0 ? (
+            cartLines.map(({ key, food, qty, portion, price }) => (
+              <div key={key} className="card mb-3">
                 <div className="card-body">
                   {/* Mobile-first flex row: image | name | controls */}
                   <div className="d-flex align-items-center gap-3 mb-3 flex-wrap">
                     <img src={food.imageUrl} alt={food.name} className="rounded flex-shrink-0"
                       style={{ width: 64, height: 56, objectFit: 'cover' }} />
                     <div className="flex-fill" style={{ minWidth: 0 }}>
-                      <h6 className="mb-0 text-truncate">{food.name}</h6>
+                      <h6 className="mb-0 text-truncate">
+                        {food.name}
+                        {portion && (
+                          <span className="badge bg-secondary ms-2" style={{ fontSize: '0.68rem', fontWeight: 500 }}>{portion.name}</span>
+                        )}
+                      </h6>
                       <small className="text-muted">{food.category}</small>
                     </div>
                     <div className="d-flex align-items-center gap-2 flex-shrink-0 flex-wrap justify-content-end">
                       <div className="input-group input-group-sm" style={{ width: 'auto' }}>
-                        <button className="btn btn-outline-secondary" onClick={() => decreaseQty(food.id)}>-</button>
-                        <input type="text" className="form-control text-center" value={quantities[food.id]} readOnly style={{ width: 42 }} />
-                        <button className="btn btn-outline-secondary" onClick={() => increaseQty(food.id)}>+</button>
+                        <button className="btn btn-outline-secondary" onClick={() => decreaseQty(key)}>-</button>
+                        <input type="text" className="form-control text-center" value={qty} readOnly style={{ width: 42 }} />
+                        <button className="btn btn-outline-secondary" onClick={() => increaseQty(key)}>+</button>
                       </div>
-                      <strong style={{ minWidth: 72, textAlign: 'right', whiteSpace: 'nowrap' }}>Rs.{(food.price * quantities[food.id]).toFixed(2)}</strong>
-                      <button className="btn btn-sm btn-outline-danger" onClick={() => removeFromCart(food.id)}>
+                      <strong style={{ minWidth: 72, textAlign: 'right', whiteSpace: 'nowrap' }}>Rs.{(price * qty).toFixed(2)}</strong>
+                      <button className="btn btn-sm btn-outline-danger" onClick={() => removeFromCart(key)}>
                         <i className="bi bi-trash"></i>
                       </button>
                     </div>
@@ -484,7 +504,7 @@ const Cart = () => {
               </div>
             ))
           ) : null}
-          {cartItems.length > 0 && (
+          {cartLines.length > 0 && (
             <Link to="/" className="btn btn-outline-primary mt-2">
               <i className="bi bi-arrow-left me-2"></i>Continue Shopping
             </Link>
@@ -658,7 +678,7 @@ const Cart = () => {
                 className="btn btn-primary w-100"
                 disabled={
                   !isOpen ||
-                  (cartItems.length === 0 && !pendingOffer) || placing || !user?.phone ||
+                  (cartLines.length === 0 && !pendingOffer) || placing || !user?.phone ||
                   (orderType === 'delivery' && !deliveryAddress && !deliveryLat) ||
                   (orderType === 'delivery' && deliveryLat && deliveryLng && !isWithinColombo(deliveryLat, deliveryLng))
                 }

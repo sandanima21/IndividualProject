@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.List;
+
 @Data
 @Builder
 @AllArgsConstructor
@@ -21,6 +23,10 @@ public class FoodEntity {
     private String category;
     private String imageUrl;
     private CustomizationOptions customizationOptions;
+
+    // Optional named/priced variants (e.g. Small/Medium/Large). Null or empty means
+    // this food has no portions — customers just pay `price` above as usual.
+    private List<FoodPortion> portions;
 
     // Nullable on purpose: existing documents predate this field and have no
     // value for it at all. Treat null the same as true ("available") wherever

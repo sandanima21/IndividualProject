@@ -574,6 +574,9 @@ const DeliveryDashboard = () => {
               )}
               <div className="flex-fill">
                 <span style={{ color: '#e0ddd4', fontWeight: 600, fontSize: '0.88rem' }}>{item.foodName}</span>
+                {item.portionName && (
+                  <span className="ms-2" style={{ color: 'var(--gold)', fontSize: '0.78rem' }}>({item.portionName})</span>
+                )}
                 <span className="ms-2" style={{ color: 'rgba(200,196,188,0.55)', fontSize: '0.82rem' }}>×{item.quantity}</span>
               </div>
             </div>
@@ -647,7 +650,7 @@ const DeliveryDashboard = () => {
   // ── History row (compact table, mirrors the admin History page's CompletedTable) ──
   const HistoryRow = ({ order }) => {
     const review = reviewsByOrderId.get(order.id);
-    const itemsSummary = order.items?.map(i => `${i.foodName} ×${i.quantity}`).join(' · ');
+    const itemsSummary = order.items?.map(i => `${i.foodName}${i.portionName ? ` (${i.portionName})` : ''} ×${i.quantity}`).join(' · ');
     return (
       <tr style={{ background: '#181818' }}>
         <td style={{ padding: '10px 12px', borderRadius: '10px 0 0 10px', color: 'var(--gold)', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>

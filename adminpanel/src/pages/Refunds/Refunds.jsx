@@ -401,7 +401,7 @@ export const RefundedTable = ({ orders, onRefresh, emptyMsg = 'No refunds in thi
 
                     <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: '0.78rem', color: 'rgba(200,196,188,0.6)', maxWidth: 160 }}>
                       <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                        {order.items?.map(i => `${i.foodName} ×${i.quantity}`).join(' · ')}
+                        {order.items?.map(i => `${i.foodName}${i.portionName ? ` (${i.portionName})` : ''} ×${i.quantity}`).join(' · ')}
                       </span>
                     </td>
 

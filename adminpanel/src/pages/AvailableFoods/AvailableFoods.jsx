@@ -54,6 +54,67 @@ const OptionChips = ({ options = [], setOptions }) => {
   );
 };
 
+/* ── Portions builder (optional named/priced variants — e.g. Small/Medium/Large) ── */
+const validatePortions = (list) => {
+  const names = new Set();
+  for (const p of list) {
+    const name = (p.name || '').trim();
+    const hasName = !!name;
+    const hasPrice = p.price !== '' && p.price != null;
+    if (!hasName && !hasPrice) continue; // fully empty row — ignored, not an error
+    if (!hasName) return 'Each portion needs a name.';
+    if (!hasPrice) return `Enter a price for "${name}".`;
+    const priceErr = validatePrice(p.price);
+    if (priceErr) return `"${name}": ${priceErr}`;
+    const key = name.toLowerCase();
+    if (names.has(key)) return `Duplicate portion name "${name}".`;
+    names.add(key);
+  }
+  return '';
+};
+
+const PortionBuilder = ({ portions, setPortions }) => {
+  const addPortion = () => setPortions(prev => [...prev, { name: '', price: '' }]);
+  const updatePortion = (idx, field, value) =>
+    setPortions(prev => prev.map((p, i) => i === idx ? { ...p, [field]: value } : p));
+  const removePortion = (idx) => setPortions(prev => prev.filter((_, i) => i !== idx));
+
+  return (
+    <div>
+      {portions.map((p, idx) => {
+        const priceErr = p.price !== '' && p.price != null ? validatePrice(p.price) : '';
+        return (
+          <div key={idx} className="d-flex gap-2 align-items-start mb-2">
+            <input
+              className="form-control form-control-sm"
+              placeholder="e.g. Small"
+              value={p.name}
+              onChange={e => updatePortion(idx, 'name', e.target.value)}
+              style={{ background: 'rgba(255,255,255,0.06)', color: '#e8e4da', border: '1px solid rgba(201,168,76,0.2)' }}
+            />
+            <div style={{ width: 130, flexShrink: 0 }}>
+              <input
+                type="number" min="0.01" step="0.01"
+                className={`form-control form-control-sm${priceErr ? ' is-invalid' : ''}`}
+                placeholder="Price"
+                value={p.price}
+                onChange={e => updatePortion(idx, 'price', e.target.value)}
+                style={{ background: 'rgba(255,255,255,0.06)', color: '#e8e4da', border: '1px solid rgba(201,168,76,0.2)' }}
+              />
+            </div>
+            <button type="button" className="btn btn-sm btn-outline-danger flex-shrink-0" onClick={() => removePortion(idx)}>
+              <i className="bi bi-trash"></i>
+            </button>
+          </div>
+        );
+      })}
+      <button type="button" className="btn btn-sm btn-outline-secondary" onClick={addPortion}>
+        <i className="bi bi-plus me-1"></i>Add Portion
+      </button>
+    </div>
+  );
+};
+
 /* ── Unified Customization Builder ── */
 const CustomizationBuilder = ({ customizables, setCustomizables }) => {
   const [typeInput, setTypeInput] = useState('');
@@ -136,6 +197,7 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
   };
 
   const [customizables, setCustomizables] = useState(initCustomizables);
+  const [portions, setPortions] = useState(initial?.portions?.map(p => ({ name: p.name, price: String(p.price) })) || []);
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(initial?.imageUrl || null);
   const [submitting, setSubmitting] = useState(false);
@@ -160,14 +222,19 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
     if (!data.category) { toast.error('Please select a category.'); return; }
     const priceErr = validatePrice(data.price);
     if (priceErr) { setPriceError(priceErr); toast.error(priceErr); return; }
+    const portionsErr = validatePortions(portions);
+    if (portionsErr) { toast.error(portionsErr); return; }
     setSubmitting(true);
     try {
       const customizationOptions = { spiceLevels: [], ingredientsToAvoid: [], customizables };
+      const cleanedPortions = portions
+        .filter(p => p.name.trim())
+        .map(p => ({ name: p.name.trim(), price: Number(p.price) }));
       if (mode === 'add') {
-        await addFood({ ...data, price: Number(data.price), customizationOptions }, image);
+        await addFood({ ...data, price: Number(data.price), customizationOptions, portions: cleanedPortions }, image);
         toast.success('Food added successfully!');
       } else {
-        await updateFood(initial.id, { ...data, price: Number(data.price), customizationOptions }, image);
+        await updateFood(initial.id, { ...data, price: Number(data.price), customizationOptions, portions: cleanedPortions }, image);
         toast.success('Food updated successfully!');
       }
       onSaved();
@@ -245,6 +312,18 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
                 value={data.description} onChange={handleField} required />
             </div>
 
+            {/* Portions */}
+            <div className="col-12">
+              <label className="form-label small d-block mb-2">
+                <i className="bi bi-rulers me-1" style={{ color: 'var(--gold)' }}></i>
+                Portions <span className="text-muted small">(optional — e.g. Small/Medium/Large, each with its own price)</span>
+              </label>
+              <PortionBuilder portions={portions} setPortions={setPortions} />
+              {portions.length === 0 && (
+                <p className="text-muted small mb-0 mt-1">No portions added — customers will just pay the price above.</p>
+              )}
+            </div>
+
             {/* Unified Customization */}
             <div className="col-12">
               <label className="form-label small d-block mb-2">
@@ -316,6 +395,7 @@ const AvailableFoods = () => {
       form: { name: food.name, description: food.description, price: String(food.price), category: food.category || '' },
       spiceLevels: food.customizationOptions?.spiceLevels || [],
       customizables: food.customizationOptions?.customizables || [],
+      portions: food.portions || [],
     });
   };
 

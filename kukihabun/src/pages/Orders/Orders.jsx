@@ -319,7 +319,7 @@ const statusColor = {
   DELIVERED: 'dark',
 };
 
-const ReviewModal = ({ item, orderId, token, onDone }) => {
+const ReviewModal = ({ item, orderId, idx, token, onDone }) => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -338,7 +338,7 @@ const ReviewModal = ({ item, orderId, token, onDone }) => {
   };
 
   return (
-    <div className="modal fade" id={`reviewModal-${item.foodId}-${orderId}`} tabIndex="-1" aria-hidden="true">
+    <div className="modal fade" id={`reviewModal-${item.foodId}-${idx}-${orderId}`} tabIndex="-1" aria-hidden="true">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
@@ -454,11 +454,13 @@ const OrderDetailsModal = ({ order, onClose }) => {
 
             {/* Items */}
             <h6 className="mb-2" style={{ fontSize: '0.82rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'rgba(240,236,224,0.5)' }}>Items</h6>
-            {(order.items ?? []).map(item => (
-              <div key={item.foodId} className="d-flex align-items-center gap-3 mb-2">
+            {(order.items ?? []).map((item, idx) => (
+              <div key={`${item.foodId}-${idx}`} className="d-flex align-items-center gap-3 mb-2">
                 <img src={item.foodImageUrl} alt={item.foodName} style={{ width: 44, height: 36, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }} />
                 <div className="flex-fill">
-                  <div className="fw-semibold" style={{ fontSize: '0.9rem' }}>{item.foodName} × {item.quantity}</div>
+                  <div className="fw-semibold" style={{ fontSize: '0.9rem' }}>
+                    {item.foodName}{item.portionName && <span className="text-muted"> ({item.portionName})</span>} × {item.quantity}
+                  </div>
                   {item.spiceLevel && <small className="text-muted d-block">Spice: {item.spiceLevel}</small>}
                   {item.ingredientsToAvoid?.length > 0 && <small className="text-danger d-block">Avoid: {item.ingredientsToAvoid.join(', ')}</small>}
                   {item.customOptions && Object.entries(item.customOptions).map(([k, v]) => (
@@ -725,12 +727,14 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                 <small className="text-muted">{toSLDate(order.createdAt)}</small>
               </div>
               <div className="card-body">
-                {(order.items ?? []).map(item => (
-                  <div key={item.foodId} className="d-flex align-items-center justify-content-between mb-2">
+                {(order.items ?? []).map((item, idx) => (
+                  <div key={`${item.foodId}-${idx}`} className="d-flex align-items-center justify-content-between mb-2">
                     <div className="d-flex align-items-center gap-3">
                       <img src={item.foodImageUrl} alt={item.foodName} style={{ width: 50, height: 40, objectFit: 'cover', borderRadius: 6, opacity: 0.7 }} />
                       <div>
-                        <div className="fw-semibold" style={{ opacity: 0.8 }}>{item.foodName} × {item.quantity}</div>
+                        <div className="fw-semibold" style={{ opacity: 0.8 }}>
+                          {item.foodName}{item.portionName && <span> ({item.portionName})</span>} × {item.quantity}
+                        </div>
                       </div>
                     </div>
                     <span style={{ opacity: 0.7 }}>Rs.{(item.price * item.quantity).toFixed(2)}</span>
@@ -839,12 +843,14 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
             })()}
 
             <div className="card-body">
-              {(order.items ?? []).map(item => (
-                <div key={item.foodId} className="d-flex align-items-center justify-content-between mb-2">
+              {(order.items ?? []).map((item, idx) => (
+                <div key={`${item.foodId}-${idx}`} className="d-flex align-items-center justify-content-between mb-2">
                   <div className="d-flex align-items-center gap-3">
                     <img src={item.foodImageUrl} alt={item.foodName} style={{ width: 50, height: 40, objectFit: 'cover', borderRadius: 6 }} />
                     <div>
-                      <div className="fw-semibold">{item.foodName} × {item.quantity}</div>
+                      <div className="fw-semibold">
+                        {item.foodName}{item.portionName && <span className="text-muted"> ({item.portionName})</span>} × {item.quantity}
+                      </div>
                       {item.spiceLevel && <small className="text-muted d-block">Spice: {item.spiceLevel}</small>}
                       {item.ingredientsToAvoid?.length > 0 && (
                         <small className="text-danger d-block">Avoid: {item.ingredientsToAvoid.join(', ')}</small>
@@ -861,11 +867,11 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                         <button
                           className="btn btn-sm btn-outline-warning"
                           data-bs-toggle="modal"
-                          data-bs-target={`#reviewModal-${item.foodId}-${order.id}`}
+                          data-bs-target={`#reviewModal-${item.foodId}-${idx}-${order.id}`}
                         >
                           <i className="bi bi-star me-1"></i>Review
                         </button>
-                        <ReviewModal item={item} orderId={order.id} token={token} onDone={load} />
+                        <ReviewModal item={item} orderId={order.id} idx={idx} token={token} onDone={load} />
                       </>
                     )}
                   </div>

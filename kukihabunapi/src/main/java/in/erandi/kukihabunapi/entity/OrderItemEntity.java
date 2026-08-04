@@ -18,6 +18,7 @@ public class OrderItemEntity {
     private String foodImageUrl;
     private double price;
     private int quantity;
+    private String portionName;
 
     private String spiceLevel;
     private List<String> ingredientsToAvoid;

@@ -1,6 +1,7 @@
 package in.erandi.kukihabunapi.service;
 
 import in.erandi.kukihabunapi.entity.FoodEntity;
+import in.erandi.kukihabunapi.entity.FoodPortion;
 import in.erandi.kukihabunapi.entity.OfferEntity;
 import in.erandi.kukihabunapi.entity.OrderEntity;
 import in.erandi.kukihabunapi.entity.OrderItemEntity;
@@ -327,12 +328,28 @@ public class OrderServiceImpl implements OrderService {
         if (Boolean.FALSE.equals(food.getAvailable())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, food.getName() + " is currently out of stock.");
         }
+        // Price is always resolved server-side, never trusted from the client — for a
+        // selected portion, look it up in this food's own portion list rather than
+        // accepting a client-supplied price (which could be tampered with).
+        double resolvedPrice = food.getPrice();
+        String portionName = null;
+        String requestedPortion = req.getPortionName();
+        if (requestedPortion != null && !requestedPortion.isBlank()) {
+            FoodPortion portion = (food.getPortions() == null ? List.<FoodPortion>of() : food.getPortions()).stream()
+                    .filter(p -> requestedPortion.equals(p.getName()))
+                    .findFirst()
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                            "Portion \"" + requestedPortion + "\" is no longer available for " + food.getName() + "."));
+            resolvedPrice = portion.getPrice();
+            portionName = requestedPortion;
+        }
         return OrderItemEntity.builder()
                 .foodId(food.getId())
                 .foodName(food.getName())
                 .foodImageUrl(food.getImageUrl())
-                .price(food.getPrice())
+                .price(resolvedPrice)
                 .quantity(req.getQuantity())
+                .portionName(portionName)
                 .spiceLevel(req.getSpiceLevel())
                 .ingredientsToAvoid(req.getIngredientsToAvoid())
                 .customOptions(req.getCustomOptions())
@@ -396,6 +413,7 @@ public class OrderServiceImpl implements OrderService {
                         .foodImageUrl(i.getFoodImageUrl())
                         .price(i.getPrice())
                         .quantity(i.getQuantity())
+                        .portionName(i.getPortionName())
                         .spiceLevel(i.getSpiceLevel())
                         .ingredientsToAvoid(i.getIngredientsToAvoid())
                         .customOptions(i.getCustomOptions())

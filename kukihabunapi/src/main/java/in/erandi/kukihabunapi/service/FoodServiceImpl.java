@@ -82,6 +82,7 @@ public class FoodServiceImpl implements FoodService {
         existing.setCategory(request.getCategory());
         existing.setPrice(request.getPrice());
         existing.setCustomizationOptions(request.getCustomizationOptions());
+        existing.setPortions(request.getPortions());
         if (file != null && !file.isEmpty()) {
             String oldUrl = existing.getImageUrl();
             if (oldUrl != null && !oldUrl.isBlank()) {
@@ -107,6 +108,7 @@ public class FoodServiceImpl implements FoodService {
                 .category(request.getCategory())
                 .price(request.getPrice())
                 .customizationOptions(request.getCustomizationOptions())
+                .portions(request.getPortions())
                 .available(true)
                 .build();
     }
@@ -120,6 +122,7 @@ public class FoodServiceImpl implements FoodService {
                 .price(entity.getPrice())
                 .imageUrl(entity.getImageUrl())
                 .customizationOptions(entity.getCustomizationOptions())
+                .portions(entity.getPortions())
                 .available(!Boolean.FALSE.equals(entity.getAvailable()))
                 .build();
     }

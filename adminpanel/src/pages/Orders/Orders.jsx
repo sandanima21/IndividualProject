@@ -236,7 +236,10 @@ const DetailModal = ({ order, onClose, onStatusMove, onAdminCancel }) => {
               <div key={i} className="d-flex align-items-center gap-3 p-2 rounded-3" style={{ background: '#212121', border: '1px solid rgba(255,255,255,0.06)' }}>
                 {item.foodImageUrl && <img src={item.foodImageUrl} alt="" style={{ width: 44, height: 36, objectFit: 'cover', borderRadius: 7 }} />}
                 <div className="flex-fill">
-                  <div className="fw-semibold small">{item.foodName}</div>
+                  <div className="fw-semibold small">
+                    {item.foodName}
+                    {item.portionName && <span className="badge bg-secondary ms-1" style={{ fontSize: '0.62rem' }}>{item.portionName}</span>}
+                  </div>
                   {item.spiceLevel && <span className="badge bg-warning text-dark me-1" style={{ fontSize: '0.62rem' }}>🌶 {item.spiceLevel}</span>}
                   {item.ingredientsToAvoid?.length > 0 && <span className="badge bg-danger me-1" style={{ fontSize: '0.62rem' }}>No: {item.ingredientsToAvoid.join(', ')}</span>}
                   {item.customOptions && Object.entries(item.customOptions).map(([k, v]) => (
@@ -310,7 +313,7 @@ const DetailModal = ({ order, onClose, onStatusMove, onAdminCancel }) => {
 /* ─── Kanban card ─── */
 const OrderCard = ({ order, onDragStart, onDragEnd, onClick, isDragging, onLiveTrack }) => {
   const col = COLUMNS.find(c => c.displayKeys.includes(order.status)) || COLUMNS[0];
-  const itemsSummary = order.items.map(i => `${i.foodName} ×${i.quantity}`).join(' · ');
+  const itemsSummary = order.items.map(i => `${i.foodName}${i.portionName ? ` (${i.portionName})` : ''} ×${i.quantity}`).join(' · ');
 
   return (
     <div

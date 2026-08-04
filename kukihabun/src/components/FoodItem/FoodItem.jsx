@@ -13,22 +13,39 @@
 import React, { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { StoreContext } from '../../context/StoreContext';
+import PortionPicker from '../PortionPicker/PortionPicker';
 import './FoodItem.css';
 
 const FoodItem = ({ food }) => {
-  const { increaseQty, decreaseQty, quantities, user } = useContext(StoreContext);
+  const { increaseQty, decreaseQty, quantities, user, addPortionToCart } = useContext(StoreContext);
   const navigate = useNavigate();
   const [showCustomizePrompt, setShowCustomizePrompt]     = useState(false);
   const [showSameCustomPrompt, setShowSameCustomPrompt]   = useState(false);
+  const [showPortionPicker, setShowPortionPicker]         = useState(false);
+  // Portion picked in the popup above, held until the (optional) customization
+  // prompt below is resolved — that's when it actually gets added to the cart.
+  const [chosenPortion, setChosenPortion]                 = useState(null);
+
+  const hasPortions = food.portions?.length > 0;
 
   const hasCustomizations = food.customizationOptions &&
     ((food.customizationOptions.spiceLevels?.length > 0) ||
      (food.customizationOptions.ingredientsToAvoid?.length > 0) ||
      (food.customizationOptions.customizables?.length > 0));
 
+  // Total quantity across every portion-line of this food (each portion is its own
+  // cart line — see StoreContext's lineKey) — used only for the "N in cart" badge.
+  const totalInCart = hasPortions
+    ? Object.entries(quantities).reduce((sum, [key, qty]) => key.startsWith(`${food.id}::`) ? sum + qty : sum, 0)
+    : (quantities[food.id] || 0);
+
   const handleAdd = () => {
     // Unauthenticated users are sent to /signin first.
     if (!user) { navigate('/signin'); return; }
+    if (hasPortions) {
+      setShowPortionPicker(true);
+      return;
+    }
     if (hasCustomizations) {
       // Show the "Would you like to customise?" prompt before adding.
       setShowCustomizePrompt(true);
@@ -38,6 +55,8 @@ const FoodItem = ({ food }) => {
   };
 
   // Separate handler for the + button when the item is already in the cart.
+  // (Never reached for foods with portions — they always show "Add" instead of a
+  // stepper, since which portion's line the "+" refers to would be ambiguous.)
   const handleIncrease = () => {
     if (hasCustomizations) {
       // Ask whether they want the same customization or a different one.
@@ -47,15 +66,31 @@ const FoodItem = ({ food }) => {
     }
   };
 
+  const handlePortionConfirm = (portion) => {
+    setShowPortionPicker(false);
+    if (hasCustomizations) {
+      setChosenPortion(portion);
+      setShowCustomizePrompt(true);
+    } else {
+      addPortionToCart(food.id, portion);
+    }
+  };
+
   const addWithoutCustomize = () => {
     setShowCustomizePrompt(false);
-    increaseQty(food.id);
+    if (chosenPortion) {
+      addPortionToCart(food.id, chosenPortion);
+      setChosenPortion(null);
+    } else {
+      increaseQty(food.id);
+    }
   };
 
   const goToDetails = () => {
     setShowCustomizePrompt(false);
     setShowSameCustomPrompt(false);
-    navigate(`/food/${food.id}`);
+    navigate(`/food/${food.id}`, chosenPortion ? { state: { portionName: chosenPortion.name } } : undefined);
+    setChosenPortion(null);
   };
 
   return (
@@ -86,6 +121,18 @@ const FoodItem = ({ food }) => {
             <span className="badge" style={{ background: 'rgba(244,115,115,0.15)', color: '#f47373', fontSize: '0.75rem', padding: '6px 10px' }}>
               <i className="bi bi-slash-circle me-1"></i>Out of Stock
             </span>
+          ) : hasPortions ? (
+            // Foods with portions always show "Add" (reopens the portion picker) —
+            // a food can have multiple simultaneous cart lines (one per portion), so
+            // a single +/- stepper here wouldn't unambiguously refer to any one of them.
+            <div className="d-flex align-items-center gap-2">
+              {totalInCart > 0 && (
+                <span className="badge bg-secondary" style={{ fontSize: '0.7rem' }}>{totalInCart} in cart</span>
+              )}
+              <button className="btn btn-primary btn-sm" onClick={handleAdd}>
+                <i className="bi bi-cart-plus me-1"></i>Add
+              </button>
+            </div>
           ) : quantities[food.id] > 0 ? (
             // Item is in cart — show quantity stepper.
             <div className="d-flex align-items-center gap-2">
@@ -104,6 +151,16 @@ const FoodItem = ({ food }) => {
           )}
         </div>
       </div>
+
+      {/* ── Portion picker (shown first when the food has portions) ── */}
+      {showPortionPicker && (
+        <PortionPicker
+          foodName={food.name}
+          portions={food.portions}
+          onConfirm={handlePortionConfirm}
+          onCancel={() => setShowPortionPicker(false)}
+        />
+      )}
 
       {/* ── First-add customization prompt ── */}
       {showCustomizePrompt && (

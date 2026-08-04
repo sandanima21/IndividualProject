@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { fetchFoodDetails } from '../../service/foodservice';
 import { getReviewsByFood } from '../../service/reviewservice';
-import { StoreContext } from '../../context/StoreContext';
+import { StoreContext, lineKey } from '../../context/StoreContext';
 
 const StarRating = ({ value }) => (
   <span>
@@ -14,10 +14,13 @@ const StarRating = ({ value }) => (
 
 const FoodDetails = () => {
   const { id } = useParams();
-  const { increaseQty, decreaseQty, quantities, customizations, setSpice, toggleAvoid, setCustomization } = useContext(StoreContext);
+  const location = useLocation();
+  const { increaseQty, decreaseQty, quantities, customizations, setSpice, toggleAvoid, setCustomization, addPortionToCart } = useContext(StoreContext);
   const myCustom = customizations[id] || {};
   const [data, setData] = useState({});
   const [reviews, setReviews] = useState([]);
+  // Selected portion, when this food has any — required before it can be added.
+  const [selectedPortion, setSelectedPortion] = useState(null);
 
   // Land at the top of the page rather than wherever the previous page was scrolled to.
   useEffect(() => {
@@ -36,6 +39,20 @@ const FoodDetails = () => {
     };
     load();
   }, [id]);
+
+  // Preselect the portion the customer already picked on the menu card (via
+  // FoodItem's "Customize Now"), if any — they can still change it here.
+  useEffect(() => {
+    if (data.portions?.length > 0 && location.state?.portionName) {
+      const match = data.portions.find(p => p.name === location.state.portionName);
+      if (match) setSelectedPortion(match);
+    }
+  }, [data.portions, location.state]);
+
+  const hasPortions = data.portions?.length > 0;
+  const cartKeyForThis = hasPortions
+    ? (selectedPortion ? lineKey(id, selectedPortion.name) : null)
+    : id;
 
   const avgRating = reviews.length
     ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
@@ -61,9 +78,33 @@ const FoodDetails = () => {
               </div>
             )}
             <div className="fs-5 mb-4">
-              <span className="fw-bold">Rs. {data.price}</span>
+              <span className="fw-bold">
+                Rs. {hasPortions ? (selectedPortion ? selectedPortion.price.toFixed(2) : Math.min(...data.portions.map(p => p.price)).toFixed(2)) : data.price}
+              </span>
+              {hasPortions && !selectedPortion && <span className="text-muted small ms-2">starting price</span>}
             </div>
             <p className="lead">{data.description}</p>
+
+            {/* Portion selector */}
+            {hasPortions && (
+              <div className="mb-4 p-3 rounded" style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)' }}>
+                <div className="small fw-semibold mb-2" style={{ color: 'var(--gold)' }}>
+                  <i className="bi bi-rulers me-1"></i>Choose a Portion <span className="text-danger">*</span>
+                </div>
+                <div className="d-flex flex-wrap gap-2">
+                  {data.portions.map(p => (
+                    <button
+                      key={p.name}
+                      type="button"
+                      className={`btn btn-sm ${selectedPortion?.name === p.name ? 'btn-primary' : 'btn-outline-secondary'}`}
+                      onClick={() => setSelectedPortion(p)}
+                    >
+                      {p.name} — Rs.{p.price.toFixed(2)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Customization selectors */}
             {(data.customizationOptions?.spiceLevels?.length > 0 ||
@@ -148,6 +189,22 @@ const FoodDetails = () => {
                 <span className="badge" style={{ background: 'rgba(244,115,115,0.15)', color: '#f47373', fontSize: '0.85rem', padding: '10px 16px' }}>
                   <i className="bi bi-slash-circle me-2"></i>Out of Stock
                 </span>
+              ) : hasPortions && !selectedPortion ? (
+                <button className="btn btn-primary" disabled>
+                  <i className="bi bi-cart-plus me-2"></i>Select a Portion First
+                </button>
+              ) : hasPortions ? (
+                quantities[cartKeyForThis] > 0 ? (
+                  <div className="d-flex align-items-center gap-2">
+                    <button className="btn btn-outline-danger btn-sm" onClick={() => decreaseQty(cartKeyForThis)}>-</button>
+                    <span className="fw-bold fs-5">{quantities[cartKeyForThis]}</span>
+                    <button className="btn btn-outline-success btn-sm" onClick={() => increaseQty(cartKeyForThis)}>+</button>
+                  </div>
+                ) : (
+                  <button className="btn btn-primary" onClick={() => addPortionToCart(id, selectedPortion)}>
+                    <i className="bi bi-cart-plus me-2"></i>Add to Cart
+                  </button>
+                )
               ) : quantities[id] > 0 ? (
                 <div className="d-flex align-items-center gap-2">
                   <button className="btn btn-outline-danger btn-sm" onClick={() => decreaseQty(id)}>-</button>

@@ -18,6 +18,7 @@ public class OrderItemResponse {
     private String foodImageUrl;
     private double price;
     private int quantity;
+    private String portionName;
     private String spiceLevel;
     private List<String> ingredientsToAvoid;
     private Map<String, String> customOptions;
