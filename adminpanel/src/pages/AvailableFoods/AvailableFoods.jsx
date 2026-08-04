@@ -263,7 +263,7 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="row g-3">
+          <div className="row g-3 gy-4">
 
             {/* Image upload */}
             <div className="col-12 text-center">
