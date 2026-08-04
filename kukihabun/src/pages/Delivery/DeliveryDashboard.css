@@ -1,65 +1,165 @@
 /* ── Delivery Dashboard layout ── */
-/* The customer Menubar is hidden on this route (see App.jsx HIDE_NAVBAR) — the
+/* Mirrors the admin panel's sidebar + top bar pattern (adminpanel/src/index.css)
+   so the rider dashboard shares the same navigation UI: a fixed left sidebar
+   (collapsible via the top bar's hamburger button, overlay drawer on mobile)
+   plus a fixed top bar carrying the account info and Sign Out.
+   The customer Menubar is hidden on this route (see App.jsx HIDE_NAVBAR) — this
    dashboard owns its full viewport instead of sitting below a shared header. */
-.delivery-layout {
+
+:root {
+  --delivery-sidebar-width: 220px;
+  --delivery-topbar-height: 76px;
+}
+
+#delivery-wrapper {
   display: flex;
   min-height: 100vh;
 }
 
-/* ── Sidebar (desktop) ── */
-/* Fixed so it stays in view while .delivery-main scrolls — it used to have no
-   position set at all, so it just scrolled away with the page content. */
-.delivery-sidebar {
-  width: 220px;
+/* ── Sidebar ── */
+.delivery-sidebar-wrapper {
+  width: var(--delivery-sidebar-width);
+  min-height: 100vh;
+  background: #111;
+  border-right: 1px solid rgba(201,168,76,0.15);
   flex-shrink: 0;
-  background: var(--surface);
-  border-right: 1px solid var(--border);
-  padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 4px;
   position: fixed;
   top: 0;
   left: 0;
   height: 100vh;
+  z-index: 100;
   overflow-y: auto;
 }
 
-/* ── Main content area ── */
-.delivery-main {
-  flex: 1;
-  padding: 2rem;
-  overflow-y: auto;
-  margin-left: 220px;
-}
-
-/* ── Sidebar rider identity card ── */
-.delivery-sidebar-profile {
+.delivery-sidebar-brand-row {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.5rem 0.6rem 1rem;
-  margin-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  padding: 1.2rem 1rem;
+}
+.delivery-sidebar-brand-row img { width: 44px; height: 44px; border-radius: 9px; }
+.delivery-sidebar-brand-row span {
+  font-weight: 800;
+  color: var(--gold);
+  font-size: 1.05rem;
 }
 
-.delivery-online-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #3ecf8e;
-  box-shadow: 0 0 0 2px rgba(62,207,142,0.2);
-}
+.delivery-sidebar-nav { padding: 1rem 0.5rem; flex: 1; }
 
-.delivery-sidebar-label {
-  padding: 0 1.1rem;
+.delivery-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
   margin-bottom: 2px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: rgba(240,236,224,0.35);
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(240,236,224,0.65);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
 }
+.delivery-sidebar-item i { font-size: 1rem; }
+.delivery-sidebar-item:hover { background: var(--gold-muted); color: var(--gold); }
+.delivery-sidebar-item.active { background: var(--gold-muted); color: var(--gold); font-weight: 700; }
+
+/* GPS live indicator, pinned above Sign Out inside the sidebar */
+.delivery-sidebar-gps {
+  margin: 0.5rem 0.5rem 0;
+  padding: 0.5rem;
+  border-radius: 8px;
+  text-align: center;
+  background: rgba(167,139,250,0.1);
+  border: 1px solid rgba(167,139,250,0.3);
+  font-size: 0.72rem;
+  color: #a78bfa;
+}
+
+/* ── Content area (offset for the fixed sidebar + top bar) ── */
+#delivery-content-wrapper {
+  min-width: 0;
+  flex: 1;
+  overflow-x: hidden;
+  margin-left: var(--delivery-sidebar-width);
+  padding-top: var(--delivery-topbar-height);
+  transition: margin-left 0.2s;
+}
+#delivery-content-wrapper.sidebar-collapsed { margin-left: 0; }
+#delivery-content-wrapper.sidebar-collapsed .delivery-topbar { left: 0 !important; }
+
+.delivery-content { padding: 2rem; }
+
+/* ── Top bar ── */
+.delivery-topbar {
+  position: fixed;
+  top: 0;
+  left: var(--delivery-sidebar-width);
+  right: 0;
+  height: var(--delivery-topbar-height);
+  background: #111;
+  border-bottom: 1px solid rgba(201,168,76,0.15);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  z-index: 100;
+  transition: left 0.2s;
+}
+
+.delivery-topbar-toggle {
+  background: rgba(201,168,76,0.1);
+  border: 1px solid rgba(201,168,76,0.2);
+  color: var(--gold);
+  border-radius: 8px;
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.delivery-topbar-gps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(167,139,250,0.15);
+  color: #a78bfa;
+  font-size: 0.72rem;
+  font-weight: 600;
+  border: 1px solid rgba(167,139,250,0.3);
+  white-space: nowrap;
+}
+
+.delivery-topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: rgba(240,236,224,0.7);
+  white-space: nowrap;
+}
+
+.delivery-topbar-signout {
+  background: transparent;
+  border: 1px solid #f47373;
+  color: #f47373;
+  border-radius: 8px;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+.delivery-topbar-signout:hover { background: #f47373; color: #111; }
 
 /* ── Quick stats row (top of Deliveries tab) ── */
 .delivery-stats-row {
@@ -100,160 +200,37 @@
   .delivery-stats-row { grid-template-columns: repeat(2, 1fr); }
 }
 
-/* ── Sidebar brand mark (replaces the customer Menubar, which is hidden here) ── */
-.delivery-sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.55rem;
-  padding: 0.2rem 0.6rem 1rem;
-  margin-bottom: 0.5rem;
-}
-.delivery-sidebar-brand img {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-}
-.delivery-sidebar-brand span {
-  font-size: 0.85rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--gold);
-}
+/* ── Mobile: sidebar becomes an overlay drawer, top bar spans full width ── */
+.delivery-mobile-overlay { display: none; }
 
-/* ── Sidebar sign-out (bottom of sidebar, pinned via margin-top:auto) ── */
-.delivery-signout-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.7rem 1.1rem;
-  margin-top: auto;
-  border-radius: 10px;
-  border: none;
-  background: transparent;
-  color: rgba(240,236,224,0.5);
-  font-family: 'Poppins', sans-serif;
-  font-size: 0.88rem;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-}
-.delivery-signout-btn:hover {
-  background: rgba(244,115,115,0.1);
-  color: #f47373;
-}
+@media (max-width: 768px) {
+  .delivery-sidebar-wrapper { z-index: 1050; }
 
-/* ── Mobile top bar (avatar + sign out) ── */
-.delivery-mobile-topbar {
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem 1rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  gap: 0.75rem;
-}
-.delivery-mobile-signout {
-  background: none;
-  border: 1px solid rgba(244,115,115,0.3);
-  color: #f47373;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-/* ── Mobile bottom tab bar ── */
-.delivery-mobile-nav {
-  display: none;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding: 0.3rem 0 env(safe-area-inset-bottom, 0.3rem);
-}
-
-.delivery-mob-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.4rem 0.2rem;
-  color: rgba(240,236,224,0.45);
-  font-size: 0.62rem;
-  font-weight: 600;
-  font-family: 'Poppins', sans-serif;
-  transition: color 0.18s;
-  position: relative;
-}
-.delivery-mob-btn i {
-  font-size: 1.25rem;
-  line-height: 1;
-}
-.delivery-mob-btn.active {
-  color: var(--gold);
-}
-.delivery-mob-btn .mob-badge {
-  position: absolute;
-  top: 4px;
-  right: calc(50% - 22px);
-  background: #a78bfa;
-  color: #fff;
-  border-radius: 50%;
-  width: 14px;
-  height: 14px;
-  font-size: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.delivery-mob-btn .mob-badge.green { background: #3ecf8e; }
-
-/* ── GPS strip (shown above bottom nav when sharing) ── */
-.delivery-gps-strip {
-  display: none;
-  position: fixed;
-  bottom: 60px;
-  left: 0;
-  right: 0;
-  z-index: 99;
-  background: rgba(167,139,250,0.12);
-  border-top: 1px solid rgba(167,139,250,0.3);
-  padding: 0.35rem 1rem;
-  font-size: 0.75rem;
-  color: #a78bfa;
-  text-align: center;
-}
-
-/* ── Responsive breakpoint ── */
-@media (max-width: 767px) {
-  .delivery-sidebar      { display: none; }
-  .delivery-mobile-topbar { display: flex; }
-  .delivery-mobile-nav   { display: flex; }
-  .delivery-gps-strip    { display: block; }
-
-  .delivery-main {
-    padding: 1rem 0.85rem 80px; /* bottom padding = tab bar height */
-    margin-left: 0;
+  #delivery-content-wrapper {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
   }
 
-  .delivery-layout {
-    flex-direction: column;
-    min-height: unset;
+  .delivery-topbar { left: 0 !important; }
+
+  .delivery-topbar-user span:last-child { display: none; } /* hide "Rider" label, keep name */
+
+  /* No !important on display — React's inline style (style={{ display: sidebarVisible
+     ? undefined : 'none' }}) must be able to override this and actually hide the
+     backdrop once the drawer is closed, otherwise it's stuck covering the screen. */
+  .delivery-mobile-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 1040;
+    backdrop-filter: blur(2px);
   }
+
+  .delivery-content { padding: 1rem 0.85rem; }
 }
 
-@media (max-width: 480px) {
-  .delivery-main { padding: 0.75rem 0.6rem 80px; }
+@media (max-width: 420px) {
+  .delivery-topbar-gps span { display: none; } /* icon-only GPS pill on very narrow screens */
 }

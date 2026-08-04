@@ -246,6 +246,7 @@ const DeliveryDashboard = () => {
   const [historyFilter, setHistoryFilter]   = useState('all'); // defaults to All Time, not just today
   const [historySearch, setHistorySearch]   = useState('');
   const [activeSection, setActiveSection]   = useState('orders');
+  const [sidebarVisible, setSidebarVisible] = useState(true);
 
   // GPS sharing state
   const [sharing, setSharing]               = useState(false);
@@ -527,18 +528,7 @@ const DeliveryDashboard = () => {
   const historyRevenue  = filteredHistory.reduce((s, o) => s + (o.total || 0), 0);
   const historyAvgOrder = filteredHistory.length ? historyRevenue / filteredHistory.length : 0;
 
-  // ── Sidebar style helper ─────────────────────────────────────────────────
-  const navStyle = (id) => ({
-    display: 'flex', alignItems: 'center', gap: '0.75rem',
-    padding: '0.7rem 1.1rem', borderRadius: 10,
-    cursor: 'pointer', border: 'none', width: '100%', textAlign: 'left',
-    fontFamily: 'Poppins, sans-serif', fontSize: '0.88rem',
-    transition: 'all 0.2s',
-    background: activeSection === id ? 'rgba(201,168,76,0.12)' : 'transparent',
-    color: activeSection === id ? 'var(--gold)' : 'rgba(240,236,224,0.65)',
-    fontWeight: activeSection === id ? 600 : 400,
-    borderLeft: activeSection === id ? '3px solid var(--gold)' : '3px solid transparent',
-  });
+  const toggleSidebar = () => setSidebarVisible(v => !v);
 
   // ── Order card ───────────────────────────────────────────────────────────
   const OrderCard = ({ order, isAvailable = false }) => {
@@ -708,83 +698,88 @@ const DeliveryDashboard = () => {
         />
       )}
 
-      {/* ── Mobile top bar ── */}
+      {/* ── Admin-style layout: fixed sidebar + fixed top bar ── */}
       {/* Doubles as this page's only header now that the customer Menubar is hidden
-          on /delivery (see App.jsx HIDE_NAVBAR), so it also carries Sign Out. */}
-      <div className="delivery-mobile-topbar">
-        <div className="d-flex align-items-center gap-2">
-          {user?.picture
-            ? <img src={user.picture} alt="" width={32} height={32} className="rounded-circle" style={{ objectFit: 'cover', flexShrink: 0 }} referrerPolicy="no-referrer" />
-            : <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: '0.9rem', flexShrink: 0 }}>{user?.name?.charAt(0)}</div>
-          }
-          <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{user?.name?.split(' ')[0]}</span>
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>🛵 Rider</span>
-        </div>
-        <button className="delivery-mobile-signout" onClick={() => logout()} title="Sign out" aria-label="Sign out">
-          <i className="bi bi-box-arrow-right"></i>
-        </button>
-      </div>
+          on /delivery (see App.jsx HIDE_NAVBAR). */}
+      <div id="delivery-wrapper">
 
-      <div className="delivery-layout">
+        {/* Mobile backdrop — clicking it closes the sidebar drawer */}
+        <div
+          className="delivery-mobile-overlay"
+          onClick={() => setSidebarVisible(false)}
+          style={{ display: sidebarVisible ? undefined : 'none' }}
+        />
 
-        {/* ── Sidebar (desktop only) ── */}
-        <aside className="delivery-sidebar">
-          {/* Brand mark — the customer Menubar (which normally shows this) is hidden here */}
-          <div className="delivery-sidebar-brand">
-            <img src={assets.logo} alt="" />
+        {/* ── Sidebar ── */}
+        <aside className={`delivery-sidebar-wrapper ${sidebarVisible ? '' : 'd-none'}`}>
+          <div className="delivery-sidebar-brand-row">
+            <img src={assets.logo} alt="KukiHabun" />
             <span>KukiHabun</span>
           </div>
 
-          {/* Rider identity card */}
-          <div className="delivery-sidebar-profile">
-            {user?.picture
-              ? <img src={user.picture} alt="" width={44} height={44} className="rounded-circle" style={{ objectFit: 'cover', flexShrink: 0 }} referrerPolicy="no-referrer" />
-              : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: '1.1rem', flexShrink: 0 }}>{user?.name?.charAt(0)}</div>
-            }
-            <div className="flex-fill" style={{ minWidth: 0 }}>
-              <div className="fw-semibold text-truncate" style={{ fontSize: '0.9rem' }}>{user?.name}</div>
-              <div className="d-flex align-items-center gap-1" style={{ fontSize: '0.7rem', color: '#3ecf8e' }}>
-                <span className="delivery-online-dot"></span>Online
-              </div>
-            </div>
-          </div>
-
-          <div className="delivery-sidebar-label">Menu</div>
-
-          {/* Nav items */}
-          {NAV.map(item => (
-            <button key={item.id} style={navStyle(item.id)} onClick={() => setActiveSection(item.id)}>
-              <i className={`bi ${item.icon}`}></i>
-              <span style={{ flex: 1 }}>{item.label}</span>
-              {item.id === 'orders' && activeOrders.length > 0 && (
-                <span className="badge rounded-pill" style={{ background: 'rgba(167,139,250,0.2)', color: '#a78bfa', fontSize: '0.62rem' }}>
-                  {activeOrders.length}
-                </span>
-              )}
-              {item.id === 'available' && availableOrders.length > 0 && (
-                <span className="badge rounded-pill" style={{ background: 'rgba(62,207,142,0.2)', color: '#3ecf8e', fontSize: '0.62rem' }}>
-                  {availableOrders.length}
-                </span>
-              )}
-            </button>
-          ))}
+          <nav className="delivery-sidebar-nav">
+            {NAV.map(item => (
+              <button
+                key={item.id}
+                className={`delivery-sidebar-item d-flex align-items-center ${activeSection === item.id ? 'active' : ''}`}
+                onClick={() => setActiveSection(item.id)}
+              >
+                <i className={`bi ${item.icon}`}></i>
+                <span className="flex-fill">{item.label}</span>
+                {item.id === 'orders' && activeOrders.length > 0 && (
+                  <span className="badge rounded-pill" style={{ background: 'rgba(167,139,250,0.2)', color: '#a78bfa', fontSize: '0.62rem' }}>
+                    {activeOrders.length}
+                  </span>
+                )}
+                {item.id === 'available' && availableOrders.length > 0 && (
+                  <span className="badge rounded-pill" style={{ background: 'rgba(62,207,142,0.2)', color: '#3ecf8e', fontSize: '0.62rem' }}>
+                    {availableOrders.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
 
           {/* GPS live indicator */}
           {sharing && (
-            <div className="mt-2 p-2 rounded text-center" style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', fontSize: '0.72rem', color: '#a78bfa' }}>
+            <div className="delivery-sidebar-gps">
               <i className="bi bi-broadcast-pin me-1"></i>GPS Broadcasting
-              {eta != null && <span className="ms-2">· Arriving in ~{eta} min</span>}
+              {eta != null && <span className="ms-2">· ~{eta} min</span>}
             </div>
           )}
-
-          <button className="delivery-signout-btn" onClick={() => logout()}>
-            <i className="bi bi-box-arrow-right"></i>
-            <span>Sign Out</span>
-          </button>
         </aside>
 
-        {/* ── Main content ── */}
-        <main className="delivery-main">
+        <div id="delivery-content-wrapper" className={sidebarVisible ? '' : 'sidebar-collapsed'}>
+
+          {/* ── Top bar ── */}
+          <nav className="delivery-topbar">
+            <button className="delivery-topbar-toggle" onClick={toggleSidebar} aria-label="Toggle navigation">
+              <i className="bi bi-list"></i>
+            </button>
+
+            <div className="d-flex align-items-center gap-3">
+              {sharing && (
+                <span className="delivery-topbar-gps">
+                  <i className="bi bi-broadcast-pin"></i>
+                  <span>{eta != null ? `~${eta} min` : 'Live'}</span>
+                </span>
+              )}
+              <span className="delivery-topbar-user">
+                {user?.picture
+                  ? <img src={user.picture} alt="" width={30} height={30} className="rounded-circle" style={{ objectFit: 'cover', flexShrink: 0 }} referrerPolicy="no-referrer" />
+                  : <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: '0.82rem', flexShrink: 0 }}>{user?.name?.charAt(0)}</div>
+                }
+                {user?.name}
+                <span>· Rider</span>
+              </span>
+              <button className="delivery-topbar-signout" onClick={() => logout()}>
+                <i className="bi bi-box-arrow-right me-1"></i>Sign Out
+              </button>
+            </div>
+          </nav>
+
+          {/* ── Main content ── */}
+          <main className="delivery-content">
 
           {/* Active deliveries */}
           {activeSection === 'orders' && (
@@ -1093,37 +1088,11 @@ const DeliveryDashboard = () => {
             </div>
           )}
 
-        </main>
+          </main>
 
-      </div>{/* /delivery-layout */}
+        </div>{/* /delivery-content-wrapper */}
 
-      {/* ── Mobile GPS strip ── */}
-      {sharing && (
-        <div className="delivery-gps-strip">
-          <i className="bi bi-broadcast-pin me-1"></i>GPS Broadcasting
-          {eta != null && <span className="ms-2">· Arriving in ~{eta} min</span>}
-        </div>
-      )}
-
-      {/* ── Mobile bottom tab bar ── */}
-      <nav className="delivery-mobile-nav">
-        {NAV.map(item => (
-          <button
-            key={item.id}
-            className={`delivery-mob-btn ${activeSection === item.id ? 'active' : ''}`}
-            onClick={() => setActiveSection(item.id)}
-          >
-            <i className={`bi ${item.icon}`}></i>
-            <span>{item.label}</span>
-            {item.id === 'orders' && activeOrders.length > 0 && (
-              <span className="mob-badge">{activeOrders.length}</span>
-            )}
-            {item.id === 'available' && availableOrders.length > 0 && (
-              <span className="mob-badge green">{availableOrders.length}</span>
-            )}
-          </button>
-        ))}
-      </nav>
+      </div>{/* /delivery-wrapper */}
 
       {/* Phone verification modal */}
       {showPhoneModal && (
