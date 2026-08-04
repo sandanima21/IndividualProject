@@ -40,7 +40,10 @@ const PrivacyPolicy  = React.lazy(() => import('./pages/Legal/PrivacyPolicy'))
 const TermsOfService = React.lazy(() => import('./pages/Legal/TermsOfService'))
 
 // These pages render their own full-screen layouts, so the shared navbar would clash.
-const HIDE_NAVBAR = ['/signin', '/change-password'];
+// /delivery included: the rider dashboard has its own sidebar/topbar nav and branding,
+// so stacking the full customer navbar on top of it just wasted vertical space for
+// a working rider (who doesn't need Home/Menu/Offers links anyway).
+const HIDE_NAVBAR = ['/signin', '/change-password', '/delivery'];
 
 const App = () => {
   const { user, token, updateUserPhone, updateUser } = useContext(StoreContext)

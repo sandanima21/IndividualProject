@@ -1,4 +1,4 @@
-﻿import React, { useContext, useEffect, useRef, useState } from 'react';
+﻿import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import './DeliveryDashboard.css';
 import { StoreContext } from '../../context/StoreContext';
 import { toast } from 'react-toastify';
@@ -13,7 +13,7 @@ import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { assets } from '../../assets/assets';
-import { formatColomboDateTime } from '../../utils/date';
+import { asUtcDate, formatColomboDate, formatColomboDateTime, formatColomboTime } from '../../utils/date';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({ iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow });
@@ -209,6 +209,22 @@ const ChangePasswordModal = ({ userId, token, onDone }) => {
   );
 };
 
+// ── History tab: period filters (mirrors the admin History page) ────────────
+const HISTORY_FILTERS = [
+  { key: 'today', label: 'Today' },
+  { key: 'week',  label: 'This Week' },
+  { key: 'month', label: 'This Month' },
+  { key: 'all',   label: 'All Time' },
+];
+
+const startOfPeriod = (key) => {
+  const d = new Date();
+  if (key === 'today') { d.setHours(0, 0, 0, 0); return d; }
+  if (key === 'week')  { d.setDate(d.getDate() - d.getDay()); d.setHours(0, 0, 0, 0); return d; }
+  if (key === 'month') { d.setDate(1); d.setHours(0, 0, 0, 0); return d; }
+  return new Date(0);
+};
+
 // ── Sidebar nav items ────────────────────────────────────────────────────────
 const NAV = [
   { id: 'orders',    icon: 'bi-bicycle',       label: 'Deliveries'   },
@@ -225,6 +241,10 @@ const DeliveryDashboard = () => {
   const [myOrders, setMyOrders]             = useState([]);   // assigned to me today
   const [availableOrders, setAvailableOrders] = useState([]); // READY, unassigned
   const [myReviews, setMyReviews]           = useState([]);
+  const [historyOrders, setHistoryOrders]   = useState([]);   // all-time delivered, for History tab
+  const [historyLoaded, setHistoryLoaded]   = useState(false);
+  const [historyFilter, setHistoryFilter]   = useState('all'); // defaults to All Time, not just today
+  const [historySearch, setHistorySearch]   = useState('');
   const [activeSection, setActiveSection]   = useState('orders');
 
   // GPS sharing state
@@ -278,6 +298,19 @@ const DeliveryDashboard = () => {
     } catch { /* silent */ }
   };
 
+  // All-time delivery history — not limited to today, unlike loadMyOrders().
+  const loadHistory = async () => {
+    try {
+      const res = await fetch(`${API}/api/delivery/orders/history`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.status === 401) { handle401(); return; }
+      if (res.ok) setHistoryOrders(await res.json());
+    } catch { /* silent */ } finally {
+      setHistoryLoaded(true);
+    }
+  };
+
   useEffect(() => {
     let consecutiveFails = 0;
     let iv;
@@ -297,6 +330,11 @@ const DeliveryDashboard = () => {
     iv = setInterval(safePoll, 15000);
     return () => clearInterval(iv);
   }, [token]);
+
+  // Lazy-load full history the first time the History tab is opened.
+  useEffect(() => {
+    if (activeSection === 'history' && !historyLoaded) loadHistory();
+  }, [activeSection, historyLoaded]);
 
   // ── Mark rider online on mount ───────────────────────────────────────────
   // Riders are always considered online while the dashboard is open — there's no
@@ -343,6 +381,7 @@ const DeliveryDashboard = () => {
       stopSharing();
       toast.success('Delivery completed! Great job 🎉');
       await loadMyOrders();
+      if (historyLoaded) loadHistory();
     } catch {
       toast.error('Failed to complete delivery.');
     }
@@ -455,6 +494,38 @@ const DeliveryDashboard = () => {
   // ── Derived lists ────────────────────────────────────────────────────────
   const activeOrders    = myOrders.filter(o => o.status === 'OUT_FOR_DELIVERY');
   const deliveredOrders = myOrders.filter(o => o.status === 'DELIVERED');
+  const avgRating = myReviews.length
+    ? (myReviews.reduce((s, r) => s + r.rating, 0) / myReviews.length).toFixed(1)
+    : null;
+
+  // Rider's own review, keyed by order id — lets the History table show a per-order
+  // rating column the same way the admin History table does.
+  const reviewsByOrderId = useMemo(() => {
+    const map = new Map();
+    myReviews.forEach(r => { if (r.orderId) map.set(r.orderId, r); });
+    return map;
+  }, [myReviews]);
+
+  // History tab: filter by period + search, mirroring the admin History page.
+  // historyOrders already holds every delivered order (all-time, sorted newest-first
+  // by the backend) — switching periods here is just a client-side filter, no refetch,
+  // and defaulting historyFilter to 'all' means the tab shows every day out of the box
+  // instead of only today's deliveries.
+  const filteredHistory = useMemo(() => {
+    const cutoff = startOfPeriod(historyFilter);
+    const term = historySearch.trim().toLowerCase();
+    return historyOrders.filter(o => {
+      const completedAt = asUtcDate(o.updatedAt || o.createdAt);
+      if (!completedAt || completedAt < cutoff) return false;
+      if (!term) return true;
+      return o.userName?.toLowerCase().includes(term) ||
+        o.id.includes(term) ||
+        o.displayId?.toLowerCase().includes(term);
+    });
+  }, [historyOrders, historyFilter, historySearch]);
+
+  const historyRevenue  = filteredHistory.reduce((s, o) => s + (o.total || 0), 0);
+  const historyAvgOrder = filteredHistory.length ? historyRevenue / filteredHistory.length : 0;
 
   // ── Sidebar style helper ─────────────────────────────────────────────────
   const navStyle = (id) => ({
@@ -496,7 +567,10 @@ const DeliveryDashboard = () => {
             </span>
           </div>
           <small style={{ color: 'rgba(200,196,188,0.5)' }}>
-            {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {/* order.createdAt is a zone-less backend timestamp that's actually UTC — parsing it
+                with a bare `new Date()` (no explicit timeZone) reads it as browser-local time, which
+                silently shows the raw UTC clock digits as if they were already Sri Lanka time. */}
+            {formatColomboTime(order.createdAt)}
           </small>
         </div>
 
@@ -580,6 +654,49 @@ const DeliveryDashboard = () => {
     );
   };
 
+  // ── History row (compact table, mirrors the admin History page's CompletedTable) ──
+  const HistoryRow = ({ order }) => {
+    const review = reviewsByOrderId.get(order.id);
+    const itemsSummary = order.items?.map(i => `${i.foodName} ×${i.quantity}`).join(' · ');
+    return (
+      <tr style={{ background: '#181818' }}>
+        <td style={{ padding: '10px 12px', borderRadius: '10px 0 0 10px', color: 'var(--gold)', fontWeight: 700, fontSize: '0.78rem', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+          {order.displayId || `#${order.id.slice(-6).toUpperCase()}`}
+        </td>
+        <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: 'rgba(200,196,188,0.55)', whiteSpace: 'nowrap' }}>
+          {formatColomboDate(order.updatedAt || order.createdAt)}
+          <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.updatedAt || order.createdAt)}</div>
+        </td>
+        <td style={{ padding: '10px 12px' }}>
+          <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#e0ddd4' }}>{order.userName || '—'}</div>
+          {order.deliveryAddress && (
+            <div style={{ fontSize: '0.7rem', color: 'rgba(200,196,188,0.45)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <i className="bi bi-geo-alt me-1"></i>{order.deliveryAddress}
+            </div>
+          )}
+        </td>
+        <td style={{ padding: '10px 12px', fontSize: '0.78rem', color: 'rgba(200,196,188,0.6)', maxWidth: 220 }}>
+          <span style={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {itemsSummary || '—'}
+          </span>
+        </td>
+        <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--gold)', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>
+          Rs.{order.total?.toFixed(2)}
+        </td>
+        <td style={{ padding: '10px 12px', borderRadius: '0 10px 10px 0', textAlign: 'center', whiteSpace: 'nowrap' }}>
+          {review ? (
+            [1,2,3,4,5].map(n => (
+              <i key={n} className={`bi ${n <= review.rating ? 'bi-star-fill' : 'bi-star'}`}
+                style={{ fontSize: '0.72rem', color: n <= review.rating ? '#f4b942' : 'rgba(255,255,255,0.2)' }} />
+            ))
+          ) : (
+            <span style={{ color: 'rgba(200,196,188,0.25)', fontSize: '0.7rem' }}>—</span>
+          )}
+        </td>
+      </tr>
+    );
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <>
@@ -592,6 +709,8 @@ const DeliveryDashboard = () => {
       )}
 
       {/* ── Mobile top bar ── */}
+      {/* Doubles as this page's only header now that the customer Menubar is hidden
+          on /delivery (see App.jsx HIDE_NAVBAR), so it also carries Sign Out. */}
       <div className="delivery-mobile-topbar">
         <div className="d-flex align-items-center gap-2">
           {user?.picture
@@ -601,12 +720,37 @@ const DeliveryDashboard = () => {
           <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>{user?.name?.split(' ')[0]}</span>
           <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>🛵 Rider</span>
         </div>
+        <button className="delivery-mobile-signout" onClick={() => logout()} title="Sign out" aria-label="Sign out">
+          <i className="bi bi-box-arrow-right"></i>
+        </button>
       </div>
 
       <div className="delivery-layout">
 
         {/* ── Sidebar (desktop only) ── */}
         <aside className="delivery-sidebar">
+          {/* Brand mark — the customer Menubar (which normally shows this) is hidden here */}
+          <div className="delivery-sidebar-brand">
+            <img src={assets.logo} alt="" />
+            <span>KukiHabun</span>
+          </div>
+
+          {/* Rider identity card */}
+          <div className="delivery-sidebar-profile">
+            {user?.picture
+              ? <img src={user.picture} alt="" width={44} height={44} className="rounded-circle" style={{ objectFit: 'cover', flexShrink: 0 }} referrerPolicy="no-referrer" />
+              : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 700, fontSize: '1.1rem', flexShrink: 0 }}>{user?.name?.charAt(0)}</div>
+            }
+            <div className="flex-fill" style={{ minWidth: 0 }}>
+              <div className="fw-semibold text-truncate" style={{ fontSize: '0.9rem' }}>{user?.name}</div>
+              <div className="d-flex align-items-center gap-1" style={{ fontSize: '0.7rem', color: '#3ecf8e' }}>
+                <span className="delivery-online-dot"></span>Online
+              </div>
+            </div>
+          </div>
+
+          <div className="delivery-sidebar-label">Menu</div>
+
           {/* Nav items */}
           {NAV.map(item => (
             <button key={item.id} style={navStyle(item.id)} onClick={() => setActiveSection(item.id)}>
@@ -632,6 +776,11 @@ const DeliveryDashboard = () => {
               {eta != null && <span className="ms-2">· Arriving in ~{eta} min</span>}
             </div>
           )}
+
+          <button className="delivery-signout-btn" onClick={() => logout()}>
+            <i className="bi bi-box-arrow-right"></i>
+            <span>Sign Out</span>
+          </button>
         </aside>
 
         {/* ── Main content ── */}
@@ -640,6 +789,44 @@ const DeliveryDashboard = () => {
           {/* Active deliveries */}
           {activeSection === 'orders' && (
             <div>
+              <div className="mb-1" style={{ fontSize: '1.05rem' }}>
+                Welcome back, <strong style={{ color: 'var(--gold)' }}>{user?.name?.split(' ')[0]}</strong> 👋
+              </div>
+              <p className="text-muted small mb-4">Here's what's happening with your deliveries today.</p>
+
+              {/* Quick stats */}
+              <div className="delivery-stats-row">
+                <div className="delivery-stat-card">
+                  <i className="bi bi-bicycle" style={{ color: '#a78bfa' }}></i>
+                  <div className="delivery-stat-value">{activeOrders.length}</div>
+                  <div className="delivery-stat-label">Active</div>
+                </div>
+                <div className="delivery-stat-card">
+                  <i className="bi bi-bag-check" style={{ color: '#3ecf8e' }}></i>
+                  <div className="delivery-stat-value">{availableOrders.length}</div>
+                  <div className="delivery-stat-label">Available</div>
+                </div>
+                <div className="delivery-stat-card">
+                  <i className="bi bi-check2-circle" style={{ color: 'var(--gold)' }}></i>
+                  <div className="delivery-stat-value">{deliveredOrders.length}</div>
+                  <div className="delivery-stat-label">Delivered Today</div>
+                </div>
+                <div className="delivery-stat-card">
+                  <i className="bi bi-star-fill" style={{ color: '#f4b942' }}></i>
+                  <div className="delivery-stat-value">{avgRating ?? '—'}</div>
+                  <div className="delivery-stat-label">Rating</div>
+                </div>
+              </div>
+
+              <h5 className="fw-bold mb-3">
+                <i className="bi bi-bicycle me-2" style={{ color: '#a78bfa' }}></i>
+                Active Deliveries
+                {activeOrders.length > 0 && (
+                  <span className="badge ms-2" style={{ background: 'rgba(167,139,250,0.2)', color: '#a78bfa' }}>
+                    {activeOrders.length}
+                  </span>
+                )}
+              </h5>
               {activeOrders.length === 0 ? (
                 <div className="text-center py-5 text-muted">
                   <i className="bi bi-bicycle fs-1 d-block mb-2 opacity-25"></i>
@@ -648,18 +835,7 @@ const DeliveryDashboard = () => {
                     View Available Orders
                   </button>
                 </div>
-              ) : (
-                <>
-                  <h5 className="fw-bold mb-3">
-                    <i className="bi bi-bicycle me-2" style={{ color: '#a78bfa' }}></i>
-                    Active Deliveries
-                    <span className="badge ms-2" style={{ background: 'rgba(167,139,250,0.2)', color: '#a78bfa' }}>
-                      {activeOrders.length}
-                    </span>
-                  </h5>
-                  {activeOrders.map(order => <OrderCard key={order.id} order={order} />)}
-                </>
-              )}
+              ) : activeOrders.map(order => <OrderCard key={order.id} order={order} />)}
             </div>
           )}
 
@@ -686,19 +862,96 @@ const DeliveryDashboard = () => {
             </div>
           )}
 
-          {/* Delivered today */}
+          {/* Full delivery history — filterable by period like the admin History page,
+              defaulting to All Time so every past day shows up, not just today */}
           {activeSection === 'history' && (
             <div>
-              <h5 className="fw-bold mb-4">
-                <i className="bi bi-clock-history me-2" style={{ color: 'var(--gold)' }}></i>
-                Today's Completed Deliveries
-              </h5>
-              {deliveredOrders.length === 0 ? (
-                <div className="text-center py-5 text-muted">
-                  <i className="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
-                  No completed deliveries today.
+              <div className="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-3">
+                <h5 className="fw-bold mb-0">
+                  <i className="bi bi-clock-history me-2" style={{ color: 'var(--gold)' }}></i>
+                  Delivery History
+                </h5>
+                <div className="d-flex gap-2 flex-wrap align-items-center">
+                  <div className="d-flex gap-1">
+                    {HISTORY_FILTERS.map(f => (
+                      <button
+                        key={f.key}
+                        className="btn btn-sm"
+                        style={{
+                          borderRadius: 50, fontWeight: 600, fontSize: '0.75rem',
+                          background: historyFilter === f.key ? 'var(--gold)' : 'rgba(201,168,76,0.1)',
+                          color: historyFilter === f.key ? '#000' : 'var(--gold)',
+                          border: '1px solid rgba(201,168,76,0.3)', padding: '3px 12px',
+                        }}
+                        onClick={() => setHistoryFilter(f.key)}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="position-relative">
+                    <i className="bi bi-search position-absolute" style={{ left: 10, top: '50%', transform: 'translateY(-50%)', color: 'rgba(201,168,76,0.5)', fontSize: '0.82rem', pointerEvents: 'none' }}></i>
+                    <input
+                      className="form-control form-control-sm"
+                      placeholder="Search by name or order #..."
+                      style={{ width: 200, paddingLeft: '2.1rem' }}
+                      value={historySearch}
+                      onChange={e => setHistorySearch(e.target.value)}
+                    />
+                  </div>
                 </div>
-              ) : deliveredOrders.map(order => <OrderCard key={order.id} order={order} />)}
+              </div>
+
+              {!historyLoaded ? (
+                <div className="text-center py-5 text-muted">
+                  <span className="spinner-border spinner-border-sm me-2"></span>Loading history…
+                </div>
+              ) : (
+                <>
+                  <div className="delivery-stats-row" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
+                    <div className="delivery-stat-card">
+                      <i className="bi bi-check2-all" style={{ color: '#3ecf8e' }}></i>
+                      <div className="delivery-stat-value">{filteredHistory.length}</div>
+                      <div className="delivery-stat-label">Deliveries</div>
+                    </div>
+                    <div className="delivery-stat-card">
+                      <i className="bi bi-currency-exchange" style={{ color: 'var(--gold)' }}></i>
+                      <div className="delivery-stat-value">Rs.{historyRevenue.toFixed(0)}</div>
+                      <div className="delivery-stat-label">Total Value</div>
+                    </div>
+                    <div className="delivery-stat-card">
+                      <i className="bi bi-graph-up" style={{ color: '#4a9eff' }}></i>
+                      <div className="delivery-stat-value">Rs.{historyAvgOrder.toFixed(0)}</div>
+                      <div className="delivery-stat-label">Average Order</div>
+                    </div>
+                  </div>
+
+                  {filteredHistory.length === 0 ? (
+                    <div className="text-center py-5 text-muted">
+                      <i className="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+                      No completed deliveries {historyFilter !== 'all' || historySearch ? 'match this filter.' : 'yet.'}
+                    </div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: '0 6px' }}>
+                        <thead>
+                          <tr style={{ fontSize: '0.68rem', color: 'rgba(200,196,188,0.45)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            <th style={{ paddingBottom: 8, paddingLeft: 12 }}>Order</th>
+                            <th style={{ paddingBottom: 8 }}>Date</th>
+                            <th style={{ paddingBottom: 8 }}>Customer</th>
+                            <th style={{ paddingBottom: 8 }}>Items</th>
+                            <th style={{ paddingBottom: 8 }}>Total</th>
+                            <th style={{ paddingBottom: 8, textAlign: 'center' }}>Rating</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredHistory.map(order => <HistoryRow key={order.id} order={order} />)}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -712,11 +965,9 @@ const DeliveryDashboard = () => {
                 <span className="badge rounded-pill" style={{ background: 'rgba(201,168,76,0.15)', color: 'var(--gold)' }}>
                   {myReviews.length}
                 </span>
-                {myReviews.length > 0 && (
+                {avgRating && (
                   <span className="small text-muted">
-                    Avg <strong style={{ color: '#a78bfa' }}>
-                      {(myReviews.reduce((s, r) => s + r.rating, 0) / myReviews.length).toFixed(1)}
-                    </strong>
+                    Avg <strong style={{ color: '#a78bfa' }}>{avgRating}</strong>
                   </span>
                 )}
               </div>

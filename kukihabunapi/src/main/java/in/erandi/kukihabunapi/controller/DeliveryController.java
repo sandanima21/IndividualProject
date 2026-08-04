@@ -92,6 +92,29 @@ public class DeliveryController {
         return ResponseEntity.ok(orders);
     }
 
+    // All-time delivered-order history for the calling rider — unlike /orders/today,
+    // this is not limited to the current day (mirrors the admin Delivery Reviews table,
+    // which shows every review ever rather than filtering by date).
+    @GetMapping("/orders/history")
+    public ResponseEntity<List<OrderResponse>> getOrderHistory(
+            @RequestHeader("Authorization") String authHeader) {
+        String riderId = extractUserId(authHeader);
+        if (riderId == null) return ResponseEntity.status(401).build();
+
+        List<OrderResponse> orders = orderService.getAllOrders().stream()
+                .filter(o -> "delivery".equalsIgnoreCase(o.getOrderType()))
+                .filter(o -> riderId.equals(o.getDeliveryPersonId()))
+                .filter(o -> "DELIVERED".equals(o.getStatus()))
+                .sorted((a, b) -> {
+                    LocalDateTime ta = a.getUpdatedAt() != null ? a.getUpdatedAt() : a.getCreatedAt();
+                    LocalDateTime tb = b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt();
+                    if (ta == null || tb == null) return 0;
+                    return tb.compareTo(ta);
+                })
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(orders);
+    }
+
     // Rider accepts an available order → assigns self, status → OUT_FOR_DELIVERY
     @PostMapping("/orders/{orderId}/accept")
     public ResponseEntity<OrderResponse> acceptOrder(

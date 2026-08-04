@@ -1,7 +1,9 @@
 /* ── Delivery Dashboard layout ── */
+/* The customer Menubar is hidden on this route (see App.jsx HIDE_NAVBAR) — the
+   dashboard owns its full viewport instead of sitting below a shared header. */
 .delivery-layout {
   display: flex;
-  min-height: calc(100vh - 80px);
+  min-height: 100vh;
 }
 
 /* ── Sidebar (desktop) ── */
@@ -17,9 +19,9 @@
   flex-direction: column;
   gap: 4px;
   position: fixed;
-  top: 80px;
+  top: 0;
   left: 0;
-  height: calc(100vh - 80px);
+  height: 100vh;
   overflow-y: auto;
 }
 
@@ -31,7 +33,116 @@
   margin-left: 220px;
 }
 
-/* ── Mobile top bar (avatar + online toggle) ── */
+/* ── Sidebar rider identity card ── */
+.delivery-sidebar-profile {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.6rem 1rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.delivery-online-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3ecf8e;
+  box-shadow: 0 0 0 2px rgba(62,207,142,0.2);
+}
+
+.delivery-sidebar-label {
+  padding: 0 1.1rem;
+  margin-bottom: 2px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(240,236,224,0.35);
+}
+
+/* ── Quick stats row (top of Deliveries tab) ── */
+.delivery-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.85rem;
+  margin-bottom: 2rem;
+}
+
+.delivery-stat-card {
+  background: #181818;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.9rem 0.75rem;
+  text-align: center;
+}
+
+.delivery-stat-card i {
+  font-size: 1.1rem;
+}
+
+.delivery-stat-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+  margin-top: 0.15rem;
+}
+
+.delivery-stat-label {
+  font-size: 0.68rem;
+  color: rgba(240,236,224,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+@media (max-width: 560px) {
+  .delivery-stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── Sidebar brand mark (replaces the customer Menubar, which is hidden here) ── */
+.delivery-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.2rem 0.6rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.delivery-sidebar-brand img {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+}
+.delivery-sidebar-brand span {
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+/* ── Sidebar sign-out (bottom of sidebar, pinned via margin-top:auto) ── */
+.delivery-signout-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1.1rem;
+  margin-top: auto;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: rgba(240,236,224,0.5);
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.delivery-signout-btn:hover {
+  background: rgba(244,115,115,0.1);
+  color: #f47373;
+}
+
+/* ── Mobile top bar (avatar + sign out) ── */
 .delivery-mobile-topbar {
   display: none;
   align-items: center;
@@ -40,6 +151,19 @@
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   gap: 0.75rem;
+}
+.delivery-mobile-signout {
+  background: none;
+  border: 1px solid rgba(244,115,115,0.3);
+  color: #f47373;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 /* ── Mobile bottom tab bar ── */
