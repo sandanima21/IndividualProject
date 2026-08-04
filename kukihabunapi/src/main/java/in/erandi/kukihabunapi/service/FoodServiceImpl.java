@@ -10,19 +10,29 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import in.erandi.kukihabunapi.entity.FoodEntity;
+import in.erandi.kukihabunapi.entity.OrderEntity;
 import in.erandi.kukihabunapi.io.FoodRequest;
 import in.erandi.kukihabunapi.io.FoodResponse;
 import in.erandi.kukihabunapi.repository.FoodRepository;
+import in.erandi.kukihabunapi.repository.OrderRepository;
 
 @Service
 
 public class FoodServiceImpl implements FoodService {
+
+    // Every status except DELIVERED/CANCELLED — an order in one of these is still
+    // being worked on, so its foods can't be deleted out from under it.
+    private static final List<String> ACTIVE_ORDER_STATUSES =
+            List.of("PENDING", "CONFIRMED", "COOKING", "READY", "OUT_FOR_DELIVERY");
 
     @Autowired
     private FirebaseStorageService storageService;
 
     @Autowired
     private FoodRepository foodRepository;
+
+    @Autowired
+    private OrderRepository orderRepository;
 
     @Override
     public String uploadFile(MultipartFile file) {
@@ -59,6 +69,7 @@ public class FoodServiceImpl implements FoodService {
     @Override
     public void deleteFood(String id) {
         FoodResponse response=readFood(id);
+        assertFoodHasNoActiveOrders(id, response.getName());
         boolean isFileDelete=deleteFile(response.getImageUrl());
         if (isFileDelete){
             foodRepository.deleteById(response.getId());
@@ -70,7 +81,48 @@ public class FoodServiceImpl implements FoodService {
     @Override
     public void deleteFoodsByCategory(String category) {
         List<FoodEntity> matching = foodRepository.findByCategoryIgnoreCase(category);
+        // Check the whole batch up front so the category delete is all-or-nothing —
+        // partially deleting some foods but not others (because one had an active
+        // order) would leave a confusing half-deleted category behind.
+        assertCategoryHasNoActiveOrders(matching);
         matching.forEach(food -> deleteFood(food.getId()));
+    }
+
+    @Override
+    public void renameCategoryForFoods(String oldCategoryName, String newCategoryName) {
+        if (oldCategoryName.equals(newCategoryName)) return;
+        List<FoodEntity> matching = foodRepository.findByCategoryIgnoreCase(oldCategoryName);
+        matching.forEach(food -> food.setCategory(newCategoryName));
+        foodRepository.saveAll(matching);
+    }
+
+    // Orders whose status means they're still being worked on (not delivered/cancelled
+    // yet), excluding PENDING+UNPAID orders — those are abandoned/incomplete carts that
+    // never became real orders, same convention OrderServiceImpl uses for "active" orders.
+    private List<OrderEntity> activeOrdersFor(List<String> foodIds) {
+        return orderRepository.findByItemsFoodIdInAndStatusIn(foodIds, ACTIVE_ORDER_STATUSES).stream()
+                .filter(o -> !("PENDING".equals(o.getStatus()) && "UNPAID".equals(o.getPaymentStatus())))
+                .collect(Collectors.toList());
+    }
+
+    private void assertFoodHasNoActiveOrders(String foodId, String foodName) {
+        int blocking = activeOrdersFor(List.of(foodId)).size();
+        if (blocking > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "\"" + foodName + "\" is in " + blocking + " order(s) customers are still waiting on " +
+                    "(pending, confirmed, or being prepared). Please complete or cancel those orders first, then try deleting again.");
+        }
+    }
+
+    private void assertCategoryHasNoActiveOrders(List<FoodEntity> foods) {
+        if (foods.isEmpty()) return;
+        List<String> foodIds = foods.stream().map(FoodEntity::getId).collect(Collectors.toList());
+        int blocking = activeOrdersFor(foodIds).size();
+        if (blocking > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "This category can't be deleted — some of its foods are in " + blocking + " order(s) customers are " +
+                    "still waiting on (pending, confirmed, or being prepared). Please complete or cancel those orders first, then try deleting again.");
+        }
     }
 
     @Override

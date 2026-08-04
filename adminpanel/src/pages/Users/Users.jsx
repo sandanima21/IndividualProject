@@ -69,7 +69,8 @@ const Users = () => {
       setShowRegister(false);
       toast.success(`✓ Account created for "${newUser.name}". Login credentials emailed to ${form.email || 'the provided address'}.`);
     } catch (err) {
-      toast.error(err?.response?.data || 'Registration failed.');
+      const msg = err?.response?.data?.message || (typeof err?.response?.data === 'string' ? err.response.data : null);
+      toast.error(msg || 'Registration failed.');
     } finally {
       setSubmitting(false);
     }

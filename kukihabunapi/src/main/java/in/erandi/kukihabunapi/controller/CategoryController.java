@@ -73,6 +73,7 @@ public class CategoryController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Category name is required");
         CategoryEntity category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        String oldName = category.getName();
 
         categoryRepository.findByNameIgnoreCase(name.trim()).ifPresent(existing -> {
             if (!existing.getId().equals(id))
@@ -84,7 +85,14 @@ public class CategoryController {
             if (category.getImageUrl() != null) storageService.delete(category.getImageUrl());
             category.setImageUrl(storageService.upload(file, "categories"));
         }
-        return categoryRepository.save(category);
+        CategoryEntity saved = categoryRepository.save(category);
+        // Foods reference their category by name, not id — without this, a renamed
+        // category would silently drift out of sync with the foods still tagged
+        // under its old name (they'd disappear from that category's filter/listing).
+        if (!oldName.equals(saved.getName())) {
+            foodService.renameCategoryForFoods(oldName, saved.getName());
+        }
+        return saved;
     }
 
     @DeleteMapping("/{id}")

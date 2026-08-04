@@ -177,8 +177,9 @@ const Categories = () => {
       toast.success('Category and its foods were deleted.');
       setDeleteTarget(null);
       load();
-    } catch {
-      toast.error('Delete failed.');
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data;
+      toast.error(msg || 'Delete failed.', msg ? { autoClose: 8000 } : undefined);
     }
   };
 

@@ -21,6 +21,11 @@ public interface FoodService {
 
     void deleteFoodsByCategory(String category);
 
+    // Keeps every food's denormalized `category` string in sync after an admin renames
+    // a category — foods reference their category by name, not id, so nothing else
+    // would pick up the rename otherwise.
+    void renameCategoryForFoods(String oldCategoryName, String newCategoryName);
+
     FoodResponse updateFood(String id, FoodRequest request, MultipartFile file);
 
     FoodResponse setAvailability(String id, boolean available);

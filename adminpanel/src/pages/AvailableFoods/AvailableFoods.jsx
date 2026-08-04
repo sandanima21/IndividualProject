@@ -373,7 +373,10 @@ const AvailableFoods = () => {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this food item?')) return;
     try { await deleteFood(id); toast.success('Deleted.'); load(); }
-    catch { toast.error('Delete failed.'); }
+    catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data;
+      toast.error(msg || 'Delete failed.', msg ? { autoClose: 8000 } : undefined);
+    }
   };
 
   const handleToggleAvailability = async (food) => {
