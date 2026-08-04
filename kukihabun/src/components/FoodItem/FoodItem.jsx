@@ -8,6 +8,11 @@
  *
  * The two prompts are kept separate because the second add has different copy
  * (it references the existing customization rather than introducing the feature).
+ *
+ * Foods with portions get a picker before the above. Once exactly one portion line
+ * is in the cart, the card shows the same +/- stepper as a plain food (targeting
+ * that line) — only a rare second simultaneous portion line falls back to a plain
+ * "N in cart" + Add.
  */
 
 import React, { useContext, useState } from 'react';
@@ -17,7 +22,7 @@ import PortionPicker from '../PortionPicker/PortionPicker';
 import './FoodItem.css';
 
 const FoodItem = ({ food }) => {
-  const { increaseQty, decreaseQty, quantities, user, addPortionToCart } = useContext(StoreContext);
+  const { increaseQty, decreaseQty, quantities, user, addPortionToCart, selectedPortions } = useContext(StoreContext);
   const navigate = useNavigate();
   const [showCustomizePrompt, setShowCustomizePrompt]     = useState(false);
   const [showSameCustomPrompt, setShowSameCustomPrompt]   = useState(false);
@@ -33,11 +38,21 @@ const FoodItem = ({ food }) => {
      (food.customizationOptions.ingredientsToAvoid?.length > 0) ||
      (food.customizationOptions.customizables?.length > 0));
 
-  // Total quantity across every portion-line of this food (each portion is its own
-  // cart line — see StoreContext's lineKey) — used only for the "N in cart" badge.
+  // Every portion-line of this food currently in the cart (each portion is its own
+  // cart line — see StoreContext's lineKey). Almost always 0 or 1 in practice — a
+  // second entry only happens if the customer picked a second portion of the same
+  // dish (e.g. one Small + one Large).
+  const portionCartKeys = hasPortions
+    ? Object.keys(quantities).filter(key => key.startsWith(`${food.id}::`) && quantities[key] > 0)
+    : [];
   const totalInCart = hasPortions
-    ? Object.entries(quantities).reduce((sum, [key, qty]) => key.startsWith(`${food.id}::`) ? sum + qty : sum, 0)
+    ? portionCartKeys.reduce((sum, key) => sum + quantities[key], 0)
     : (quantities[food.id] || 0);
+  // Exactly one portion line → the card can show the normal +/- stepper just like a
+  // food with no portions, targeting that one line. With 0 or 2+ lines there's no
+  // single line to target, so the stepper falls back to "N in cart" + Add.
+  const singlePortionKey = portionCartKeys.length === 1 ? portionCartKeys[0] : null;
+  const stepperKey = hasPortions ? singlePortionKey : food.id;
 
   const handleAdd = () => {
     // Unauthenticated users are sent to /signin first.
@@ -54,15 +69,17 @@ const FoodItem = ({ food }) => {
     }
   };
 
-  // Separate handler for the + button when the item is already in the cart.
-  // (Never reached for foods with portions — they always show "Add" instead of a
-  // stepper, since which portion's line the "+" refers to would be ambiguous.)
-  const handleIncrease = () => {
+  // Handler for the stepper's + button once the item is already in the cart —
+  // shared by plain foods and foods with exactly one portion line (stepperKey
+  // points at the right cart line either way).
+  const handleStepperIncrease = () => {
     if (hasCustomizations) {
-      // Ask whether they want the same customization or a different one.
+      // Ask whether they want the same customization or a different one. Remember
+      // which portion this line is so "Change Customization" can preselect it.
+      if (hasPortions) setChosenPortion(selectedPortions[singlePortionKey] || null);
       setShowSameCustomPrompt(true);
     } else {
-      increaseQty(food.id);
+      increaseQty(stepperKey);
     }
   };
 
@@ -121,26 +138,25 @@ const FoodItem = ({ food }) => {
             <span className="badge" style={{ background: 'rgba(244,115,115,0.15)', color: '#f47373', fontSize: '0.75rem', padding: '6px 10px' }}>
               <i className="bi bi-slash-circle me-1"></i>Out of Stock
             </span>
-          ) : hasPortions ? (
-            // Foods with portions always show "Add" (reopens the portion picker) —
-            // a food can have multiple simultaneous cart lines (one per portion), so
-            // a single +/- stepper here wouldn't unambiguously refer to any one of them.
+          ) : hasPortions && portionCartKeys.length > 1 ? (
+            // Two+ different portions of this dish are already in the cart at once —
+            // there's no single line for a +/- stepper to target, so fall back to a
+            // summary badge; Add reopens the picker for another portion.
             <div className="d-flex align-items-center gap-2">
-              {totalInCart > 0 && (
-                <span className="badge bg-secondary" style={{ fontSize: '0.7rem' }}>{totalInCart} in cart</span>
-              )}
+              <span className="badge bg-secondary" style={{ fontSize: '0.7rem' }}>{totalInCart} in cart</span>
               <button className="btn btn-primary btn-sm" onClick={handleAdd}>
                 <i className="bi bi-cart-plus me-1"></i>Add
               </button>
             </div>
-          ) : quantities[food.id] > 0 ? (
-            // Item is in cart — show quantity stepper.
+          ) : stepperKey && quantities[stepperKey] > 0 ? (
+            // Item is in cart — show the quantity stepper (same UI whether or not the
+            // food has portions; stepperKey points at the right cart line either way).
             <div className="d-flex align-items-center gap-2">
-              <button className="btn btn-danger btn-sm" onClick={() => decreaseQty(food.id)}>
+              <button className="btn btn-danger btn-sm" onClick={() => decreaseQty(stepperKey)}>
                 <i className="bi bi-dash-circle"></i>
               </button>
-              <span className="fw-bold">{quantities[food.id]}</span>
-              <button className="btn btn-success btn-sm" onClick={handleIncrease}>
+              <span className="fw-bold">{quantities[stepperKey]}</span>
+              <button className="btn btn-success btn-sm" onClick={handleStepperIncrease}>
                 <i className="bi bi-plus-circle"></i>
               </button>
             </div>
@@ -211,7 +227,7 @@ const FoodItem = ({ food }) => {
               <button
                 className="btn fw-semibold py-2"
                 style={{ background: 'var(--gold)', color: '#000', border: 'none', borderRadius: 10 }}
-                onClick={() => { setShowSameCustomPrompt(false); increaseQty(food.id); }}
+                onClick={() => { setShowSameCustomPrompt(false); increaseQty(stepperKey); setChosenPortion(null); }}
               >
                 <i className="bi bi-check-circle me-2"></i>Same Customization
               </button>
