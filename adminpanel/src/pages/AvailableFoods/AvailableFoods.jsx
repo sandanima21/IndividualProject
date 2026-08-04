@@ -5,6 +5,13 @@ import { toast } from 'react-toastify';
 
 const EMPTY_FORM = { name: '', description: '', price: '', category: '' };
 
+const validatePrice = (raw) => {
+  if (raw === '' || raw === null || raw === undefined) return 'Price is required.';
+  if (!/^\d+(\.\d{1,2})?$/.test(String(raw))) return 'Enter a valid amount (numbers only).';
+  if (Number(raw) <= 0) return 'Price must be greater than 0.';
+  return '';
+};
+
 /* ── Inline option chips for one customization type ── */
 const OptionChips = ({ options = [], setOptions }) => {
   const [input, setInput] = useState('');
@@ -132,8 +139,13 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(initial?.imageUrl || null);
   const [submitting, setSubmitting] = useState(false);
+  const [priceError, setPriceError] = useState('');
 
-  const handleField = e => setData(p => ({ ...p, [e.target.name]: e.target.value }));
+  const handleField = e => {
+    const { name, value } = e.target;
+    setData(p => ({ ...p, [name]: value }));
+    if (name === 'price') setPriceError(validatePrice(value));
+  };
   const handleImage = e => {
     const f = e.target.files[0];
     if (!f) return;
@@ -146,7 +158,8 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
     if (mode === 'add' && !image) { toast.error('Please upload an image.'); return; }
     if (!data.name.trim()) { toast.error('Food name is required.'); return; }
     if (!data.category) { toast.error('Please select a category.'); return; }
-    if (!data.price || Number(data.price) <= 0) { toast.error('Enter a valid price.'); return; }
+    const priceErr = validatePrice(data.price);
+    if (priceErr) { setPriceError(priceErr); toast.error(priceErr); return; }
     setSubmitting(true);
     try {
       const customizationOptions = { spiceLevels: [], ingredientsToAvoid: [], customizables };
@@ -219,8 +232,10 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
             {/* Price */}
             <div className="col-md-3">
               <label className="form-label small">Price (Rs.) *</label>
-              <input name="price" type="number" className="form-control" placeholder="850" min="1"
-                value={data.price} onChange={handleField} required />
+              <input name="price" type="number" className={`form-control${priceError ? ' is-invalid' : ''}`} placeholder="850" min="1" step="0.01"
+                value={data.price} onChange={handleField}
+                onBlur={() => setPriceError(validatePrice(data.price))} required />
+              {priceError && <div className="invalid-feedback d-block">{priceError}</div>}
             </div>
 
             {/* Description */}
@@ -242,7 +257,7 @@ const FoodModal = ({ mode, initial, categories, onClose, onSaved }) => {
             {/* Actions */}
             <div className="col-12 d-flex justify-content-end gap-2 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.07)' }}>
               <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onClose}>Cancel</button>
-              <button type="submit" className="btn btn-primary btn-sm px-4" disabled={submitting}>
+              <button type="submit" className="btn btn-primary btn-sm px-4" disabled={submitting || !!priceError}>
                 {submitting
                   ? <span className="spinner-border spinner-border-sm me-1" />
                   : <i className={`bi ${mode === 'add' ? 'bi-plus-circle' : 'bi-check2'} me-1`}></i>}

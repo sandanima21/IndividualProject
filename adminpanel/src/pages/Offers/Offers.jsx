@@ -7,6 +7,21 @@ const EMPTY = { title: '', description: '', startDate: '', endDate: '', price: '
 
 const fmtDate = (iso) => iso ? new Date(iso).toLocaleDateString([], { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
+// "yyyy-MM-ddTHH:mm" in local time — matches datetime-local's value format, so it can be
+// used directly as a `min` attribute and compared lexicographically against form values.
+const nowLocalString = () => {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
+const validatePrice = (raw) => {
+  if (raw === '' || raw === null || raw === undefined) return 'Price is required.';
+  if (!/^\d+(\.\d{1,2})?$/.test(String(raw))) return 'Enter a valid amount (numbers only).';
+  if (Number(raw) <= 0) return 'Price must be greater than 0.';
+  return '';
+};
+
 const statusBadge = (offer) => {
   const now = new Date();
   const start = offer.startDate ? new Date(offer.startDate) : null;
@@ -24,6 +39,9 @@ const Offers = () => {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [priceError, setPriceError] = useState('');
+  const [startDateError, setStartDateError] = useState('');
+  const [endDateError, setEndDateError] = useState('');
   const fileRef = useRef(null);
 
   const load = async () => {
@@ -52,6 +70,9 @@ const Offers = () => {
     setForm(EMPTY);
     clearImage();
     setEditingId(null);
+    setPriceError('');
+    setStartDateError('');
+    setEndDateError('');
   };
 
   const startEdit = (offer) => {
@@ -65,7 +86,37 @@ const Offers = () => {
     });
     setImagePreview(offer.imageUrl || null);
     setImageFile(null);
+    setPriceError('');
+    setStartDateError('');
+    setEndDateError('');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handlePriceChange = (e) => {
+    const value = e.target.value;
+    setForm(p => ({ ...p, price: value }));
+    setPriceError(validatePrice(value));
+  };
+
+  const handleStartDateChange = (e) => {
+    const value = e.target.value;
+    setForm(p => ({ ...p, startDate: value }));
+    setStartDateError(value && value < nowLocalString() ? 'Start date cannot be in the past.' : '');
+    if (form.endDate) {
+      setEndDateError(value && form.endDate <= value ? 'End date must be after start date.' : '');
+    }
+  };
+
+  const handleEndDateChange = (e) => {
+    const value = e.target.value;
+    setForm(p => ({ ...p, endDate: value }));
+    if (value && value < nowLocalString()) {
+      setEndDateError('End date cannot be in the past.');
+    } else if (value && form.startDate && value <= form.startDate) {
+      setEndDateError('End date must be after start date.');
+    } else {
+      setEndDateError('');
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -74,7 +125,15 @@ const Offers = () => {
       toast.warning('Title and description are required.');
       return;
     }
+    const priceErr = validatePrice(form.price);
+    if (priceErr) { setPriceError(priceErr); toast.error(priceErr); return; }
+    if (form.startDate && form.startDate < nowLocalString()) {
+      setStartDateError('Start date cannot be in the past.');
+      toast.warning('Start date cannot be in the past.');
+      return;
+    }
     if (form.startDate && form.endDate && new Date(form.startDate) >= new Date(form.endDate)) {
+      setEndDateError('End date must be after start date.');
       toast.warning('End date must be after start date.');
       return;
     }
@@ -85,7 +144,7 @@ const Offers = () => {
       fd.append('description', form.description.trim());
       if (form.startDate) fd.append('startDate', new Date(form.startDate).toISOString().slice(0, 19));
       if (form.endDate)   fd.append('endDate',   new Date(form.endDate).toISOString().slice(0, 19));
-      if (form.price)     fd.append('price', form.price);
+      fd.append('price', form.price);
       if (imageFile)      fd.append('file', imageFile);
 
       if (editingId) {
@@ -152,25 +211,32 @@ const Offers = () => {
                   value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
               </div>
               <div className="mb-3">
-                <label className="form-label small">Price <span className="text-muted">(optional)</span></label>
+                <label className="form-label small">Price *</label>
                 <div className="input-group">
                   <span className="input-group-text" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.15)', color: 'var(--gold)' }}>Rs.</span>
-                  <input type="number" min="0" step="0.01" className="form-control" placeholder="e.g. 450.00"
-                    value={form.price} onChange={e => setForm(p => ({ ...p, price: e.target.value }))} />
+                  <input type="number" min="0.01" step="0.01" className={`form-control${priceError ? ' is-invalid' : ''}`} placeholder="e.g. 450.00"
+                    value={form.price} onChange={handlePriceChange}
+                    onBlur={() => setPriceError(validatePrice(form.price))} required />
                 </div>
-                <div className="form-text" style={{ color: 'rgba(200,196,188,0.4)', fontSize: '0.72rem' }}>
-                  When set, customers see an "Order Now" button that opens the cart.
-                </div>
+                {priceError
+                  ? <div className="text-danger small mt-1">{priceError}</div>
+                  : <div className="form-text" style={{ color: 'rgba(200,196,188,0.4)', fontSize: '0.72rem' }}>
+                      Customers see an "Order Now" button that opens the cart.
+                    </div>}
               </div>
               <div className="mb-3">
                 <label className="form-label small">Show From <span className="text-muted">(optional)</span></label>
-                <input type="datetime-local" className="form-control"
-                  value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))} />
+                <input type="datetime-local" className={`form-control${startDateError ? ' is-invalid' : ''}`}
+                  min={nowLocalString()}
+                  value={form.startDate} onChange={handleStartDateChange} />
+                {startDateError && <div className="text-danger small mt-1">{startDateError}</div>}
               </div>
               <div className="mb-3">
                 <label className="form-label small">Hide After <span className="text-muted">(optional)</span></label>
-                <input type="datetime-local" className="form-control"
-                  value={form.endDate} onChange={e => setForm(p => ({ ...p, endDate: e.target.value }))} />
+                <input type="datetime-local" className={`form-control${endDateError ? ' is-invalid' : ''}`}
+                  min={form.startDate || nowLocalString()}
+                  value={form.endDate} onChange={handleEndDateChange} />
+                {endDateError && <div className="text-danger small mt-1">{endDateError}</div>}
               </div>
 
               <div className="mb-3">
@@ -192,7 +258,8 @@ const Offers = () => {
                 )}
               </div>
 
-              <button className="btn btn-primary w-100 fw-semibold" type="submit" disabled={saving}>
+              <button className="btn btn-primary w-100 fw-semibold" type="submit"
+                disabled={saving || !!priceError || !!startDateError || !!endDateError}>
                 {saving ? <span className="spinner-border spinner-border-sm me-2"></span>
                         : <i className={`bi ${editingId ? 'bi-check-circle' : 'bi-plus-circle'} me-2`}></i>}
                 {editingId ? 'Save Changes' : 'Create Offer'}
