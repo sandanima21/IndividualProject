@@ -84,6 +84,45 @@ public class EmailService {
         return send(toEmail, "KukiHabun — Your Email Verification Code", html);
     }
 
+    public boolean sendPasswordResetOtp(String toEmail, String code) {
+        String html = """
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;
+                        background: #1a1a1a; border-radius: 16px; padding: 40px 36px;
+                        border: 1px solid rgba(201,168,76,0.3);">
+              <div style="text-align: center; margin-bottom: 28px;">
+                <span style="font-size: 2.4rem;">&#127859;</span>
+                <h1 style="color: #c9a84c; font-size: 1.5rem; margin: 8px 0 4px;">KukiHabun</h1>
+                <p style="color: rgba(240,236,224,0.5); font-size: 0.8rem; margin: 0;">
+                  Authentic Sri Lankan Flavours
+                </p>
+              </div>
+              <h2 style="color: #f0ece0; font-size: 1.15rem; font-weight: 700;
+                         text-align: center; margin-bottom: 10px;">
+                Reset Your Password
+              </h2>
+              <p style="color: rgba(240,236,224,0.6); font-size: 0.88rem;
+                         text-align: center; line-height: 1.6; margin-bottom: 28px;">
+                Use the code below to reset your KukiHabun account password.
+                This code expires in <strong style="color: #c9a84c;">5 minutes</strong>.
+              </p>
+              <div style="background: rgba(201,168,76,0.1); border: 2px solid rgba(201,168,76,0.4);
+                          border-radius: 12px; padding: 22px; text-align: center; margin-bottom: 28px;">
+                <span style="font-size: 2.8rem; font-weight: 800; letter-spacing: 0.45em;
+                             color: #c9a84c; font-family: 'Courier New', monospace;">
+                  %s
+                </span>
+              </div>
+              <p style="color: rgba(240,236,224,0.4); font-size: 0.78rem;
+                         text-align: center; line-height: 1.6; margin: 0;">
+                If you did not request this, you can safely ignore this email —
+                your password will not be changed.<br>
+                &mdash; The KukiHabun Team
+              </p>
+            </div>
+            """.formatted(code);
+        return send(toEmail, "KukiHabun — Your Password Reset Code", html);
+    }
+
     public boolean sendOtp(String toEmail, String phone, String code) {
         String html = """
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;

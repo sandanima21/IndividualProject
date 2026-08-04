@@ -5,7 +5,7 @@ import axios from 'axios';
 import { RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
 import { auth } from '../../firebase';
 import { StoreContext } from '../../context/StoreContext';
-import { googleSignIn } from '../../service/authservice';
+import { googleSignIn, sendPasswordResetOtp, resetPassword } from '../../service/authservice';
 import { assets } from '../../assets/assets';
 import './SignIn.css';
 
@@ -75,6 +75,19 @@ const SignIn = () => {
   const [loginForm, setLoginForm]   = useState({ email: '', password: '' });
   const [showLoginPw, setShowLoginPw] = useState(false);
 
+  // ── Forgot password ──────────────────────────────────────────────────────────
+  // forgotStep: 'email' → 'reset'
+  const [forgotStep, setForgotStep]     = useState('email');
+  const [forgotEmail, setForgotEmail]   = useState('');
+  const [resetOtp, setResetOtp]         = useState('');
+  const [resetOtpError, setResetOtpError] = useState('');
+  const [resetPw, setResetPw]           = useState({ password: '', confirm: '' });
+  const [showResetPw, setShowResetPw]         = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetPwFocused, setResetPwFocused]   = useState(false);
+  const [resetCountdown, setResetCountdown]   = useState(300);
+  const resetCountdownRef = useRef(null);
+
   // ── Sign-up multi-step ────────────────────────────────────────────────────────
   // signupStep: 'email' → 'otp' → 'profile' → 'phone'
   const [signupStep, setSignupStep]   = useState('email');
@@ -110,6 +123,20 @@ const SignIn = () => {
     }, 1000);
     return () => clearInterval(countdownRef.current);
   }, [signupStep]);
+
+  // ── Password-reset OTP countdown ────────────────────────────────────────────
+  useEffect(() => {
+    if (forgotStep !== 'reset') return;
+    setResetCountdown(300);
+    clearInterval(resetCountdownRef.current);
+    resetCountdownRef.current = setInterval(() => {
+      setResetCountdown(prev => {
+        if (prev <= 1) { clearInterval(resetCountdownRef.current); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(resetCountdownRef.current);
+  }, [forgotStep]);
 
   // ── reCAPTCHA helpers ─────────────────────────────────────────────────────────
 
@@ -189,6 +216,13 @@ const SignIn = () => {
     // verifier cleanup handled by the signupStep useEffect when step leaves 'phone'
   };
 
+  const resetForgot = () => {
+    setForgotStep('email');
+    setForgotEmail(''); setResetOtp(''); setResetOtpError('');
+    setResetPw({ password: '', confirm: '' });
+    clearInterval(resetCountdownRef.current);
+  };
+
   // ── Google sign-in ────────────────────────────────────────────────────────────
   const handleGoogle = async (accessToken) => {
     try {
@@ -241,6 +275,49 @@ const SignIn = () => {
       })).data);
     } catch (err) {
       toast.error(err.response?.status === 401 ? 'Invalid email or password.' : 'Failed the Sign In.');
+    } finally { setLoading(false); }
+  };
+
+  // ── Forgot password: STEP 1 — send reset code ─────────────────────────────────
+  const handleForgotSubmitEmail = async (e) => {
+    e.preventDefault();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)) {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await sendPasswordResetOtp(forgotEmail);
+      setForgotStep('reset');
+      toast.success('Reset code sent! Check your inbox.');
+    } catch (err) {
+      toast.error(err.response?.status === 404
+        ? 'No account found with that email.'
+        : err.response?.data?.error || 'Failed to send reset code. Try again.');
+    } finally { setLoading(false); }
+  };
+
+  // ── Forgot password: STEP 2 — verify code + set new password ──────────────────
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setResetOtpError('');
+    if (resetOtp.length !== 6)     { setResetOtpError('Please enter the 6-digit code.'); return; }
+    if (resetCountdown === 0)      { setResetOtpError('Code expired. Please request a new one.'); return; }
+    const pwErrors = resetPwErrors;
+    if (pwErrors.length > 0)                    { toast.error('Password requirements not met.'); return; }
+    if (resetPw.password !== resetPw.confirm)   { toast.error('Passwords do not match.'); return; }
+    setLoading(true);
+    try {
+      // Deliberately not auto-logging in with this response — this endpoint is role-agnostic
+      // (any of customer/delivery/admin can reset here), so auto-login would risk signing
+      // someone into this customer app as whatever role the email happens to belong to.
+      // Bouncing to the normal sign-in form keeps role-gating on the one path that already does it.
+      await resetPassword(forgotEmail, resetOtp, resetPw.password);
+      toast.success('Password reset! Please sign in.');
+      setMode('signin');
+      resetForgot();
+    } catch (err) {
+      setResetOtpError(err.response?.data?.error || 'Reset failed. Try again.');
     } finally { setLoading(false); }
   };
 
@@ -365,6 +442,10 @@ const SignIn = () => {
   const timerPct   = (countdown / 300) * 100;
   const stepIndex  = { email: 0, otp: 1, profile: 2, phone: 3 }[signupStep] ?? 0;
 
+  const resetPwErrors   = validatePassword(resetPw.password);
+  const resetTimerColor = resetCountdown <= 60 ? '#f47373' : resetCountdown <= 120 ? '#f0a500' : '#c9a84c';
+  const resetTimerPct   = (resetCountdown / 300) * 100;
+
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="signin-page" style={{ backgroundImage: `url(${BG})` }}>
@@ -400,6 +481,15 @@ const SignIn = () => {
                 />
                 <button type="button" className="pw-toggle" onClick={() => setShowLoginPw(v => !v)}>
                   <i className={`bi ${showLoginPw ? 'bi-eye-slash' : 'bi-eye'}`} />
+                </button>
+              </div>
+              <div style={{ textAlign: 'right', marginBottom: '0.8rem' }}>
+                <button
+                  type="button"
+                  onClick={() => { setMode('forgot'); resetForgot(); }}
+                  style={{ background: 'none', border: 'none', color: 'var(--gold)', fontSize: '0.78rem', cursor: 'pointer', padding: 0 }}
+                >
+                  Forgot password?
                 </button>
               </div>
               <button type="submit" className="signin-btn" disabled={loading}>
@@ -697,6 +787,142 @@ const SignIn = () => {
                     </button>
                   </>
                 )}
+              </>
+            )}
+
+          </div>
+        )}
+
+        {/* ══ FORGOT PASSWORD ══════════════════════════════════════════════════════ */}
+        {mode === 'forgot' && (
+          <div className="animate-fade-up">
+
+            {/* ── Step 1: Email entry ─────────────────────────────────────────── */}
+            {forgotStep === 'email' && (
+              <>
+                <h5 className="text-center fw-bold mb-1" style={{ color: 'var(--gold)' }}>Reset Password</h5>
+                <p className="text-center mb-3" style={{ color: 'rgba(240,236,224,0.5)', fontSize: '0.82rem' }}>
+                  Enter your account email — we'll send a reset code.
+                </p>
+
+                <form onSubmit={handleForgotSubmitEmail}>
+                  <input
+                    type="email" className="signin-input" placeholder="Email address" autoFocus
+                    value={forgotEmail} onChange={e => setForgotEmail(e.target.value)} required
+                  />
+                  <button type="submit" className="signin-btn" disabled={loading}>
+                    {loading ? <Spinner /> : <i className="bi bi-send-fill me-2" />}Send Reset Code
+                  </button>
+                </form>
+
+                <p className="signin-switch">
+                  Remembered your password?{' '}
+                  <button onClick={() => setMode('signin')}>Sign In</button>
+                </p>
+              </>
+            )}
+
+            {/* ── Step 2: OTP + new password ──────────────────────────────────── */}
+            {forgotStep === 'reset' && (
+              <>
+                <h5 className="text-center fw-bold mb-1" style={{ color: 'var(--gold)' }}>Check Your Email</h5>
+                <p className="text-center mb-3" style={{ color: 'rgba(240,236,224,0.5)', fontSize: '0.82rem' }}>
+                  Enter the 6-digit code sent to{' '}
+                  <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{forgotEmail}</span>
+                  {' '}and choose a new password.
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
+                  <svg width="88" height="88" viewBox="0 0 88 88">
+                    <circle cx="44" cy="44" r="38" fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="5" />
+                    <circle
+                      cx="44" cy="44" r="38" fill="none"
+                      stroke={resetTimerColor} strokeWidth="5" strokeLinecap="round"
+                      strokeDasharray={`${2 * Math.PI * 38}`}
+                      strokeDashoffset={`${2 * Math.PI * 38 * (1 - resetTimerPct / 100)}`}
+                      transform="rotate(-90 44 44)"
+                      style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s' }}
+                    />
+                    <text x="44" y="48" textAnchor="middle"
+                      style={{ fill: resetTimerColor, fontSize: '1.15rem', fontWeight: 800, fontFamily: 'monospace' }}>
+                      {formatCountdown(resetCountdown)}
+                    </text>
+                  </svg>
+                  <p style={{ color: 'rgba(240,236,224,0.35)', fontSize: '0.72rem', marginTop: 4 }}>
+                    {resetCountdown > 0 ? 'Code expires in' : 'Code expired'}
+                  </p>
+                </div>
+
+                <form onSubmit={handleResetPassword}>
+                  <input
+                    type="text" inputMode="numeric" maxLength={6} autoFocus
+                    className="signin-input" placeholder="• • • • • •"
+                    value={resetOtp}
+                    onChange={e => { setResetOtp(e.target.value.replace(/\D/g, '')); setResetOtpError(''); }}
+                    style={{ textAlign: 'center', letterSpacing: '0.5em', fontSize: '1.5rem', fontWeight: 800 }}
+                  />
+
+                  <div className="pw-wrap">
+                    <input
+                      type={showResetPw ? 'text' : 'password'} className="signin-input"
+                      placeholder="New Password" required
+                      value={resetPw.password}
+                      onChange={e => setResetPw(p => ({ ...p, password: e.target.value }))}
+                      onFocus={() => setResetPwFocused(true)}
+                      onBlur={() => setResetPwFocused(false)}
+                    />
+                    <button type="button" className="pw-toggle" onClick={() => setShowResetPw(v => !v)}>
+                      <i className={`bi ${showResetPw ? 'bi-eye-slash' : 'bi-eye'}`} />
+                    </button>
+                  </div>
+                  {(resetPwFocused || resetPw.password) && (
+                    <div className="pw-requirements">
+                      {['At least 8 characters','One uppercase letter','One lowercase letter','One number','One special character'].map(rule => (
+                        <div key={rule} className={`pw-rule ${!resetPwErrors.includes(rule) ? 'met' : ''}`}>
+                          <i className={`bi ${!resetPwErrors.includes(rule) ? 'bi-check-circle-fill' : 'bi-circle'} me-1`} />
+                          {rule}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="pw-wrap">
+                    <input
+                      type={showResetConfirm ? 'text' : 'password'} className="signin-input"
+                      placeholder="Confirm New Password" required
+                      value={resetPw.confirm}
+                      onChange={e => setResetPw(p => ({ ...p, confirm: e.target.value }))}
+                    />
+                    <button type="button" className="pw-toggle" onClick={() => setShowResetConfirm(v => !v)}>
+                      <i className={`bi ${showResetConfirm ? 'bi-eye-slash' : 'bi-eye'}`} />
+                    </button>
+                  </div>
+
+                  {resetOtpError && (
+                    <p style={{ color: '#f47373', fontSize: '0.78rem', textAlign: 'center', marginBottom: 8 }}>
+                      {resetOtpError}
+                    </p>
+                  )}
+
+                  <button type="submit" className="signin-btn"
+                    disabled={loading || resetOtp.length !== 6 || resetCountdown === 0}>
+                    {loading ? <Spinner /> : <i className="bi bi-shield-check-fill me-2" />}Reset Password
+                  </button>
+                </form>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
+                  <button
+                    onClick={() => setForgotStep('email')}
+                    style={{ background: 'none', border: 'none', color: 'rgba(240,236,224,0.4)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                    ← Change email
+                  </button>
+                  <button
+                    onClick={handleForgotSubmitEmail}
+                    disabled={loading || resetCountdown > 240}
+                    style={{ background: 'none', border: 'none', fontSize: '0.78rem', cursor: resetCountdown <= 240 ? 'pointer' : 'default',
+                      color: resetCountdown <= 240 ? 'var(--gold)' : 'rgba(240,236,224,0.3)' }}>
+                    Resend Code
+                  </button>
+                </div>
               </>
             )}
 

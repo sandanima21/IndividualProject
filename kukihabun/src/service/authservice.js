@@ -15,3 +15,13 @@ export const changePassword = async (newPassword, token, phone) => {
     );
     return response.data;
 };
+
+export const sendPasswordResetOtp = async (email) => {
+    const response = await axios.post(`${API_URL}/forgot-password`, { email });
+    return response.data;
+};
+
+export const resetPassword = async (email, otp, newPassword) => {
+    const response = await axios.post(`${API_URL}/reset-password`, { email, otp, newPassword });
+    return response.data;
+};

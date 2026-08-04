@@ -147,7 +147,7 @@ public class UserController {
         if (email != null && userRepository.findFirstByEmail(email).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered.");
         }
-        if (username != null && userRepository.findByUsername(username).isPresent()) {
+        if (username != null && userRepository.findFirstByUsername(username).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken.");
         }
 
@@ -161,7 +161,14 @@ public class UserController {
                 .passwordSet(true)
                 .mustChangePassword(true)
                 .build();
-        UserEntity saved = userRepository.save(user);
+        UserEntity saved;
+        try {
+            saved = userRepository.save(user);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email or username already exists.");
+        }
+        // Only email out credentials for an account that was actually created — a losing race
+        // above must not send a password for a user that never got persisted.
         if (email != null) {
             emailService.sendDeliveryCredentials(email, saved.getName(), username, rawPassword);
         }

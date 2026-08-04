@@ -10,4 +10,5 @@ public interface AuthService {
     AuthResponse signupManual(ManualSignupRequest request);
     AuthResponse loginManual(ManualLoginRequest request);
     AuthResponse setDeliveryPassword(SetPasswordRequest request);
+    AuthResponse resetPassword(String email, String otp, String newPassword);
 }

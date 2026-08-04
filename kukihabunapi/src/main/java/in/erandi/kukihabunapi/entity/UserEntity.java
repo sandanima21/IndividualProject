@@ -34,6 +34,7 @@ public class UserEntity {
     @Builder.Default
     private boolean phoneVerified = false;
 
+    @Indexed(unique = true, sparse = true)
     private String username;       // for manual-login users
     private String password;       // BCrypt hashed
 

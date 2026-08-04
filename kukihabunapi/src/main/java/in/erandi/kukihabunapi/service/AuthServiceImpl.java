@@ -12,7 +12,10 @@ import in.erandi.kukihabunapi.io.ManualLoginRequest;
 import in.erandi.kukihabunapi.io.ManualSignupRequest;
 import in.erandi.kukihabunapi.io.SetPasswordRequest;
 import in.erandi.kukihabunapi.repository.EmailOtpRepository;
+import in.erandi.kukihabunapi.repository.PasswordResetOtpRepository;
 import in.erandi.kukihabunapi.repository.UserRepository;
+import in.erandi.kukihabunapi.entity.PasswordResetOtpEntity;
+import java.time.LocalDateTime;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.http.HttpStatus;
@@ -25,16 +28,19 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final EmailOtpRepository emailOtpRepository;
+    private final PasswordResetOtpRepository passwordResetOtpRepository;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final LoginRateLimiter loginRateLimiter;
 
     public AuthServiceImpl(UserRepository userRepository, EmailOtpRepository emailOtpRepository,
+                           PasswordResetOtpRepository passwordResetOtpRepository,
                            JwtUtil jwtUtil, BCryptPasswordEncoder passwordEncoder, EmailService emailService,
                            LoginRateLimiter loginRateLimiter) {
         this.userRepository = userRepository;
         this.emailOtpRepository = emailOtpRepository;
+        this.passwordResetOtpRepository = passwordResetOtpRepository;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
@@ -84,16 +90,23 @@ public class AuthServiceImpl implements AuthService {
                                 return userRepository.save(existingEmailUser);
                             })
                             .orElseGet(() -> {
-                                // Genuinely new user — create the document
+                                // Genuinely new user — create the document. The findFirstByEmail
+                                // check above can race with a concurrent request for the same
+                                // brand-new email; the unique index + this catch is the real guard.
                                 isNew[0] = true;
-                                return userRepository.save(
-                                        UserEntity.builder()
-                                                .googleId(googleId)
-                                                .email(email)
-                                                .name(name)
-                                                .picture(picture)
-                                                .build()
-                                );
+                                try {
+                                    return userRepository.save(
+                                            UserEntity.builder()
+                                                    .googleId(googleId)
+                                                    .email(email)
+                                                    .name(name)
+                                                    .picture(picture)
+                                                    .build()
+                                    );
+                                } catch (org.springframework.dao.DuplicateKeyException e) {
+                                    throw new ResponseStatusException(HttpStatus.CONFLICT,
+                                            "An account with this email already exists. Please try signing in again.");
+                                }
                             });
                 });
 
@@ -114,7 +127,7 @@ public class AuthServiceImpl implements AuthService {
         if (userRepository.findFirstByEmail(request.getEmail()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered.");
         }
-        if (userRepository.findByUsername(request.getUsername()).isPresent()) {
+        if (userRepository.findFirstByUsername(request.getUsername()).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username already taken.");
         }
         validatePasswordStrength(request.getPassword());
@@ -127,13 +140,22 @@ public class AuthServiceImpl implements AuthService {
                         "Email not verified. Please complete OTP verification first."
                 ));
 
-        UserEntity user = userRepository.save(UserEntity.builder()
-                .name(request.getName())
-                .email(request.getEmail())
-                .username(request.getUsername())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .passwordSet(true)
-                .build());
+        // The checks above are a fast-path UX nicety, not the real guard — two signups for the
+        // same email/username can still race between the check and this save (there's a whole
+        // OTP round trip in between). The unique index is the actual source of truth; this catch
+        // is what makes that enforceable instead of a raw 500 on write conflict.
+        UserEntity user;
+        try {
+            user = userRepository.save(UserEntity.builder()
+                    .name(request.getName())
+                    .email(request.getEmail())
+                    .username(request.getUsername())
+                    .password(passwordEncoder.encode(request.getPassword()))
+                    .passwordSet(true)
+                    .build());
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email or username already registered.");
+        }
 
         // Consume the OTP so it cannot be reused
         verifiedOtp.setUsed(true);
@@ -147,7 +169,7 @@ public class AuthServiceImpl implements AuthService {
     public AuthResponse loginManual(ManualLoginRequest request) {
         loginRateLimiter.checkAllowed(request.getUsernameOrEmail());
 
-        UserEntity user = userRepository.findByUsername(request.getUsernameOrEmail())
+        UserEntity user = userRepository.findFirstByUsername(request.getUsernameOrEmail())
                 .or(() -> userRepository.findFirstByEmail(request.getUsernameOrEmail()))
                 .orElseGet(() -> null);
         if (user == null) {
@@ -191,6 +213,44 @@ public class AuthServiceImpl implements AuthService {
         user.setMustChangePassword(false);
         userRepository.save(user);
 
+        return buildResponse(user);
+    }
+
+    @Override
+    public AuthResponse resetPassword(String email, String otp, String newPassword) {
+        loginRateLimiter.checkAllowed("reset:" + email);
+
+        var reset = passwordResetOtpRepository.findTopByEmailAndUsedFalseOrderByCreatedAtDesc(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "No pending reset request. Please request a new code."));
+
+        if (reset.getExpiresAt().isBefore(LocalDateTime.now())) {
+            loginRateLimiter.recordFailure("reset:" + email);
+            throw new ResponseStatusException(HttpStatus.GONE, "Code expired. Please request a new one.");
+        }
+        if (!reset.getCode().equals(otp)) {
+            loginRateLimiter.recordFailure("reset:" + email);
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "Incorrect code. Please try again.");
+        }
+
+        validatePasswordStrength(newPassword);
+
+        // Any role (customer, delivery, admin) can land here — this endpoint is intentionally
+        // role-agnostic, same as /login. It also handles a DELIVERY account that never set a
+        // password (admin-created, passwordSet=false) with no special-casing: it just converges
+        // to having one, the same as setDeliveryPassword above.
+        UserEntity user = userRepository.findFirstByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Account no longer exists."));
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordSet(true);
+        user.setMustChangePassword(false);
+        userRepository.save(user);
+
+        reset.setUsed(true);
+        passwordResetOtpRepository.save(reset);
+
+        loginRateLimiter.recordSuccess("reset:" + email);
         return buildResponse(user);
     }
 

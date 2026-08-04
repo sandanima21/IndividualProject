@@ -9,6 +9,7 @@ public interface UserRepository extends MongoRepository<UserEntity, String> {
     Optional<UserEntity> findByGoogleId(String googleId);
     // findFirst avoids IncorrectResultSizeDataAccessException when duplicates exist in the DB
     Optional<UserEntity> findFirstByEmail(String email);
-    Optional<UserEntity> findByUsername(String username);
+    // findFirst avoids IncorrectResultSizeDataAccessException when duplicates exist in the DB
+    Optional<UserEntity> findFirstByUsername(String username);
     java.util.List<UserEntity> findByRole(String role);
 }

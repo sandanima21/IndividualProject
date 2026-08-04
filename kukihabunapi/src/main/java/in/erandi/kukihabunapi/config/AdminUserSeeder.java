@@ -39,7 +39,7 @@ public class AdminUserSeeder implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (userRepository.findByUsername(adminUsername).isPresent()) {
+        if (userRepository.findFirstByUsername(adminUsername).isPresent()) {
             return;
         }
 

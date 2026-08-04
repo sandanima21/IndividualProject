@@ -2,13 +2,16 @@ package in.erandi.kukihabunapi.controller;
 
 import in.erandi.kukihabunapi.config.JwtUtil;
 import in.erandi.kukihabunapi.entity.EmailOtpEntity;
+import in.erandi.kukihabunapi.entity.PasswordResetOtpEntity;
 import in.erandi.kukihabunapi.entity.UserEntity;
 import in.erandi.kukihabunapi.io.*;
 import in.erandi.kukihabunapi.repository.EmailOtpRepository;
+import in.erandi.kukihabunapi.repository.PasswordResetOtpRepository;
 import in.erandi.kukihabunapi.repository.UserRepository;
 import in.erandi.kukihabunapi.service.AuthService;
 import in.erandi.kukihabunapi.service.EmailService;
 import in.erandi.kukihabunapi.service.FirebasePhoneService;
+import in.erandi.kukihabunapi.service.LoginRateLimiter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -26,22 +29,26 @@ public class AuthController {
     private final AuthService authService;
     private final UserRepository userRepository;
     private final EmailOtpRepository emailOtpRepository;
+    private final PasswordResetOtpRepository passwordResetOtpRepository;
     private final EmailService emailService;
     private final FirebasePhoneService firebasePhoneService;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final LoginRateLimiter loginRateLimiter;
 
     public AuthController(AuthService authService, UserRepository userRepository,
-                          EmailOtpRepository emailOtpRepository, EmailService emailService,
-                          FirebasePhoneService firebasePhoneService, JwtUtil jwtUtil,
-                          BCryptPasswordEncoder passwordEncoder) {
+                          EmailOtpRepository emailOtpRepository, PasswordResetOtpRepository passwordResetOtpRepository,
+                          EmailService emailService, FirebasePhoneService firebasePhoneService, JwtUtil jwtUtil,
+                          BCryptPasswordEncoder passwordEncoder, LoginRateLimiter loginRateLimiter) {
         this.authService = authService;
         this.userRepository = userRepository;
         this.emailOtpRepository = emailOtpRepository;
+        this.passwordResetOtpRepository = passwordResetOtpRepository;
         this.emailService = emailService;
         this.firebasePhoneService = firebasePhoneService;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
+        this.loginRateLimiter = loginRateLimiter;
     }
 
     /** Extracts userId from the app's own JWT (Authorization: Bearer ...). */
@@ -119,6 +126,53 @@ public class AuthController {
                 })
                 .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(Map.of("error", "No pending OTP found. Please request a new one.")));
+    }
+
+    // ─── Forgot Password (all roles: customer, delivery, admin — looked up by email) ──────
+
+    /**
+     * Step 1: generate a 6-digit reset code and email it. Mirrors sendSignupOtp, but for an
+     * account that already exists rather than one being created.
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Map<String, Object>> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Email is required."));
+        }
+        if (userRepository.findFirstByEmail(email).isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", "No account found with that email."));
+        }
+        loginRateLimiter.checkAllowed("reset:" + email);
+
+        // Invalidate any previous pending reset code for this email
+        passwordResetOtpRepository.findTopByEmailAndUsedFalseOrderByCreatedAtDesc(email)
+                .ifPresent(old -> { old.setUsed(true); passwordResetOtpRepository.save(old); });
+
+        String code = String.format("%06d", new Random().nextInt(1_000_000));
+        passwordResetOtpRepository.save(PasswordResetOtpEntity.builder()
+                .email(email)
+                .code(code)
+                .expiresAt(LocalDateTime.now().plusMinutes(5))
+                .build());
+
+        boolean sent = emailService.sendPasswordResetOtp(email, code);
+        return ResponseEntity.ok(Map.of(
+                "message", sent ? "Reset code sent to " + email : "Email unavailable — check server logs.",
+                "expiresInSeconds", 300
+        ));
+    }
+
+    /** Step 2: verify the code and set the new password in one call. */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        try {
+            return ResponseEntity.ok(authService.resetPassword(
+                    body.get("email"), body.get("otp"), body.get("newPassword")));
+        } catch (org.springframework.web.server.ResponseStatusException e) {
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of("error", e.getReason()));
+        }
     }
 
     // ─── Firebase Phone Verification ─────────────────────────────────────────────
@@ -229,17 +283,22 @@ public class AuthController {
         if (userRepository.findFirstByEmail(email).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Email already exists."));
         }
-        if (userRepository.findByUsername(username).isPresent()) {
+        if (userRepository.findFirstByUsername(username).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Username already exists."));
         }
 
-        UserEntity user = userRepository.save(UserEntity.builder()
-                .name(name)
-                .email(email)
-                .username(username)
-                .role("DELIVERY")
-                .passwordSet(false)
-                .build());
+        UserEntity user;
+        try {
+            user = userRepository.save(UserEntity.builder()
+                    .name(name)
+                    .email(email)
+                    .username(username)
+                    .role("DELIVERY")
+                    .passwordSet(false)
+                    .build());
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", "Email or username already exists."));
+        }
 
         return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
             "id", user.getId(),
