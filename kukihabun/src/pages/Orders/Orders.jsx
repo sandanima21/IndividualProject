@@ -522,6 +522,15 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
     searchParams.get('tab') === 'history' ? 'history' :
     searchParams.get('tab') === 'cancelled' ? 'cancelled' : 'active'
   );
+
+  // Re-sync the tab whenever the URL's `tab` param changes (e.g. clicking My
+  // Orders/History from the account dropdown while already on this page —
+  // same route, so the component doesn't remount and the initial useState
+  // above wouldn't otherwise re-run).
+  useEffect(() => {
+    const param = searchParams.get('tab');
+    setTab(param === 'history' ? 'history' : param === 'cancelled' ? 'cancelled' : 'active');
+  }, [searchParams]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [reviewedOrders, setReviewedOrders] = useState(new Set());
