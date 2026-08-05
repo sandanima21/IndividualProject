@@ -217,11 +217,19 @@ const HISTORY_FILTERS = [
   { key: 'all',   label: 'All Time' },
 ];
 
+// Sri Lanka has a fixed UTC+5:30 offset with no DST, so "now, shifted by the offset" can be
+// read back with the UTC getters/setters below as if they were Colombo's own wall-clock —
+// then shifted back to get the real UTC instant to compare against. This avoids depending on
+// the rider's device being set to Colombo time (browser-local `new Date()` would silently be
+// wrong on a device in any other timezone), matching every other Colombo-day-boundary
+// computation in this codebase (see DeliveryController.getTodayOrders on the backend).
+const COLOMBO_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
 const startOfPeriod = (key) => {
-  const d = new Date();
-  if (key === 'today') { d.setHours(0, 0, 0, 0); return d; }
-  if (key === 'week')  { d.setDate(d.getDate() - d.getDay()); d.setHours(0, 0, 0, 0); return d; }
-  if (key === 'month') { d.setDate(1); d.setHours(0, 0, 0, 0); return d; }
+  const colombo = new Date(Date.now() + COLOMBO_OFFSET_MS);
+  if (key === 'today') { colombo.setUTCHours(0, 0, 0, 0); return new Date(colombo.getTime() - COLOMBO_OFFSET_MS); }
+  if (key === 'week')  { colombo.setUTCDate(colombo.getUTCDate() - colombo.getUTCDay()); colombo.setUTCHours(0, 0, 0, 0); return new Date(colombo.getTime() - COLOMBO_OFFSET_MS); }
+  if (key === 'month') { colombo.setUTCDate(1); colombo.setUTCHours(0, 0, 0, 0); return new Date(colombo.getTime() - COLOMBO_OFFSET_MS); }
   return new Date(0);
 };
 

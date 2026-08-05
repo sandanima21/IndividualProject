@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,16 +77,27 @@ public class DeliveryController {
         String riderId = extractUserId(authHeader);
         if (riderId == null) return ResponseEntity.status(401).build();
 
-        LocalDateTime dayStart = LocalDate.now().atStartOfDay();
+        // "Today" means the calendar day in Asia/Colombo (the business's own timezone), not
+        // the JVM's default timezone (typically UTC on the server this runs on) — using
+        // LocalDate.now() directly rolls over at UTC midnight, which is 5:30 AM Colombo time,
+        // so deliveries from last night stayed "today" for hours after Colombo's own midnight.
+        // Converted to its UTC-wall-clock equivalent since createdAt/updatedAt/deliveredAt are
+        // all stored as zone-less LocalDateTime that's actually UTC (see OrderEntity).
+        LocalDateTime dayStart = LocalDate.now(ZoneId.of("Asia/Colombo"))
+                .atStartOfDay(ZoneId.of("Asia/Colombo"))
+                .withZoneSameInstant(ZoneId.of("UTC"))
+                .toLocalDateTime();
         List<OrderResponse> orders = orderService.getAllOrders().stream()
                 .filter(o -> "delivery".equalsIgnoreCase(o.getOrderType()))
                 .filter(o -> riderId.equals(o.getDeliveryPersonId()))
                 // Active deliveries always show regardless of creation date.
-                // Completed orders use updatedAt (delivery time) for the day boundary — not createdAt —
-                // so an order placed yesterday but delivered today still appears in today's history.
+                // Completed orders use deliveredAt (falling back to updatedAt/createdAt for
+                // orders that predate that field) for the day boundary — not createdAt — so an
+                // order placed yesterday but delivered today still appears in today's history.
                 .filter(o -> {
                     if ("OUT_FOR_DELIVERY".equals(o.getStatus())) return true;
-                    LocalDateTime ref = o.getUpdatedAt() != null ? o.getUpdatedAt() : o.getCreatedAt();
+                    LocalDateTime ref = o.getDeliveredAt() != null ? o.getDeliveredAt()
+                            : o.getUpdatedAt() != null ? o.getUpdatedAt() : o.getCreatedAt();
                     return ref != null && !ref.isBefore(dayStart);
                 })
                 .collect(Collectors.toList());
