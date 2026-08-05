@@ -97,7 +97,7 @@ const Analytics = () => {
           { label: "Today's Revenue", value: `Rs.${todayRevenue.toFixed(0)}`, icon: 'bi-calendar-check', sub: 'Delivered today' },
           { label: "Total Orders", value: orders.length, icon: 'bi-bag', sub: 'All statuses' },
           { label: "Delivered Orders", value: delivered.length, icon: 'bi-check-circle', sub: 'Completed' },
-          { label: "Lost to Cancellations", value: `Rs.${lostToCancellations.toFixed(0)}`, icon: 'bi-x-octagon', sub: '' },
+          { label: "Lost to Cancellations", value: `Rs.${lostToCancellations.toFixed(0)}`, icon: 'bi-x-octagon', sub: 'Canceled by Shop Owner' },
         ].map(card => (
           <div key={card.label} className="col-sm-6 col-xl-3">
             <div className="card p-3" style={{ background: '#1a1a1a', border: '1px solid rgba(201,168,76,0.2)' }}>
