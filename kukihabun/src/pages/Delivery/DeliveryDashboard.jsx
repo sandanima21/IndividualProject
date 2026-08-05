@@ -697,7 +697,13 @@ const DeliveryDashboard = () => {
         <ChangePasswordModal
           userId={user.id}
           token={token}
-          onDone={() => login({ ...user, mustChangePassword: false }, token)}
+          onDone={() => {
+            login({ ...user, mustChangePassword: false }, token);
+            // First login only — same OTP verification prompt as customer signup,
+            // shown right after they set their password. Skippable; can still be
+            // done later from My Profile.
+            if (!user.phone) setShowPhoneModal(true);
+          }}
         />
       )}
 
