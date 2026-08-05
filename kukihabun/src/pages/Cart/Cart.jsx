@@ -505,7 +505,7 @@ const Cart = () => {
             ))
           ) : null}
           {cartLines.length > 0 && (
-            <Link to="/" className="btn btn-outline-primary mt-2">
+            <Link to="/explore" className="btn btn-outline-primary mt-2">
               <i className="bi bi-arrow-left me-2"></i>Continue Shopping
             </Link>
           )}
