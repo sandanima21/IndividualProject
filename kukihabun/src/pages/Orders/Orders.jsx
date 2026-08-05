@@ -605,17 +605,25 @@ const PostDeliveryPrompt = ({ order, token, foodList, onClose }) => {
 
   const goToFoodStep = () => { setStep('food'); setItemIndex(0); setFrRating(5); setFrComment(''); };
 
+  // On a genuine failure the prompt now stays open on the same step instead of moving
+  // on regardless — advancing/closing after a failed submit made it look like the
+  // review went through when it never actually saved. A 409 (already reviewed) is the
+  // one "failure" that means there's nothing left to do here, so that still advances.
   const submitDelivery = async () => {
     setDrSubmitting(true);
     try {
       await submitDeliveryReview({ orderId: order.id, rating: drRating, comment: drComment }, token);
       toast.success('Thanks for rating your delivery!');
+      if (reviewableItems.length > 0) goToFoodStep(); else onClose();
     } catch (e) {
-      if (e.response?.status !== 409) toast.error('Failed to submit delivery review.');
+      if (e.response?.status === 409) {
+        if (reviewableItems.length > 0) goToFoodStep(); else onClose();
+      } else {
+        toast.error(e.response?.data?.message || 'Failed to submit delivery review.');
+      }
     } finally {
       setDrSubmitting(false);
     }
-    if (reviewableItems.length > 0) goToFoodStep(); else onClose();
   };
 
   const nextItemOrFinish = () => {
@@ -632,12 +640,16 @@ const PostDeliveryPrompt = ({ order, token, foodList, onClose }) => {
     try {
       await addReview({ foodId: currentItem.foodId, orderId: order.id, rating: frRating, comment: frComment }, token);
       toast.success('Review submitted!');
+      nextItemOrFinish();
     } catch (e) {
-      if (e.response?.status !== 409) toast.error('Failed to submit review.');
+      if (e.response?.status === 409) {
+        nextItemOrFinish();
+      } else {
+        toast.error(e.response?.data?.message || 'Failed to submit review.');
+      }
     } finally {
       setFrSubmitting(false);
     }
-    nextItemOrFinish();
   };
 
   if (!hasContent) return null;
@@ -759,6 +771,12 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
 
   useEffect(() => {
     if (embedded) return; // only the real Orders page prompts, not embedded widgets
+    // Wait for the first real fetch to finish before establishing the baseline — orders
+    // starts as [] on mount, and without this guard that empty array would consume the
+    // one-time "seed without queueing" pass, making the ACTUAL data (arriving moments
+    // later once load() resolves) look like every delivered order just became new —
+    // re-prompting for orders reviewed long ago on every single page visit.
+    if (loading) return;
     const currentlyDelivered = orders.filter(o => o.status === 'DELIVERED');
     if (!deliveredInitializedRef.current) {
       currentlyDelivered.forEach(o => seenDeliveredRef.current.add(o.id));
@@ -770,7 +788,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
       freshlyDelivered.forEach(o => seenDeliveredRef.current.add(o.id));
       setPromptQueue(prev => [...prev, ...freshlyDelivered.map(o => o.id)]);
     }
-  }, [orders, embedded]);
+  }, [orders, embedded, loading]);
 
   const promptOrder = promptQueue.length > 0 ? orders.find(o => o.id === promptQueue[0]) : null;
   const closePrompt = () => {
