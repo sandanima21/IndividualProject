@@ -555,6 +555,119 @@ const OrderDetailsModal = ({ order, onClose }) => {
   );
 };
 
+/**
+ * PostDeliveryPrompt — one-time nudge shown right when an order transitions to
+ * DELIVERED (i.e. delivered, or picked up for take-away) while the customer still
+ * has this page open. Walks them through rating the delivery (delivery orders only)
+ * then each food item, one step at a time — "Skip for now" bails out of the whole
+ * flow at any point, since everything here can also be done later from the History
+ * tab's Review/Rate Delivery buttons.
+ */
+const PostDeliveryPrompt = ({ order, token, onClose }) => {
+  const isDeliveryOrder = order.orderType === 'delivery' && !!order.deliveryPersonId;
+  const items = order.items || [];
+  const [step, setStep] = useState(isDeliveryOrder ? 'delivery' : 'food');
+  const [itemIndex, setItemIndex] = useState(0);
+
+  const [drRating, setDrRating] = useState(5);
+  const [drComment, setDrComment] = useState('');
+  const [drSubmitting, setDrSubmitting] = useState(false);
+
+  const [frRating, setFrRating] = useState(5);
+  const [frComment, setFrComment] = useState('');
+  const [frSubmitting, setFrSubmitting] = useState(false);
+
+  const currentItem = items[itemIndex];
+  const rating = step === 'delivery' ? drRating : frRating;
+  const setRating = step === 'delivery' ? setDrRating : setFrRating;
+  const comment = step === 'delivery' ? drComment : frComment;
+  const setComment = step === 'delivery' ? setDrComment : setFrComment;
+  const submitting = step === 'delivery' ? drSubmitting : frSubmitting;
+
+  const goToFoodStep = () => { setStep('food'); setItemIndex(0); setFrRating(5); setFrComment(''); };
+
+  const submitDelivery = async () => {
+    setDrSubmitting(true);
+    try {
+      await submitDeliveryReview({ orderId: order.id, rating: drRating, comment: drComment }, token);
+      toast.success('Thanks for rating your delivery!');
+    } catch (e) {
+      if (e.response?.status !== 409) toast.error('Failed to submit delivery review.');
+    } finally {
+      setDrSubmitting(false);
+    }
+    if (items.length > 0) goToFoodStep(); else onClose();
+  };
+
+  const nextItemOrFinish = () => {
+    if (itemIndex + 1 < items.length) {
+      setItemIndex(i => i + 1);
+      setFrRating(5); setFrComment('');
+    } else {
+      onClose();
+    }
+  };
+
+  const submitFood = async () => {
+    setFrSubmitting(true);
+    try {
+      await addReview({ foodId: currentItem.foodId, orderId: order.id, rating: frRating, comment: frComment }, token);
+      toast.success('Review submitted!');
+    } catch (e) {
+      if (e.response?.status !== 409) toast.error('Failed to submit review.');
+    } finally {
+      setFrSubmitting(false);
+    }
+    nextItemOrFinish();
+  };
+
+  return (
+    <div className="modal fade show" style={{ display: 'block', background: 'rgba(0,0,0,0.6)' }} tabIndex="-1">
+      <div className="modal-dialog modal-dialog-centered" onClick={e => e.stopPropagation()}>
+        <div className="modal-content">
+          <div className="modal-header">
+            <h6 className="modal-title mb-0">
+              {step === 'delivery'
+                ? <><i className="bi bi-bicycle me-2" style={{ color: '#a78bfa' }}></i>How was your delivery?</>
+                : <><i className="bi bi-star me-2 text-warning"></i>How was {currentItem?.foodName}?</>}
+            </h6>
+            <button type="button" className="btn-close" onClick={onClose}></button>
+          </div>
+          <div className="modal-body">
+            <p className="small text-muted mb-3">
+              {order.displayId || `#${order.id.slice(-6).toUpperCase()}`} — your order was {order.orderType === 'delivery' ? 'delivered' : 'picked up'}!
+              {step === 'food' && items.length > 1 && ` (Item ${itemIndex + 1} of ${items.length})`}
+            </p>
+            <div className="mb-3">
+              <label className="form-label">Rating</label>
+              <div className="d-flex gap-2">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <i key={n}
+                    className={`bi ${n <= rating ? 'bi-star-fill text-warning' : 'bi-star'} fs-4`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setRating(n)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="mb-3">
+              <label className="form-label">Comment <span className="text-muted">(optional)</span></label>
+              <textarea className="form-control" rows="3" value={comment} onChange={e => setComment(e.target.value)}
+                placeholder={step === 'delivery' ? 'How was your delivery experience?' : 'Share your experience...'} />
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onClose}>Skip for now</button>
+            <button type="button" className="btn btn-primary btn-sm" onClick={step === 'delivery' ? submitDelivery : submitFood} disabled={submitting}>
+              {submitting && <span className="spinner-border spinner-border-sm me-2"></span>}Submit
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // statusFilter: 'active' = non-delivered, 'delivered' = DELIVERED only, undefined = all
 const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
   const { user, token, reorderItems, clearCart } = useContext(StoreContext);
@@ -587,6 +700,37 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
   // deliberately left out of this set so they keep getting re-checked — otherwise a
   // review submitted just now would never be picked up until the page remounts.
   const checkedReviewsRef = useRef(new Set());
+
+  // ── Post-delivery review prompt ─────────────────────────────────────────────
+  // Queue of order IDs that JUST transitioned to DELIVERED while this page was open
+  // (detected below) — shown one at a time via PostDeliveryPrompt. Orders that were
+  // already DELIVERED before the page loaded are deliberately excluded (seeded into
+  // seenDeliveredRef on the first orders update without being queued) so this only
+  // fires for a live "your order just arrived" moment, not every visit to the page.
+  const [promptQueue, setPromptQueue] = useState([]);
+  const seenDeliveredRef = useRef(new Set());
+  const deliveredInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (embedded) return; // only the real Orders page prompts, not embedded widgets
+    const currentlyDelivered = orders.filter(o => o.status === 'DELIVERED');
+    if (!deliveredInitializedRef.current) {
+      currentlyDelivered.forEach(o => seenDeliveredRef.current.add(o.id));
+      deliveredInitializedRef.current = true;
+      return;
+    }
+    const freshlyDelivered = currentlyDelivered.filter(o => !seenDeliveredRef.current.has(o.id));
+    if (freshlyDelivered.length > 0) {
+      freshlyDelivered.forEach(o => seenDeliveredRef.current.add(o.id));
+      setPromptQueue(prev => [...prev, ...freshlyDelivered.map(o => o.id)]);
+    }
+  }, [orders, embedded]);
+
+  const promptOrder = promptQueue.length > 0 ? orders.find(o => o.id === promptQueue[0]) : null;
+  const closePrompt = () => {
+    setPromptQueue(prev => prev.slice(1));
+    load();
+  };
 
   // Handle return from PayHere form-POST checkout (just clean the URL — load() does the real work)
   useEffect(() => {
@@ -948,9 +1092,11 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
               ))}
 
               <hr />
+              <div className="text-muted small mb-2">
+                {order.orderType === 'delivery' ? `Delivery to: ${order.deliveryAddress}` : `Take-away · ${order.mobileNumber}`}
+              </div>
               <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <span className="text-muted small">{order.orderType === 'delivery' ? `Delivery to: ${order.deliveryAddress}` : `Take-away · ${order.mobileNumber}`}</span>
-                <div className="d-flex align-items-center gap-3">
+                <div className="d-flex align-items-center gap-3 flex-wrap">
                   <button
                     className="btn btn-sm btn-outline-secondary"
                     style={{ fontSize: '0.78rem' }}
@@ -975,7 +1121,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                               onClick={() => showModal(`drModal-${order.id}`)}
                             >
                               <i className={`bi ${existingDeliveryReview ? 'bi-check-circle' : 'bi-bicycle'} me-1`}></i>
-                              {existingDeliveryReview ? 'Rated Delivery' : 'Rate Delivery'}
+                              {existingDeliveryReview ? 'Delivery rated' : 'Rate Delivery'}
                             </button>
                             <DeliveryReviewModal orderId={order.id} token={token} existingReview={existingDeliveryReview} onDone={load} />
                           </>
@@ -986,10 +1132,8 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                       </button>
                     </>
                   )}
-                  <div className="text-end">
-                    <strong>Total: Rs.{order.total.toFixed(2)}</strong>
-                  </div>
                 </div>
+                <strong>Total: Rs.{order.total.toFixed(2)}</strong>
               </div>
 
               {/* Rider info card — shown when rider has been assigned */}
@@ -1069,6 +1213,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
         {inner}
       </div>
       {liveDetailsOrder && <OrderDetailsModal order={liveDetailsOrder} onClose={() => setDetailsOrder(null)} />}
+      {promptOrder && <PostDeliveryPrompt order={promptOrder} token={token} onClose={closePrompt} />}
     </>
   );
 };
