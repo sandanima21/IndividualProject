@@ -77,7 +77,7 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public List<ReviewResponse> getAllReviews() {
-        return reviewRepository.findAll().stream()
+        return reviewRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::toResponse).collect(Collectors.toList());
     }
 
