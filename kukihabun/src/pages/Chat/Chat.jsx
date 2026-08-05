@@ -4,18 +4,25 @@ import { getMessages, sendMessage, sendMessageWithImage } from '../../service/ch
 import { toast } from 'react-toastify';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { asUtcDate, formatColomboTime } from '../../utils/date';
 import './Chat.css';
 
 const API = import.meta.env.VITE_API_URL;
 
+// Calendar day in Asia/Colombo (not the viewer's browser timezone) so "Today"/"Yesterday"
+// stay correct regardless of where the customer happens to be browsing from — same
+// convention as formatColomboDate/Time in utils/date.js.
+const colomboDayKey = (date) => date.toLocaleDateString('en-CA', { timeZone: 'Asia/Colombo' });
+
 const formatDateLabel = (dateStr) => {
-  const date = new Date(dateStr);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (date.toDateString() === today.toDateString()) return 'Today';
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const date = asUtcDate(dateStr);
+  if (!date) return '';
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const dateKey = colomboDayKey(date);
+  if (dateKey === colomboDayKey(now)) return 'Today';
+  if (dateKey === colomboDayKey(yesterday)) return 'Yesterday';
+  return date.toLocaleDateString('en-US', { timeZone: 'Asia/Colombo', month: 'long', day: 'numeric', year: 'numeric' });
 };
 
 const groupMessagesByDate = (messages) => {
@@ -23,7 +30,7 @@ const groupMessagesByDate = (messages) => {
   let currentKey = null;
   let currentGroup = null;
   messages.forEach(msg => {
-    const key = new Date(msg.createdAt).toDateString();
+    const key = colomboDayKey(asUtcDate(msg.createdAt) || new Date(0));
     if (key !== currentKey) {
       currentKey = key;
       currentGroup = { dateLabel: formatDateLabel(msg.createdAt), messages: [] };
@@ -180,7 +187,7 @@ const Chat = () => {
                   )}
                   {msg.content && <span>{msg.content}</span>}
                   <div className="chat-time">
-                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    {formatColomboTime(msg.createdAt)}
                   </div>
                 </div>
               </div>

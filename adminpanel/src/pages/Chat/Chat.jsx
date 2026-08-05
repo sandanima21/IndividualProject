@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getConversations, getMessages, markConversationRead, replyMessage, replyWithImage } from '../../services/chatService';
 import { toast } from 'react-toastify';
+import { formatColomboTime } from '../../utils/date';
 import './Chat.css';
 
 const LAST_VISIT_KEY = 'admin_chat_last_visit';
@@ -149,7 +150,7 @@ const Chat = () => {
                         {conv.customerName}
                       </span>
                       <small className="text-muted" style={{ fontSize: '0.62rem' }}>
-                        {new Date(conv.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatColomboTime(conv.lastMessageAt)}
                       </small>
                     </div>
                     <small
@@ -203,7 +204,7 @@ const Chat = () => {
                       )}
                       {msg.content && <span>{msg.content}</span>}
                       <div className="chat-time">
-                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {formatColomboTime(msg.createdAt)}
                       </div>
                     </div>
                   </div>

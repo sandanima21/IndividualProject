@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { StoreContext } from '../../context/StoreContext';
 import { getMessages } from '../../service/chatservice';
+import { asUtcDate } from '../../utils/date';
 import './FloatingChat.css';
 
 const SEEN_KEY = 'kukihabun_chat_seen_at';
@@ -30,7 +31,7 @@ const FloatingChat = () => {
         const seenAt = localStorage.getItem(SEEN_KEY);
         const ownerMessages = messages.filter(m => m.senderRole !== 'CUSTOMER');
         const unreadMsgs = seenAt
-          ? ownerMessages.filter(m => new Date(m.createdAt) > new Date(seenAt))
+          ? ownerMessages.filter(m => asUtcDate(m.createdAt) > new Date(seenAt))
           : ownerMessages;
         setUnread(unreadMsgs.length);
       } catch {

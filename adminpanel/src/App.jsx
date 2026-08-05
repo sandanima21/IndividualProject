@@ -31,6 +31,7 @@ import Offers from './pages/Offers/Offers'
 import Login from './pages/Login/Login'
 import { ToastContainer } from 'react-toastify'
 import { getConversations } from './services/chatService'
+import { asUtcDate } from './utils/date'
 
 const CHAT_LAST_VISIT_KEY = 'admin_chat_last_visit';
 
@@ -98,7 +99,7 @@ const App = () => {
         const count = convs.filter(c =>
           c.unreadCount > 0 &&
           c.lastMessageAt &&
-          new Date(c.lastMessageAt) > cutoff
+          asUtcDate(c.lastMessageAt) > cutoff
         ).length;
         setChatUnread(count);
       } catch { /* silent — badge simply stays at its previous value */ }
