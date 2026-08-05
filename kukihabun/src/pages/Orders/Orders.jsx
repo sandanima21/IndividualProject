@@ -656,10 +656,10 @@ const PostDeliveryPrompt = ({ order, token, foodList, onClose }) => {
           </div>
           <div className="modal-body">
             {/* Order recap — lets the customer recognise which order this is by its
-                food, rather than a bare order number. */}
+                food, rather than a bare (and not shown here) order number. */}
             <div className="mb-3 p-2 rounded-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
               <div className="small text-muted mb-2">
-                {order.displayId || `#${order.id.slice(-6).toUpperCase()}`} · {order.orderType === 'delivery' ? 'Delivered' : 'Picked up'}
+                {order.orderType === 'delivery' ? 'Delivered' : 'Picked up'}
               </div>
               {allItems.map((it, i) => (
                 <div key={i} className="d-flex align-items-center gap-2" style={{ padding: '2px 0' }}>
