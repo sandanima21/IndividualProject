@@ -9,7 +9,17 @@ export const addReview = async (reviewData, token) => {
     return response.data;
 };
 
+export const updateReview = async (reviewId, reviewData, token) => {
+    const response = await axios.put(`${API_URL}/${reviewId}`, reviewData, authHeader(token));
+    return response.data;
+};
+
 export const getReviewsByFood = async (foodId) => {
     const response = await axios.get(`${API_URL}/food/${foodId}`);
+    return response.data;
+};
+
+export const getReviewsByUser = async (userId, token) => {
+    const response = await axios.get(`${API_URL}/user/${userId}`, authHeader(token));
     return response.data;
 };

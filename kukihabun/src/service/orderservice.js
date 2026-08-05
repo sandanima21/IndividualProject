@@ -35,6 +35,9 @@ export const verifyOtp = (phone, code, token) =>
 export const submitDeliveryReview = (data, token) =>
     axios.post(`${import.meta.env.VITE_API_URL}/api/delivery-reviews`, data, authHeader(token)).then(r => r.data);
 
+export const updateDeliveryReview = (reviewId, data, token) =>
+    axios.put(`${import.meta.env.VITE_API_URL}/api/delivery-reviews/${reviewId}`, data, authHeader(token)).then(r => r.data);
+
 export const getDeliveryReviewByOrder = (orderId) =>
     axios.get(`${import.meta.env.VITE_API_URL}/api/delivery-reviews/order/${orderId}`)
         .then(r => r.data)

@@ -46,6 +46,18 @@ public class ReviewServiceImpl implements ReviewService {
     }
 
     @Override
+    public ReviewResponse updateReview(String userId, String reviewId, ReviewRequest request) {
+        ReviewEntity existing = reviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found"));
+        if (!existing.getUserId().equals(userId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your review");
+        }
+        existing.setRating(request.getRating());
+        existing.setComment(request.getComment());
+        return toResponse(reviewRepository.save(existing));
+    }
+
+    @Override
     public List<ReviewResponse> getReviewsByFood(String foodId) {
         return reviewRepository.findByFoodIdOrderByCreatedAtDesc(foodId)
                 .stream().map(this::toResponse).collect(Collectors.toList());

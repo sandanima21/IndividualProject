@@ -34,6 +34,16 @@ public class ReviewController {
         return ResponseEntity.status(HttpStatus.CREATED).body(reviewService.addReview(userId, request));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ReviewResponse> updateReview(
+            @PathVariable String id,
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody ReviewRequest request) {
+        String userId = extractUserId(authHeader);
+        if (userId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        return ResponseEntity.ok(reviewService.updateReview(userId, id, request));
+    }
+
     @GetMapping("/food/{foodId}")
     public ResponseEntity<List<ReviewResponse>> getReviewsByFood(@PathVariable String foodId) {
         return ResponseEntity.ok(reviewService.getReviewsByFood(foodId));

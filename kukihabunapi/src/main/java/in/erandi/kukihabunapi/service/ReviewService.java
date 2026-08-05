@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface ReviewService {
     ReviewResponse addReview(String userId, ReviewRequest request);
+    ReviewResponse updateReview(String userId, String reviewId, ReviewRequest request);
     List<ReviewResponse> getReviewsByFood(String foodId);
     List<ReviewResponse> getAllReviews();
     List<ReviewResponse> getReviewsByUser(String userId);

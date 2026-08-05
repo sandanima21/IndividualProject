@@ -16,11 +16,12 @@
 
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { StoreContext } from '../../context/StoreContext';
-import { getMyOrders, cancelOrder, submitDeliveryReview, getDeliveryReviewByOrder, markOrderPaid } from '../../service/orderservice';
-import { addReview } from '../../service/reviewservice';
+import { getMyOrders, cancelOrder, submitDeliveryReview, updateDeliveryReview, getDeliveryReviewByOrder, markOrderPaid } from '../../service/orderservice';
+import { addReview, updateReview, getReviewsByUser } from '../../service/reviewservice';
 import { toast } from 'react-toastify';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PENDING_PAYMENT_KEY, CONFIRMED_PAYMENT_KEY } from '../../components/PayHereCheckout/PayHereCheckout';
+import { Modal } from 'bootstrap';
 import './Orders.css';
 
 // Parse backend LocalDateTime (no timezone suffix) as UTC, display in Sri Lanka time (UTC+5:30)
@@ -319,16 +320,43 @@ const statusColor = {
   DELIVERED: 'dark',
 };
 
-const ReviewModal = ({ item, orderId, idx, token, onDone }) => {
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
+// Both review modals below are opened/closed entirely through this module's own
+// Modal import (never the data-bs-toggle/data-bs-dismiss attribute API) — mixing the
+// two creates two independent Bootstrap instances tracking the same element, and a
+// hide() from one leaves the other's backdrop stuck on screen.
+const showModal = (modalId) => {
+  const el = document.getElementById(modalId);
+  if (el) Modal.getOrCreateInstance(el).show();
+};
+const hideModal = (modalId) => {
+  const el = document.getElementById(modalId);
+  if (el) Modal.getOrCreateInstance(el).hide();
+};
+
+const ReviewModal = ({ item, orderId, idx, token, existingReview, onDone }) => {
+  const modalId = `reviewModal-${item.foodId}-${idx}-${orderId}`;
+  const [rating, setRating] = useState(existingReview?.rating ?? 5);
+  const [comment, setComment] = useState(existingReview?.comment ?? '');
   const [submitting, setSubmitting] = useState(false);
+
+  // Re-seed the form whenever the known review for this item changes (e.g. after
+  // load() refetches post-submit) so a re-opened modal always shows the latest values.
+  useEffect(() => {
+    setRating(existingReview?.rating ?? 5);
+    setComment(existingReview?.comment ?? '');
+  }, [existingReview]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await addReview({ foodId: item.foodId, orderId, rating, comment }, token);
-      toast.success('Review submitted!');
+      if (existingReview) {
+        await updateReview(existingReview.id, { foodId: item.foodId, orderId, rating, comment }, token);
+        toast.success('Review updated!');
+      } else {
+        await addReview({ foodId: item.foodId, orderId, rating, comment }, token);
+        toast.success('Review submitted!');
+      }
+      hideModal(modalId);
       onDone();
     } catch (e) {
       toast.error(e.response?.status === 409 ? 'Already reviewed this item.' : 'Failed to submit review.');
@@ -338,12 +366,12 @@ const ReviewModal = ({ item, orderId, idx, token, onDone }) => {
   };
 
   return (
-    <div className="modal fade" id={`reviewModal-${item.foodId}-${idx}-${orderId}`} tabIndex="-1" aria-hidden="true">
+    <div className="modal fade" id={modalId} tabIndex="-1" aria-hidden="true">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
-            <h6 className="modal-title">Review: {item.foodName}</h6>
-            <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
+            <h6 className="modal-title">{existingReview ? 'Edit Review' : 'Review'}: {item.foodName}</h6>
+            <button type="button" className="btn-close" onClick={() => hideModal(modalId)}></button>
           </div>
           <div className="modal-body">
             <div className="mb-3">
@@ -365,9 +393,9 @@ const ReviewModal = ({ item, orderId, idx, token, onDone }) => {
             </div>
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={() => hideModal(modalId)}>Cancel</button>
             <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={submitting}>
-              {submitting && <span className="spinner-border spinner-border-sm me-2"></span>}Submit
+              {submitting && <span className="spinner-border spinner-border-sm me-2"></span>}{existingReview ? 'Update' : 'Submit'}
             </button>
           </div>
         </div>
@@ -376,16 +404,28 @@ const ReviewModal = ({ item, orderId, idx, token, onDone }) => {
   );
 };
 
-const DeliveryReviewModal = ({ orderId, token, onDone }) => {
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState('');
+const DeliveryReviewModal = ({ orderId, token, existingReview, onDone }) => {
+  const modalId = `drModal-${orderId}`;
+  const [rating, setRating] = useState(existingReview?.rating ?? 5);
+  const [comment, setComment] = useState(existingReview?.comment ?? '');
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setRating(existingReview?.rating ?? 5);
+    setComment(existingReview?.comment ?? '');
+  }, [existingReview]);
 
   const handleSubmit = async () => {
     setSubmitting(true);
     try {
-      await submitDeliveryReview({ orderId, rating, comment }, token);
-      toast.success('Delivery review submitted!');
+      if (existingReview) {
+        await updateDeliveryReview(existingReview.id, { rating, comment }, token);
+        toast.success('Delivery review updated!');
+      } else {
+        await submitDeliveryReview({ orderId, rating, comment }, token);
+        toast.success('Delivery review submitted!');
+      }
+      hideModal(modalId);
       onDone();
     } catch (e) {
       toast.error(e.response?.status === 409 ? 'You already reviewed this delivery.' : 'Failed to submit review.');
@@ -395,12 +435,12 @@ const DeliveryReviewModal = ({ orderId, token, onDone }) => {
   };
 
   return (
-    <div className="modal fade" id={`drModal-${orderId}`} tabIndex="-1" aria-hidden="true">
+    <div className="modal fade" id={modalId} tabIndex="-1" aria-hidden="true">
       <div className="modal-dialog modal-dialog-centered">
         <div className="modal-content">
           <div className="modal-header">
-            <h6 className="modal-title"><i className="bi bi-bicycle me-2" style={{ color: '#a78bfa' }}></i>Rate Your Delivery</h6>
-            <button type="button" className="btn-close" data-bs-dismiss="modal"></button>
+            <h6 className="modal-title"><i className="bi bi-bicycle me-2" style={{ color: '#a78bfa' }}></i>{existingReview ? 'Edit Your Delivery Review' : 'Rate Your Delivery'}</h6>
+            <button type="button" className="btn-close" onClick={() => hideModal(modalId)}></button>
           </div>
           <div className="modal-body">
             <div className="mb-3">
@@ -421,9 +461,9 @@ const DeliveryReviewModal = ({ orderId, token, onDone }) => {
             </div>
           </div>
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={() => hideModal(modalId)}>Cancel</button>
             <button type="button" className="btn btn-primary" onClick={handleSubmit} disabled={submitting}>
-              {submitting && <span className="spinner-border spinner-border-sm me-2"></span>}Submit
+              {submitting && <span className="spinner-border spinner-border-sm me-2"></span>}{existingReview ? 'Update' : 'Submit'}
             </button>
           </div>
         </div>
@@ -535,10 +575,17 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
   }, [searchParams]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [reviewedOrders, setReviewedOrders] = useState(new Set());
+  // Delivery review per order id — { [orderId]: DeliveryReviewEntity }, only present
+  // once that order has been reviewed. Lets the "Rate Delivery" button both show a
+  // "Rated" state and pre-fill the modal for editing.
+  const [deliveryReviews, setDeliveryReviews] = useState({});
+  // Food review per order+item — { [`${orderId}::${foodId}`]: ReviewResponse }.
+  const [foodReviews, setFoodReviews] = useState({});
   const [detailsOrder, setDetailsOrder] = useState(null);
-  // Tracks order IDs whose review status has already been fetched, so polling
-  // doesn't re-issue the same 404 request every 30 s for unreviewed orders.
+  // Tracks order IDs already confirmed as reviewed, so polling doesn't re-issue the
+  // same request every 30 s once we know the answer. Orders NOT yet reviewed are
+  // deliberately left out of this set so they keep getting re-checked — otherwise a
+  // review submitted just now would never be picked up until the page remounts.
   const checkedReviewsRef = useRef(new Set());
 
   // Handle return from PayHere form-POST checkout (just clean the URL — load() does the real work)
@@ -603,24 +650,43 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
 
       const data = await getMyOrders(token);
       setOrders(data);
-      // Only fetch review status for orders not yet checked — avoids a 404 request
-      // every 30 s for orders that simply haven't been reviewed yet.
-      const unchecked = data.filter(
+
+      // Delivery review status — only re-check orders not already confirmed reviewed.
+      // A review, once submitted, is permanent, so those are safe to stop polling;
+      // anything still unreviewed keeps getting re-checked so a just-submitted review
+      // is picked up on the very next load() (e.g. right after the modal closes)
+      // instead of staying stale until the page remounts.
+      const uncheckedDelivery = data.filter(
         o => o.status === 'DELIVERED' && o.orderType === 'delivery' &&
              !checkedReviewsRef.current.has(o.id)
       );
-      if (unchecked.length > 0) {
+      if (uncheckedDelivery.length > 0) {
         const checks = await Promise.allSettled(
-          unchecked.map(o => getDeliveryReviewByOrder(o.id))
+          uncheckedDelivery.map(o => getDeliveryReviewByOrder(o.id))
         );
-        setReviewedOrders(prev => {
-          const next = new Set(prev);
-          unchecked.forEach((o, i) => {
-            checkedReviewsRef.current.add(o.id);
-            if (checks[i].status === 'fulfilled' && checks[i].value !== null) next.add(o.id);
+        setDeliveryReviews(prev => {
+          const next = { ...prev };
+          uncheckedDelivery.forEach((o, i) => {
+            const review = checks[i].status === 'fulfilled' ? checks[i].value : null;
+            if (review) {
+              checkedReviewsRef.current.add(o.id);
+              next[o.id] = review;
+            }
           });
           return next;
         });
+      }
+
+      // Food review status — fetched fresh every load() as a single bulk request (all
+      // of this customer's reviews), so a just-submitted/edited review shows up
+      // immediately without per-item polling bookkeeping.
+      if (user?.id) {
+        try {
+          const myReviews = await getReviewsByUser(user.id, token);
+          const map = {};
+          myReviews.forEach(r => { map[`${r.orderId}::${r.foodId}`] = r; });
+          setFoodReviews(map);
+        } catch { /* non-fatal — review buttons just won't show "Reviewed" this cycle */ }
       }
     } catch {
       toast.error('Failed to load orders.');
@@ -862,18 +928,21 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     <span>Rs.{(item.price * item.quantity).toFixed(2)}</span>
-                    {isHistory && (
-                      <>
-                        <button
-                          className="btn btn-sm btn-outline-warning"
-                          data-bs-toggle="modal"
-                          data-bs-target={`#reviewModal-${item.foodId}-${idx}-${order.id}`}
-                        >
-                          <i className="bi bi-star me-1"></i>Review
-                        </button>
-                        <ReviewModal item={item} orderId={order.id} idx={idx} token={token} onDone={load} />
-                      </>
-                    )}
+                    {isHistory && (() => {
+                      const existingFoodReview = foodReviews[`${order.id}::${item.foodId}`] || null;
+                      return (
+                        <>
+                          <button
+                            className={`btn btn-sm ${existingFoodReview ? 'btn-outline-success' : 'btn-outline-warning'}`}
+                            onClick={() => showModal(`reviewModal-${item.foodId}-${idx}-${order.id}`)}
+                          >
+                            <i className={`bi ${existingFoodReview ? 'bi-check-circle' : 'bi-star'} me-1`}></i>
+                            {existingFoodReview ? 'Reviewed' : 'Review'}
+                          </button>
+                          <ReviewModal item={item} orderId={order.id} idx={idx} token={token} existingReview={existingFoodReview} onDone={load} />
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -894,22 +963,24 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                   )}
                   {isHistory && (
                     <>
-                      {order.orderType === 'delivery' && order.deliveryPersonId && !reviewedOrders.has(order.id) && (
-                        <>
-                          <button
-                            className="btn btn-sm"
-                            style={{ background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}
-                            data-bs-toggle="modal"
-                            data-bs-target={`#drModal-${order.id}`}
-                          >
-                            <i className="bi bi-bicycle me-1"></i>Rate Delivery
-                          </button>
-                          <DeliveryReviewModal orderId={order.id} token={token} onDone={load} />
-                        </>
-                      )}
-                      {order.orderType === 'delivery' && reviewedOrders.has(order.id) && (
-                        <span className="small text-muted"><i className="bi bi-check-circle me-1 text-success"></i>Delivery rated</span>
-                      )}
+                      {order.orderType === 'delivery' && order.deliveryPersonId && (() => {
+                        const existingDeliveryReview = deliveryReviews[order.id] || null;
+                        return (
+                          <>
+                            <button
+                              className="btn btn-sm"
+                              style={existingDeliveryReview
+                                ? { background: 'rgba(62,207,142,0.15)', color: '#3ecf8e', border: '1px solid rgba(62,207,142,0.3)' }
+                                : { background: 'rgba(167,139,250,0.15)', color: '#a78bfa', border: '1px solid rgba(167,139,250,0.3)' }}
+                              onClick={() => showModal(`drModal-${order.id}`)}
+                            >
+                              <i className={`bi ${existingDeliveryReview ? 'bi-check-circle' : 'bi-bicycle'} me-1`}></i>
+                              {existingDeliveryReview ? 'Rated Delivery' : 'Rate Delivery'}
+                            </button>
+                            <DeliveryReviewModal orderId={order.id} token={token} existingReview={existingDeliveryReview} onDone={load} />
+                          </>
+                        );
+                      })()}
                       <button className="btn btn-sm btn-primary" onClick={() => handleOrderAgain(order)}>
                         <i className="bi bi-arrow-clockwise me-1"></i>Order Again
                       </button>

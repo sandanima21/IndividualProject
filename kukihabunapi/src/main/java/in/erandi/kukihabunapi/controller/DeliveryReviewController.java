@@ -82,6 +82,25 @@ public class DeliveryReviewController {
         return ResponseEntity.status(HttpStatus.CREATED).body(reviewRepository.save(review));
     }
 
+    /** Customer edits their existing review for a delivered order. */
+    @PutMapping("/{id}")
+    public ResponseEntity<DeliveryReviewEntity> updateReview(
+            @PathVariable String id,
+            @RequestBody Map<String, Object> body,
+            @RequestHeader("Authorization") String authHeader) {
+        String customerId = extractUserId(authHeader);
+        if (customerId == null) return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+
+        DeliveryReviewEntity review = reviewRepository.findById(id).orElse(null);
+        if (review == null) return ResponseEntity.notFound().build();
+        if (!customerId.equals(review.getCustomerId())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+
+        int rating = body.get("rating") instanceof Number ? ((Number) body.get("rating")).intValue() : review.getRating();
+        review.setRating(rating);
+        review.setComment((String) body.getOrDefault("comment", review.getComment()));
+        return ResponseEntity.ok(reviewRepository.save(review));
+    }
+
     /** Check if a review already exists for an order (customer UI gate). */
     @GetMapping("/order/{orderId}")
     public ResponseEntity<DeliveryReviewEntity> getByOrder(@PathVariable String orderId) {
