@@ -145,7 +145,14 @@ public class DeliveryController {
         event.put("status", "OUT_FOR_DELIVERY");
         messagingTemplate.convertAndSend("/topic/order/" + orderId, (Object) event);
 
-        return ResponseEntity.ok(orderService.updateOrderStatus(orderId, "OUT_FOR_DELIVERY"));
+        OrderResponse updated = orderService.updateOrderStatus(orderId, "OUT_FOR_DELIVERY");
+        // Also push to the customer's own live Orders page (OrderController.updateStatus does
+        // this for admin-driven transitions; rider-driven ones were missing it, so the customer's
+        // status tracker silently relied on the 30s polling fallback instead of updating instantly).
+        if (updated.getUserId() != null) {
+            messagingTemplate.convertAndSend("/topic/order-status/" + updated.getUserId(), updated);
+        }
+        return ResponseEntity.ok(updated);
     }
 
     // Rider marks order as DELIVERED (preferred over /complete for new clients)
@@ -171,7 +178,14 @@ public class DeliveryController {
         messagingTemplate.convertAndSend("/topic/order/" + orderId, (Object) event);
         messagingTemplate.convertAndSend("/topic/order/" + orderId + "/tracking", (Object) event);
 
-        return ResponseEntity.ok(orderService.updateOrderStatus(orderId, "DELIVERED"));
+        OrderResponse updated = orderService.updateOrderStatus(orderId, "DELIVERED");
+        // Also push to the customer's own live Orders page — this is what makes the
+        // post-delivery review prompt appear the instant delivery happens instead of waiting
+        // (up to) 30s for the polling fallback, same reasoning as acceptOrder above.
+        if (updated.getUserId() != null) {
+            messagingTemplate.convertAndSend("/topic/order-status/" + updated.getUserId(), updated);
+        }
+        return ResponseEntity.ok(updated);
     }
 
     // Rider online/offline toggle
