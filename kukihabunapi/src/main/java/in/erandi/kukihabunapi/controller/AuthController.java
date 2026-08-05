@@ -227,6 +227,15 @@ public class AuthController {
                     .body(Map.of("error", "Phone number is required."));
         }
 
+        // Two accounts (customer or delivery) must never share a phone number.
+        boolean phoneTakenByAnotherUser = userRepository.findFirstByPhone(phone)
+                .map(existing -> !existing.getId().equals(userId))
+                .orElse(false);
+        if (phoneTakenByAnotherUser) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(Map.of("error", "Entered phone number already exists."));
+        }
+
         // Persist the verified phone number to the user document
         return userRepository.findById(userId)
                 .map(user -> {

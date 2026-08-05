@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { assets } from '../../assets/assets';
 import './WelcomePopup.css';
 
 const DISHES = ['🍛', '🍜', '🥘', '🍲', '🫕', '🍱'];
@@ -26,6 +27,8 @@ const WelcomePopup = ({ user, onDone }) => {
       ))}
 
       <div className="wlc-card" onClick={e => e.stopPropagation()}>
+        <img src={assets.logo} alt="KukiHabun" className="wlc-logo" />
+
         {/* Burst ring */}
         <div className="wlc-ring">
           <div className="wlc-ring-inner">
@@ -39,10 +42,7 @@ const WelcomePopup = ({ user, onDone }) => {
         </h2>
 
         {isNew ? (
-          <>
-            <p className="wlc-sub">You're officially part of the KukiHabun family.</p>
-            <p className="wlc-tagline">Authentic Sri Lankan flavours, delivered with love ❤️</p>
-          </>
+          <p className="wlc-sub">Successfully registered to KukiHabun</p>
         ) : (
           <p className="wlc-sub">Great to see you again! Ready to order?</p>
         )}

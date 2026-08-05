@@ -116,7 +116,7 @@ const Users = () => {
       setUsers(prev => [...prev, newUser]);
       setForm(EMPTY_DELIVERY);
       setShowRegister(false);
-      toast.success(`✓ Account created for "${newUser.name}". Login credentials emailed to ${form.email || 'the provided address'}.`);
+      toast.success('Delivery person is registered successfully');
     } catch (err) {
       const msg = err?.response?.data?.message || (typeof err?.response?.data === 'string' ? err.response.data : null);
       toast.error(msg || 'Registration failed.');

@@ -47,6 +47,14 @@
   max-width: 480px;
 }
 
+.wlc-logo {
+  display: block;
+  width: 52px; height: 52px;
+  border-radius: 14px;
+  margin: 0 auto 14px;
+  animation: wlcUp 0.5s cubic-bezier(0.34,1.56,0.64,1) 0.05s both;
+}
+
 .wlc-ring {
   width: 108px; height: 108px;
   border-radius: 50%;
