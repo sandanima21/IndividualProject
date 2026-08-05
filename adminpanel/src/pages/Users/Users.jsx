@@ -135,7 +135,9 @@ const Users = () => {
       <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
         <h4 className="mb-0 fw-bold">
           <i className="bi bi-people me-2" style={{ color: 'var(--gold)' }}></i>Users
-          <span className="badge bg-secondary ms-2">{users.length}</span>
+          {/* Excludes the admin account itself — this count is meant to reflect
+              customers + delivery staff, not everyone with a login. */}
+          <span className="badge bg-secondary ms-2">{customers.length + delivery.length}</span>
         </h4>
         <div className="d-flex gap-2 flex-wrap">
           <input
