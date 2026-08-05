@@ -81,4 +81,10 @@ public class OrderEntity {
     private LocalDateTime createdAt = LocalDateTime.now();
 
     private LocalDateTime updatedAt;
+
+    // Set the moment status first becomes DELIVERED (delivery orders) or is marked picked up
+    // (takeaway orders — both use the DELIVERED status) — see OrderServiceImpl.updateOrderStatus.
+    // This is what History views show, since createdAt/updatedAt don't reliably mean "when this
+    // order finished" (updatedAt is touched by unrelated later actions like refund edits).
+    private LocalDateTime deliveredAt;
 }

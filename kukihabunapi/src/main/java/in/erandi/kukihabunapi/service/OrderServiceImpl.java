@@ -155,6 +155,9 @@ public class OrderServiceImpl implements OrderService {
         }
         order.setStatus(status);
         order.setUpdatedAt(LocalDateTime.now());
+        if ("DELIVERED".equals(status)) {
+            order.setDeliveredAt(order.getUpdatedAt());
+        }
 
         // If admin moves an order back to a pre-pickup stage, clear the rider assignment
         // so the order re-appears in the available list and can be accepted again.
@@ -460,6 +463,7 @@ public class OrderServiceImpl implements OrderService {
                 .cancelableUntil(order.getCancelableUntil())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
+                .deliveredAt(order.getDeliveredAt())
                 .build();
     }
 }

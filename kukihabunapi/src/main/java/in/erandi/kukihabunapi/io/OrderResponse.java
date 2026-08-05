@@ -52,4 +52,5 @@ public class OrderResponse {
     private LocalDateTime cancelableUntil;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime deliveredAt;
 }

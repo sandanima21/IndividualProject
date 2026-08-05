@@ -1089,7 +1089,11 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                   </span>
                 )}
               </div>
-              <small className="text-muted">{toSLDate(order.createdAt)}</small>
+              <small className="text-muted">
+                {/* History shows when the order was delivered/picked up (why it moved into
+                    History), not when it was placed — active orders still show createdAt. */}
+                {toSLDate(isHistory ? (order.deliveredAt || order.updatedAt || order.createdAt) : order.createdAt)}
+              </small>
             </div>
 
             {/* Status tracker — only for active orders */}

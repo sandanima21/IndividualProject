@@ -106,8 +106,8 @@ public class DeliveryController {
                 .filter(o -> riderId.equals(o.getDeliveryPersonId()))
                 .filter(o -> "DELIVERED".equals(o.getStatus()))
                 .sorted((a, b) -> {
-                    LocalDateTime ta = a.getUpdatedAt() != null ? a.getUpdatedAt() : a.getCreatedAt();
-                    LocalDateTime tb = b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt();
+                    LocalDateTime ta = a.getDeliveredAt() != null ? a.getDeliveredAt() : a.getUpdatedAt() != null ? a.getUpdatedAt() : a.getCreatedAt();
+                    LocalDateTime tb = b.getDeliveredAt() != null ? b.getDeliveredAt() : b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt();
                     if (ta == null || tb == null) return 0;
                     return tb.compareTo(ta);
                 })

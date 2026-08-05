@@ -516,7 +516,7 @@ const DeliveryDashboard = () => {
     const cutoff = startOfPeriod(historyFilter);
     const term = historySearch.trim().toLowerCase();
     return historyOrders.filter(o => {
-      const completedAt = asUtcDate(o.updatedAt || o.createdAt);
+      const completedAt = asUtcDate(o.deliveredAt || o.updatedAt || o.createdAt);
       if (!completedAt || completedAt < cutoff) return false;
       if (!term) return true;
       return o.userName?.toLowerCase().includes(term) ||
@@ -657,8 +657,8 @@ const DeliveryDashboard = () => {
           {order.displayId || `#${order.id.slice(-6).toUpperCase()}`}
         </td>
         <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: 'rgba(200,196,188,0.55)', whiteSpace: 'nowrap' }}>
-          {formatColomboDate(order.updatedAt || order.createdAt)}
-          <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.updatedAt || order.createdAt)}</div>
+          {formatColomboDate(order.deliveredAt || order.updatedAt || order.createdAt)}
+          <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.deliveredAt || order.updatedAt || order.createdAt)}</div>
         </td>
         <td style={{ padding: '10px 12px' }}>
           <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#e0ddd4' }}>{order.userName || '—'}</div>

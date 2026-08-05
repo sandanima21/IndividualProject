@@ -68,8 +68,11 @@ const OrderRow = ({ order, reviewsForOrder }) => {
           Rs.{order.total?.toFixed(2)}
         </td>
         <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: 'rgba(200,196,188,0.45)', whiteSpace: 'nowrap' }}>
-          {formatColomboDate(order.createdAt)}
-          <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.createdAt)}</div>
+          {/* Completion time (when the order reached this history bucket), not placement time —
+              deliveredAt covers Delivered/Picked Up; Refunded/Cancelled fall back to updatedAt,
+              same convention as the isInRange filter below. */}
+          {formatColomboDate(order.deliveredAt || order.updatedAt || order.createdAt)}
+          <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.deliveredAt || order.updatedAt || order.createdAt)}</div>
         </td>
         <td style={{ padding: '10px 12px', borderRadius: '0 10px 10px 0', textAlign: 'center' }}>
           {hasReviews ? (
@@ -185,7 +188,7 @@ const History = () => {
   // Parsed via asUtcDate since the backend sends zone-less LocalDateTime strings that are
   // actually UTC — raw `new Date(...)` would silently misread them as browser-local time.
   const isInRange = (o) => {
-    const completedAt = asUtcDate(o.updatedAt || o.createdAt);
+    const completedAt = asUtcDate(o.deliveredAt || o.updatedAt || o.createdAt);
     return completedAt && completedAt >= cutoff;
   };
 
