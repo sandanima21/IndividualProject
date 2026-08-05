@@ -12,11 +12,57 @@ const Avatar = ({ user }) => (
       </div>
 );
 
+/* ── Delete confirmation modal — replaces the native window.confirm() so the
+   warning is actually visible/styled instead of an easy-to-miss browser popup. */
+const DeleteUserModal = ({ user, onClose, onConfirm }) => {
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirm = async () => {
+    setDeleting(true);
+    try { await onConfirm(); } finally { setDeleting(false); }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1055, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
+      onClick={deleting ? undefined : onClose}>
+      <div style={{ background: '#1a1a1a', border: '1px solid rgba(244,115,115,0.3)', borderRadius: 18, width: '100%', maxWidth: 420, padding: '1.75rem' }}
+        onClick={e => e.stopPropagation()}>
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <h5 className="fw-bold mb-0" style={{ color: '#f47373' }}>
+            <i className="bi bi-exclamation-triangle me-2"></i>Delete User
+          </h5>
+          <button className="btn-close btn-close-white" onClick={onClose} disabled={deleting} />
+        </div>
+
+        <p className="mb-2">Are you sure you want to delete <strong>{user.name}</strong>?</p>
+        {user.role === 'DELIVERY' ? (
+          <p className="small mb-4" style={{ color: '#f47373' }}>
+            <i className="bi bi-info-circle me-1"></i>Their reviews will also be deleted.
+          </p>
+        ) : (
+          <p className="small text-muted mb-4">This can't be undone.</p>
+        )}
+
+        <div className="d-flex justify-content-end gap-2">
+          <button type="button" className="btn btn-outline-secondary btn-sm" onClick={onClose} disabled={deleting}>No</button>
+          <button type="button" className="btn btn-danger btn-sm px-4" onClick={handleConfirm} disabled={deleting}>
+            {deleting
+              ? <span className="spinner-border spinner-border-sm me-1" />
+              : <i className="bi bi-trash me-1"></i>}
+            Yes, Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Users = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('customers');
   const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null); // null | user to confirm-delete
 
   // Register delivery form
   const [showRegister, setShowRegister] = useState(false);
@@ -49,18 +95,16 @@ const Users = () => {
     }
   };
 
-  const handleDelete = async (user) => {
-    const warning = user.role === 'DELIVERY'
-      ? `Delete ${user.name}? This cannot be undone. Their delivery reviews will also be deleted.`
-      : `Delete ${user.name}? This cannot be undone.`;
-    if (!window.confirm(warning)) return;
+  const confirmDelete = async () => {
     try {
-      await deleteUser(user.id);
-      setUsers(prev => prev.filter(u => u.id !== user.id));
+      await deleteUser(deleteTarget.id);
+      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
       toast.success('User deleted.');
+      setDeleteTarget(null);
     } catch (err) {
       const msg = err?.response?.data?.message;
       toast.error(msg || 'Delete failed.', msg ? { autoClose: 8000 } : undefined);
+      // Modal stays open on failure so the admin can see the message and retry/cancel.
     }
   };
 
@@ -122,7 +166,7 @@ const Users = () => {
           </button>
           <button
             className="btn btn-sm btn-outline-danger px-2"
-            onClick={() => handleDelete(user)}
+            onClick={() => setDeleteTarget(user)}
             title="Delete"
           >
             <i className="bi bi-trash"></i>
@@ -264,6 +308,14 @@ const Users = () => {
           </div>
         );
       })()}
+
+      {deleteTarget && (
+        <DeleteUserModal
+          user={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={confirmDelete}
+        />
+      )}
     </div>
   );
 };
