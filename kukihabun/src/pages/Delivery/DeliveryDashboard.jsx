@@ -559,8 +559,11 @@ const DeliveryDashboard = () => {
           <small style={{ color: 'rgba(200,196,188,0.5)' }}>
             {/* order.createdAt is a zone-less backend timestamp that's actually UTC — parsing it
                 with a bare `new Date()` (no explicit timeZone) reads it as browser-local time, which
-                silently shows the raw UTC clock digits as if they were already Sri Lanka time. */}
-            {formatColomboTime(order.createdAt)}
+                silently shows the raw UTC clock digits as if they were already Sri Lanka time.
+                Active Deliveries show when the rider accepted it (became Out for Delivery), not
+                when the order was originally placed — outForDeliveryAt falls back to createdAt
+                for orders accepted before this field existed. Available/other cards are unchanged. */}
+            {formatColomboTime(isActive ? (order.outForDeliveryAt || order.createdAt) : order.createdAt)}
           </small>
         </div>
 

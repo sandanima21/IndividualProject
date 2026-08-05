@@ -158,6 +158,9 @@ public class OrderServiceImpl implements OrderService {
         if ("DELIVERED".equals(status)) {
             order.setDeliveredAt(order.getUpdatedAt());
         }
+        if ("OUT_FOR_DELIVERY".equals(status)) {
+            order.setOutForDeliveryAt(order.getUpdatedAt());
+        }
 
         // If admin moves an order back to a pre-pickup stage, clear the rider assignment
         // so the order re-appears in the available list and can be accepted again.
@@ -464,6 +467,7 @@ public class OrderServiceImpl implements OrderService {
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .deliveredAt(order.getDeliveredAt())
+                .outForDeliveryAt(order.getOutForDeliveryAt())
                 .build();
     }
 }

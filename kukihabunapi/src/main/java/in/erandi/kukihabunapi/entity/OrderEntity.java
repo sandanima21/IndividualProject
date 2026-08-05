@@ -87,4 +87,9 @@ public class OrderEntity {
     // This is what History views show, since createdAt/updatedAt don't reliably mean "when this
     // order finished" (updatedAt is touched by unrelated later actions like refund edits).
     private LocalDateTime deliveredAt;
+
+    // Set the moment a rider accepts the order and status becomes OUT_FOR_DELIVERY — see
+    // OrderServiceImpl.updateOrderStatus / DeliveryController.acceptOrder. Shown on the rider's
+    // Active Deliveries card, same reasoning as deliveredAt above.
+    private LocalDateTime outForDeliveryAt;
 }
