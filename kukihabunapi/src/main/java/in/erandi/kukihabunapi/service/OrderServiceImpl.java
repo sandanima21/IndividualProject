@@ -218,6 +218,9 @@ public class OrderServiceImpl implements OrderService {
         order.setRefundStatus(refundStatus);
         if (notes != null && !notes.isBlank()) order.setRefundNotes(notes);
         order.setUpdatedAt(LocalDateTime.now());
+        if ("REFUNDED".equals(refundStatus)) {
+            order.setRefundedAt(order.getUpdatedAt());
+        }
         return toResponse(orderRepository.save(order));
     }
 
@@ -262,6 +265,9 @@ public class OrderServiceImpl implements OrderService {
                 : "Refund marked in-progress at " + LocalDateTime.now() + " (sandbox simulation — PayHere sandbox doesn't "
                         + "issue API credentials, so no real API call was made; this won't appear in the PayHere dashboard).");
         order.setUpdatedAt(LocalDateTime.now());
+        if (actuallyCalledPayHere) {
+            order.setRefundedAt(order.getUpdatedAt());
+        }
         return toResponse(orderRepository.save(order));
     }
 
@@ -294,6 +300,7 @@ public class OrderServiceImpl implements OrderService {
             order.setRefundStatus("PENDING_REFUND");
         }
         order.setUpdatedAt(LocalDateTime.now());
+        order.setCancelledAt(order.getUpdatedAt());
 
         OrderResponse response = toResponse(orderRepository.save(order));
         if (response.getUserEmail() != null) {
@@ -468,6 +475,8 @@ public class OrderServiceImpl implements OrderService {
                 .updatedAt(order.getUpdatedAt())
                 .deliveredAt(order.getDeliveredAt())
                 .outForDeliveryAt(order.getOutForDeliveryAt())
+                .cancelledAt(order.getCancelledAt())
+                .refundedAt(order.getRefundedAt())
                 .build();
     }
 }

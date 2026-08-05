@@ -92,4 +92,13 @@ public class OrderEntity {
     // OrderServiceImpl.updateOrderStatus / DeliveryController.acceptOrder. Shown on the rider's
     // Active Deliveries card, same reasoning as deliveredAt above.
     private LocalDateTime outForDeliveryAt;
+
+    // Set the moment status becomes CANCELLED — see OrderServiceImpl.adminCancelOrder and
+    // PaymentController.cancelOrder (customer self-cancel). Shown in admin History → Cancelled.
+    private LocalDateTime cancelledAt;
+
+    // Set the moment refundStatus first becomes REFUNDED (the refund actually completing, not
+    // just being requested/in-progress) — see OrderServiceImpl.updateRefundStatus and
+    // processPayhereRefund. Shown in admin History → Refunded.
+    private LocalDateTime refundedAt;
 }

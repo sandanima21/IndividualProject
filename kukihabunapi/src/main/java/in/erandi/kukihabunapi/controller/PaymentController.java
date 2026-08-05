@@ -196,6 +196,7 @@ private final PaymentRepository paymentRepository;
         order.setPaymentStatus("REFUNDED");
         order.setRefundStatus("PENDING_REFUND");
         order.setCancelledBy("CUSTOMER");
+        order.setCancelledAt(LocalDateTime.now());
 
         // Persist the customer's bank details so admin can process the transfer manually
         if (body != null) {

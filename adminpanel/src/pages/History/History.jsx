@@ -68,9 +68,9 @@ const OrderRow = ({ order, reviewsForOrder }) => {
           Rs.{order.total?.toFixed(2)}
         </td>
         <td style={{ padding: '10px 12px', fontSize: '0.75rem', color: 'rgba(200,196,188,0.45)', whiteSpace: 'nowrap' }}>
-          {/* Completion time (when the order reached this history bucket), not placement time —
-              deliveredAt covers Delivered/Picked Up; Refunded/Cancelled fall back to updatedAt,
-              same convention as the isInRange filter below. */}
+          {/* Delivered/picked-up time (when the order reached this history bucket), not
+              placement time — falls back to updatedAt/createdAt for orders that predate
+              deliveredAt. Refunded/Cancelled sections use RefundedTable's own dateOf prop. */}
           {formatColomboDate(order.deliveredAt || order.updatedAt || order.createdAt)}
           <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.deliveredAt || order.updatedAt || order.createdAt)}</div>
         </td>
@@ -182,13 +182,14 @@ const History = () => {
     o.id.includes(search);
 
   // History buckets by *completion* time, not order-placement time — an order placed
-  // last week but delivered today must still show up under "Today". updatedAt is the
-  // best available proxy for "when this status was reached" (there's no per-transition
-  // timestamp), same convention as the Active Orders board and the rider "today" list.
+  // last week but delivered today must still show up under "Today". Each order only ever
+  // has ONE of these set (an order can't be both DELIVERED and CANCELLED, and refundedAt
+  // only exists on orders that were already cancelled), so this picks whichever actually
+  // applies; updatedAt/createdAt are the fallback for orders that predate these fields.
   // Parsed via asUtcDate since the backend sends zone-less LocalDateTime strings that are
   // actually UTC — raw `new Date(...)` would silently misread them as browser-local time.
   const isInRange = (o) => {
-    const completedAt = asUtcDate(o.deliveredAt || o.updatedAt || o.createdAt);
+    const completedAt = asUtcDate(o.deliveredAt || o.refundedAt || o.cancelledAt || o.updatedAt || o.createdAt);
     return completedAt && completedAt >= cutoff;
   };
 
@@ -397,7 +398,7 @@ const History = () => {
               <span className="ms-3 text-muted" style={{ fontWeight: 400, fontSize: '0.75rem' }}>({refundedOrders.length} orders)</span>
             </div>
           </div>
-          <RefundedTable orders={refundedOrders} onRefresh={loadData} />
+          <RefundedTable orders={refundedOrders} onRefresh={loadData} dateOf={o => o.refundedAt || o.updatedAt || o.createdAt} />
         </>
       )}
 
@@ -408,7 +409,7 @@ const History = () => {
             <StatCard icon="bi-x-octagon"          label="Orders Cancelled" value={adminCancelledOrders.length} color="#a78bfa" bg="rgba(167,139,250,0.12)" />
             <StatCard icon="bi-currency-exchange"  label="Value Lost"       value={`Rs.${adminCancelledOrders.reduce((s, o) => s + (o.total || 0), 0).toFixed(2)}`} color="#f87171" bg="rgba(248,113,113,0.12)" />
           </div>
-          <RefundedTable orders={adminCancelledOrders} onRefresh={loadData} emptyMsg="No cancelled orders for this period." />
+          <RefundedTable orders={adminCancelledOrders} onRefresh={loadData} emptyMsg="No cancelled orders for this period." dateOf={o => o.cancelledAt || o.updatedAt || o.createdAt} />
         </>
       )}
     </div>

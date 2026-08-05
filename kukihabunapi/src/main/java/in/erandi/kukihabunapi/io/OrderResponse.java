@@ -54,4 +54,6 @@ public class OrderResponse {
     private LocalDateTime updatedAt;
     private LocalDateTime deliveredAt;
     private LocalDateTime outForDeliveryAt;
+    private LocalDateTime cancelledAt;
+    private LocalDateTime refundedAt;
 }

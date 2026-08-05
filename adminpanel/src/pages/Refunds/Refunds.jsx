@@ -339,7 +339,11 @@ const ExpandedDetail = ({ order, onReceiptUploaded }) => {
   );
 };
 
-export const RefundedTable = ({ orders, onRefresh, emptyMsg = 'No refunds in this category.' }) => {
+// dateOf lets callers show the timestamp that actually matches what this table is
+// listing (e.g. History's Refunded section wants refundedAt, its Cancelled section wants
+// cancelledAt) — defaults to createdAt, which is what the Refunds page itself wants for
+// still-pending refunds (there's no refundedAt/cancelledAt-equivalent "done" moment yet).
+export const RefundedTable = ({ orders, onRefresh, emptyMsg = 'No refunds in this category.', dateOf = (order) => order.createdAt }) => {
   const [editingOrder, setEditingOrder] = useState(null);
   const [expandedId, setExpandedId] = useState(null);
 
@@ -438,8 +442,8 @@ export const RefundedTable = ({ orders, onRefresh, emptyMsg = 'No refunds in thi
                     </td>
 
                     <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: '0.75rem', color: 'rgba(200,196,188,0.45)', whiteSpace: 'nowrap' }}>
-                      {formatColomboDate(order.createdAt)}
-                      <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(order.createdAt)}</div>
+                      {formatColomboDate(dateOf(order))}
+                      <div style={{ fontSize: '0.68rem' }}>{formatColomboTime(dateOf(order))}</div>
                     </td>
 
                     <td style={{ padding: '10px 12px', borderRadius: expanded ? '0 10px 0 0' : '0 10px 10px 0', textAlign: 'center' }}
