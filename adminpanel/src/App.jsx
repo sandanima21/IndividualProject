@@ -60,7 +60,9 @@ const App = () => {
     setAdminUser(data);
     // Always land on Analytics after signing in, regardless of whatever URL
     // happened to be showing (e.g. a bookmarked /orders link) before login.
-    navigate('/', { replace: true });
+    // Navigates to /analytics specifically (not just /) so the sidebar's Analytics
+    // item is highlighted as active — it only matches on the exact path.
+    navigate('/analytics', { replace: true });
   };
 
   const handleLogout = () => {
