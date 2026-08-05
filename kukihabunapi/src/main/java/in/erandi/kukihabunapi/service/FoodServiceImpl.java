@@ -1,6 +1,7 @@
 package in.erandi.kukihabunapi.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,16 @@ public class FoodServiceImpl implements FoodService {
     // being worked on, so its foods can't be deleted out from under it.
     private static final List<String> ACTIVE_ORDER_STATUSES =
             List.of("PENDING", "CONFIRMED", "COOKING", "READY", "OUT_FOR_DELIVERY");
+
+    // Human-friendly labels for the delete-blocked message — mirrors the admin
+    // Kanban board's column labels (e.g. COOKING reads as "Preparing" there too).
+    private static final Map<String, String> STATUS_LABELS = Map.of(
+            "PENDING", "Pending",
+            "CONFIRMED", "Confirmed",
+            "COOKING", "Preparing",
+            "READY", "Ready",
+            "OUT_FOR_DELIVERY", "Out for Delivery"
+    );
 
     @Autowired
     private FirebaseStorageService storageService;
@@ -106,23 +117,34 @@ public class FoodServiceImpl implements FoodService {
     }
 
     private void assertFoodHasNoActiveOrders(String foodId, String foodName) {
-        int blocking = activeOrdersFor(List.of(foodId)).size();
-        if (blocking > 0) {
+        List<OrderEntity> blocking = activeOrdersFor(List.of(foodId));
+        if (!blocking.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "\"" + foodName + "\" is in " + blocking + " order(s) customers are still waiting on " +
-                    "(pending, confirmed, or being prepared). Please complete or cancel those orders first, then try deleting again.");
+                    "\"" + foodName + "\" is in " + statusPhrase(blocking) + ". Please complete or cancel those orders before deleting.");
         }
     }
 
     private void assertCategoryHasNoActiveOrders(List<FoodEntity> foods) {
         if (foods.isEmpty()) return;
         List<String> foodIds = foods.stream().map(FoodEntity::getId).collect(Collectors.toList());
-        int blocking = activeOrdersFor(foodIds).size();
-        if (blocking > 0) {
+        List<OrderEntity> blocking = activeOrdersFor(foodIds);
+        if (!blocking.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "This category can't be deleted — some of its foods are in " + blocking + " order(s) customers are " +
-                    "still waiting on (pending, confirmed, or being prepared). Please complete or cancel those orders first, then try deleting again.");
+                    "This category has foods in " + statusPhrase(blocking) + ". Please complete or cancel those orders before deleting.");
         }
+    }
+
+    // e.g. "Pending status" / "Pending and Confirmed statuses" / "Pending, Confirmed and
+    // Preparing statuses" — one label per distinct status among the blocking orders, in
+    // workflow order, deduplicated.
+    private String statusPhrase(List<OrderEntity> blocking) {
+        List<String> labels = ACTIVE_ORDER_STATUSES.stream()
+                .filter(status -> blocking.stream().anyMatch(o -> status.equals(o.getStatus())))
+                .map(status -> STATUS_LABELS.getOrDefault(status, status))
+                .collect(Collectors.toList());
+        if (labels.size() == 1) return labels.get(0) + " status";
+        String allButLast = String.join(", ", labels.subList(0, labels.size() - 1));
+        return allButLast + " and " + labels.get(labels.size() - 1) + " statuses";
     }
 
     @Override
