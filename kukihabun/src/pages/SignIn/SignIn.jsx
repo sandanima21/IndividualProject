@@ -193,6 +193,12 @@ const SignIn = () => {
 
   // ── Helpers ───────────────────────────────────────────────────────────────────
   const finish = (data, isNew = false) => {
+    // This app is customer/delivery only — admin accounts must use the admin panel
+    // instead (which already rejects non-admin logins the same way, in reverse).
+    if (data.role === 'ADMIN') {
+      toast.error('Admin accounts can\'t sign in here — please use the admin panel.');
+      return;
+    }
     login(
       { id: data.id, name: data.name, email: data.email,
         picture: data.picture, role: data.role, username: data.username,
