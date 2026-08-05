@@ -21,7 +21,14 @@ import { addReview, updateReview, getReviewsByUser } from '../../service/reviews
 import { toast } from 'react-toastify';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PENDING_PAYMENT_KEY, CONFIRMED_PAYMENT_KEY } from '../../components/PayHereCheckout/PayHereCheckout';
-import { Modal } from 'bootstrap';
+// Imported from the exact same file main.jsx side-effect-loads (not the bare 'bootstrap'
+// specifier, which resolves to the separate bootstrap.esm.js build). Two different files
+// means two independent Bootstrap module instances, each registering its own document-level
+// data-bs-toggle auto-init listeners — which was silently breaking OTHER data-bs-toggle
+// components elsewhere in the app (e.g. the account dropdown in Menubar.jsx): the first
+// listener would open it, the second (from this file's separate instance, unaware of the
+// first's state) would immediately toggle it shut again on the very same click.
+import { Modal } from 'bootstrap/dist/js/bootstrap.bundle.js';
 import './Orders.css';
 
 // Parse backend LocalDateTime (no timezone suffix) as UTC, display in Sri Lanka time (UTC+5:30)
