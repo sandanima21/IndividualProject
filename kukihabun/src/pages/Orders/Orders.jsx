@@ -562,11 +562,24 @@ const OrderDetailsModal = ({ order, onClose }) => {
  * then each food item, one step at a time — "Skip for now" bails out of the whole
  * flow at any point, since everything here can also be done later from the History
  * tab's Review/Rate Delivery buttons.
+ *
+ * A rider or food that's since been removed from the system is never offered for
+ * review — deliveryPersonName comes back null from the backend once the rider
+ * account is gone (see OrderServiceImpl.buildResponse), and foodList (the live
+ * menu) is checked per item since order items keep a frozen copy of the food's
+ * name/image from order time even after the food itself is deleted.
  */
-const PostDeliveryPrompt = ({ order, token, onClose }) => {
-  const isDeliveryOrder = order.orderType === 'delivery' && !!order.deliveryPersonId;
-  const items = order.items || [];
-  const [step, setStep] = useState(isDeliveryOrder ? 'delivery' : 'food');
+const PostDeliveryPrompt = ({ order, token, foodList, onClose }) => {
+  const riderExists = order.orderType === 'delivery' && !!order.deliveryPersonId && !!order.deliveryPersonName;
+  const allItems = order.items || [];
+  // foodList empty means it hasn't loaded yet — treat items as reviewable rather
+  // than wrongly hiding all of them for a moment on first render.
+  const reviewableItems = foodList.length > 0
+    ? allItems.filter(it => foodList.some(f => f.id === it.foodId))
+    : allItems;
+  const hasContent = riderExists || reviewableItems.length > 0;
+
+  const [step, setStep] = useState(riderExists ? 'delivery' : 'food');
   const [itemIndex, setItemIndex] = useState(0);
 
   const [drRating, setDrRating] = useState(5);
@@ -577,7 +590,13 @@ const PostDeliveryPrompt = ({ order, token, onClose }) => {
   const [frComment, setFrComment] = useState('');
   const [frSubmitting, setFrSubmitting] = useState(false);
 
-  const currentItem = items[itemIndex];
+  // Nothing left to ask about (rider and every food item are both gone) — close
+  // immediately rather than showing an empty prompt.
+  useEffect(() => {
+    if (!hasContent) onClose();
+  }, [hasContent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const currentItem = reviewableItems[itemIndex];
   const rating = step === 'delivery' ? drRating : frRating;
   const setRating = step === 'delivery' ? setDrRating : setFrRating;
   const comment = step === 'delivery' ? drComment : frComment;
@@ -596,11 +615,11 @@ const PostDeliveryPrompt = ({ order, token, onClose }) => {
     } finally {
       setDrSubmitting(false);
     }
-    if (items.length > 0) goToFoodStep(); else onClose();
+    if (reviewableItems.length > 0) goToFoodStep(); else onClose();
   };
 
   const nextItemOrFinish = () => {
-    if (itemIndex + 1 < items.length) {
+    if (itemIndex + 1 < reviewableItems.length) {
       setItemIndex(i => i + 1);
       setFrRating(5); setFrComment('');
     } else {
@@ -621,6 +640,8 @@ const PostDeliveryPrompt = ({ order, token, onClose }) => {
     nextItemOrFinish();
   };
 
+  if (!hasContent) return null;
+
   return (
     <div className="modal fade show" style={{ display: 'block', background: 'rgba(0,0,0,0.6)' }} tabIndex="-1">
       <div className="modal-dialog modal-dialog-centered" onClick={e => e.stopPropagation()}>
@@ -634,10 +655,35 @@ const PostDeliveryPrompt = ({ order, token, onClose }) => {
             <button type="button" className="btn-close" onClick={onClose}></button>
           </div>
           <div className="modal-body">
-            <p className="small text-muted mb-3">
-              {order.displayId || `#${order.id.slice(-6).toUpperCase()}`} — your order was {order.orderType === 'delivery' ? 'delivered' : 'picked up'}!
-              {step === 'food' && items.length > 1 && ` (Item ${itemIndex + 1} of ${items.length})`}
-            </p>
+            {/* Order recap — lets the customer recognise which order this is by its
+                food, rather than a bare order number. */}
+            <div className="mb-3 p-2 rounded-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div className="small text-muted mb-2">
+                {order.displayId || `#${order.id.slice(-6).toUpperCase()}`} · {order.orderType === 'delivery' ? 'Delivered' : 'Picked up'}
+              </div>
+              {allItems.map((it, i) => (
+                <div key={i} className="d-flex align-items-center gap-2" style={{ padding: '2px 0' }}>
+                  {it.foodImageUrl && <img src={it.foodImageUrl} alt="" width={30} height={26} style={{ objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />}
+                  <span className="small">{it.foodName} × {it.quantity}</span>
+                </div>
+              ))}
+            </div>
+
+            {step === 'delivery' ? (
+              <div className="d-flex align-items-center gap-3 p-2 rounded-3 mb-3" style={{ background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.25)' }}>
+                {order.deliveryPersonPicture
+                  ? <img src={order.deliveryPersonPicture} alt="" width={44} height={44} className="rounded-circle" style={{ objectFit: 'cover', flexShrink: 0 }} referrerPolicy="no-referrer" />
+                  : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(167,139,250,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '1.1rem', border: '2px solid rgba(167,139,250,0.3)' }}>🛵</div>}
+                <div className="flex-fill" style={{ minWidth: 0 }}>
+                  <div className="small" style={{ color: '#a78bfa' }}>Your delivery rider</div>
+                  <div className="fw-semibold text-truncate">{order.deliveryPersonName}</div>
+                  {order.deliveryAddress && <div className="small text-muted text-truncate">to {order.deliveryAddress}</div>}
+                </div>
+              </div>
+            ) : currentItem && reviewableItems.length > 1 && (
+              <div className="small text-muted mb-2">Item {itemIndex + 1} of {reviewableItems.length}</div>
+            )}
+
             <div className="mb-3">
               <label className="form-label">Rating</label>
               <div className="d-flex gap-2">
@@ -670,7 +716,7 @@ const PostDeliveryPrompt = ({ order, token, onClose }) => {
 
 // statusFilter: 'active' = non-delivered, 'delivered' = DELIVERED only, undefined = all
 const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
-  const { user, token, reorderItems, clearCart } = useContext(StoreContext);
+  const { user, token, reorderItems, clearCart, foodList } = useContext(StoreContext);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [tab, setTab] = useState(
@@ -1072,7 +1118,9 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                   </div>
                   <div className="d-flex align-items-center gap-2">
                     <span>Rs.{(item.price * item.quantity).toFixed(2)}</span>
-                    {isHistory && (() => {
+                    {/* Only offer a review while the food still exists in the current menu —
+                        foodList empty means it hasn't loaded yet, so don't wrongly hide it. */}
+                    {isHistory && (foodList.length === 0 || foodList.some(f => f.id === item.foodId)) && (() => {
                       const existingFoodReview = foodReviews[`${order.id}::${item.foodId}`] || null;
                       return (
                         <>
@@ -1109,7 +1157,11 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
                   )}
                   {isHistory && (
                     <>
-                      {order.orderType === 'delivery' && order.deliveryPersonId && (() => {
+                      {/* deliveryPersonName comes back null once the rider account is deleted
+                          (see OrderServiceImpl.buildResponse) — and since deleting a rider also
+                          cascade-deletes their reviews, "rider gone" and "already reviewed" can
+                          never both be true, so it's safe to just hide the button here. */}
+                      {order.orderType === 'delivery' && order.deliveryPersonId && order.deliveryPersonName && (() => {
                         const existingDeliveryReview = deliveryReviews[order.id] || null;
                         return (
                           <>
@@ -1213,7 +1265,7 @@ const Orders = ({ embedded = false, maxItems = null, statusFilter }) => {
         {inner}
       </div>
       {liveDetailsOrder && <OrderDetailsModal order={liveDetailsOrder} onClose={() => setDetailsOrder(null)} />}
-      {promptOrder && <PostDeliveryPrompt order={promptOrder} token={token} onClose={closePrompt} />}
+      {promptOrder && <PostDeliveryPrompt order={promptOrder} token={token} foodList={foodList} onClose={closePrompt} />}
     </>
   );
 };

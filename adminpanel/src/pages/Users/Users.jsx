@@ -50,7 +50,10 @@ const Users = () => {
   };
 
   const handleDelete = async (user) => {
-    if (!window.confirm(`Delete ${user.name}? This cannot be undone.`)) return;
+    const warning = user.role === 'DELIVERY'
+      ? `Delete ${user.name}? This cannot be undone. Their delivery reviews will also be deleted.`
+      : `Delete ${user.name}? This cannot be undone.`;
+    if (!window.confirm(warning)) return;
     try {
       await deleteUser(user.id);
       setUsers(prev => prev.filter(u => u.id !== user.id));

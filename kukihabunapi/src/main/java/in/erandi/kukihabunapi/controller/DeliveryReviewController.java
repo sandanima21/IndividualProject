@@ -63,6 +63,12 @@ public class DeliveryReviewController {
         if (!"DELIVERED".equals(order.getStatus())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
+        // A rider who's been removed from the system is never reviewable — deleting a rider
+        // also cascade-deletes their existing reviews (see UserController.deleteUser), so this
+        // only ever blocks a brand-new review for a rider that's genuinely gone.
+        if (order.getDeliveryPersonId() == null || !userRepository.existsById(order.getDeliveryPersonId())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
 
         UserEntity customer = userRepository.findById(customerId).orElse(null);
         int rating = body.get("rating") instanceof Number ? ((Number) body.get("rating")).intValue() : 0;
@@ -94,6 +100,9 @@ public class DeliveryReviewController {
         DeliveryReviewEntity review = reviewRepository.findById(id).orElse(null);
         if (review == null) return ResponseEntity.notFound().build();
         if (!customerId.equals(review.getCustomerId())) return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        if (review.getDeliveryPersonId() == null || !userRepository.existsById(review.getDeliveryPersonId())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
 
         int rating = body.get("rating") instanceof Number ? ((Number) body.get("rating")).intValue() : review.getRating();
         review.setRating(rating);

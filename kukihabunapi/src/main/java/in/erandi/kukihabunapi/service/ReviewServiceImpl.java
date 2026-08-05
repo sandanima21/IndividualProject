@@ -4,6 +4,7 @@ import in.erandi.kukihabunapi.entity.ReviewEntity;
 import in.erandi.kukihabunapi.entity.UserEntity;
 import in.erandi.kukihabunapi.io.ReviewRequest;
 import in.erandi.kukihabunapi.io.ReviewResponse;
+import in.erandi.kukihabunapi.repository.FoodRepository;
 import in.erandi.kukihabunapi.repository.ReviewRepository;
 import in.erandi.kukihabunapi.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -18,14 +19,22 @@ public class ReviewServiceImpl implements ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final UserRepository userRepository;
+    private final FoodRepository foodRepository;
 
-    public ReviewServiceImpl(ReviewRepository reviewRepository, UserRepository userRepository) {
+    public ReviewServiceImpl(ReviewRepository reviewRepository, UserRepository userRepository, FoodRepository foodRepository) {
         this.reviewRepository = reviewRepository;
         this.userRepository = userRepository;
+        this.foodRepository = foodRepository;
     }
 
     @Override
     public ReviewResponse addReview(String userId, ReviewRequest request) {
+        // A food that's been removed from the menu is never reviewable — deleting a food
+        // also cascade-deletes its existing reviews (see FoodServiceImpl.deleteFood), so
+        // this only ever blocks brand-new reviews for a food that's genuinely gone.
+        if (!foodRepository.existsById(request.getFoodId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This food is no longer available for review.");
+        }
         if (reviewRepository.existsByOrderIdAndFoodId(request.getOrderId(), request.getFoodId())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Review already submitted for this order item");
         }
@@ -51,6 +60,9 @@ public class ReviewServiceImpl implements ReviewService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review not found"));
         if (!existing.getUserId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your review");
+        }
+        if (!foodRepository.existsById(existing.getFoodId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This food is no longer available for review.");
         }
         existing.setRating(request.getRating());
         existing.setComment(request.getComment());

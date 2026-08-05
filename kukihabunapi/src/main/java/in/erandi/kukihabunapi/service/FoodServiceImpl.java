@@ -14,6 +14,7 @@ import in.erandi.kukihabunapi.entity.OrderEntity;
 import in.erandi.kukihabunapi.io.FoodRequest;
 import in.erandi.kukihabunapi.io.FoodResponse;
 import in.erandi.kukihabunapi.repository.FoodRepository;
+import in.erandi.kukihabunapi.repository.ReviewRepository;
 
 @Service
 
@@ -24,6 +25,9 @@ public class FoodServiceImpl implements FoodService {
 
     @Autowired
     private FoodRepository foodRepository;
+
+    @Autowired
+    private ReviewRepository reviewRepository;
 
     @Autowired
     private OrderGuard orderGuard;
@@ -67,6 +71,10 @@ public class FoodServiceImpl implements FoodService {
         boolean isFileDelete=deleteFile(response.getImageUrl());
         if (isFileDelete){
             foodRepository.deleteById(response.getId());
+            // Cascade: reviews for a food that no longer exists would just be orphaned
+            // data nobody can ever see again (getReviewsByFood/getAllReviews would keep
+            // returning them with no way to associate them back to a real menu item).
+            reviewRepository.deleteByFoodId(response.getId());
         }
     }
 

@@ -3,6 +3,7 @@ package in.erandi.kukihabunapi.controller;
 import in.erandi.kukihabunapi.config.JwtUtil;
 import in.erandi.kukihabunapi.entity.OrderEntity;
 import in.erandi.kukihabunapi.entity.UserEntity;
+import in.erandi.kukihabunapi.repository.DeliveryReviewRepository;
 import in.erandi.kukihabunapi.repository.UserRepository;
 import in.erandi.kukihabunapi.service.EmailService;
 import in.erandi.kukihabunapi.service.FirebaseStorageService;
@@ -27,16 +28,18 @@ public class UserController {
     private final EmailService emailService;
     private final FirebaseStorageService storageService;
     private final OrderGuard orderGuard;
+    private final DeliveryReviewRepository deliveryReviewRepository;
 
     public UserController(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder,
                           JwtUtil jwtUtil, EmailService emailService, FirebaseStorageService storageService,
-                          OrderGuard orderGuard) {
+                          OrderGuard orderGuard, DeliveryReviewRepository deliveryReviewRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.emailService = emailService;
         this.storageService = storageService;
         this.orderGuard = orderGuard;
+        this.deliveryReviewRepository = deliveryReviewRepository;
     }
 
     // Blocks pausing/deleting a customer who still has an order in progress.
@@ -163,6 +166,12 @@ public class UserController {
         assertCustomerHasNoActiveOrders(user, "deleting");
         assertRiderHasNoActiveOrders(user, "deleting");
         userRepository.deleteById(id);
+        // Cascade: a deleted rider's reviews would just be orphaned data nobody can ever
+        // see again. Deliberately scoped to DELIVERY only — a deleted CUSTOMER's reviews,
+        // and every other record tied to them (orders, revenue), must be left untouched.
+        if ("DELIVERY".equals(user.getRole())) {
+            deliveryReviewRepository.deleteByDeliveryPersonId(id);
+        }
         return ResponseEntity.noContent().build();
     }
 

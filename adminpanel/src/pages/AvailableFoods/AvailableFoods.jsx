@@ -371,7 +371,7 @@ const AvailableFoods = () => {
   }, []);
 
   const handleDelete = async (id) => {
-    if (!window.confirm('Delete this food item?')) return;
+    if (!window.confirm('Delete this food item? Its customer reviews will also be deleted.')) return;
     try { await deleteFood(id); toast.success('Deleted.'); load(); }
     catch (err) {
       const msg = err?.response?.data?.message || err?.response?.data;

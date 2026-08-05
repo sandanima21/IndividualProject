@@ -124,7 +124,7 @@ const DeleteCategoryModal = ({ category, foodCount, onClose, onConfirm }) => {
         {foodCount > 0 ? (
           <p className="small mb-4" style={{ color: '#f47373' }}>
             <i className="bi bi-info-circle me-1"></i>
-            {foodCount} food item{foodCount > 1 ? 's' : ''} {foodCount > 1 ? 'are' : 'is'} under this category — {foodCount > 1 ? 'they' : 'it'} will also be permanently deleted.
+            {foodCount} food item{foodCount > 1 ? 's' : ''} {foodCount > 1 ? 'are' : 'is'} under this category — {foodCount > 1 ? 'they' : 'it'} and their customer reviews will also be permanently deleted.
           </p>
         ) : (
           <p className="small text-muted mb-4">No foods are currently under this category.</p>
