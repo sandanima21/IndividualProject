@@ -1,10 +1,12 @@
 package in.erandi.kukihabunapi.controller;
 
 import in.erandi.kukihabunapi.config.JwtUtil;
+import in.erandi.kukihabunapi.entity.OrderEntity;
 import in.erandi.kukihabunapi.entity.UserEntity;
 import in.erandi.kukihabunapi.repository.UserRepository;
 import in.erandi.kukihabunapi.service.EmailService;
 import in.erandi.kukihabunapi.service.FirebaseStorageService;
+import in.erandi.kukihabunapi.service.OrderGuard;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -24,14 +26,39 @@ public class UserController {
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
     private final FirebaseStorageService storageService;
+    private final OrderGuard orderGuard;
 
     public UserController(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder,
-                          JwtUtil jwtUtil, EmailService emailService, FirebaseStorageService storageService) {
+                          JwtUtil jwtUtil, EmailService emailService, FirebaseStorageService storageService,
+                          OrderGuard orderGuard) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtil = jwtUtil;
         this.emailService = emailService;
         this.storageService = storageService;
+        this.orderGuard = orderGuard;
+    }
+
+    // Blocks pausing/deleting a customer who still has an order in progress.
+    private void assertCustomerHasNoActiveOrders(UserEntity user, String action) {
+        if (!"CUSTOMER".equals(user.getRole())) return;
+        List<OrderEntity> blocking = orderGuard.activeOrdersForCustomer(user.getId());
+        if (!blocking.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "\"" + user.getName() + "\" has orders in " + orderGuard.statusPhrase(blocking) +
+                    ". Please resolve them before " + action + ".");
+        }
+    }
+
+    // Blocks deleting a rider who's still on a delivery.
+    private void assertRiderHasNoActiveOrders(UserEntity user, String action) {
+        if (!"DELIVERY".equals(user.getRole())) return;
+        List<OrderEntity> blocking = orderGuard.activeOrdersForRider(user.getId());
+        if (!blocking.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "\"" + user.getName() + "\" has deliveries in " + orderGuard.statusPhrase(blocking) +
+                    ". Please resolve them before " + action + ".");
+        }
     }
 
     /** True only if the Authorization header carries a valid JWT belonging to an ADMIN account. */
@@ -112,6 +139,7 @@ public class UserController {
         if (!isAdmin(authHeader)) return adminOnly();
         UserEntity user = userRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        assertCustomerHasNoActiveOrders(user, "pausing");
         user.setActive(false);
         return ResponseEntity.ok(userRepository.save(user));
     }
@@ -130,9 +158,10 @@ public class UserController {
     public ResponseEntity<Void> deleteUser(
             @PathVariable String id, @RequestHeader(value = "Authorization", required = false) String authHeader) {
         if (!isAdmin(authHeader)) return adminOnly();
-        if (!userRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-        }
+        UserEntity user = userRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        assertCustomerHasNoActiveOrders(user, "deleting");
+        assertRiderHasNoActiveOrders(user, "deleting");
         userRepository.deleteById(id);
         return ResponseEntity.noContent().build();
     }

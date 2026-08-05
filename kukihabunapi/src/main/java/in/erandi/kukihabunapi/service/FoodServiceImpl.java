@@ -1,7 +1,6 @@
 package in.erandi.kukihabunapi.service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,26 +14,10 @@ import in.erandi.kukihabunapi.entity.OrderEntity;
 import in.erandi.kukihabunapi.io.FoodRequest;
 import in.erandi.kukihabunapi.io.FoodResponse;
 import in.erandi.kukihabunapi.repository.FoodRepository;
-import in.erandi.kukihabunapi.repository.OrderRepository;
 
 @Service
 
 public class FoodServiceImpl implements FoodService {
-
-    // Every status except DELIVERED/CANCELLED — an order in one of these is still
-    // being worked on, so its foods can't be deleted out from under it.
-    private static final List<String> ACTIVE_ORDER_STATUSES =
-            List.of("PENDING", "CONFIRMED", "COOKING", "READY", "OUT_FOR_DELIVERY");
-
-    // Human-friendly labels for the delete-blocked message — mirrors the admin
-    // Kanban board's column labels (e.g. COOKING reads as "Preparing" there too).
-    private static final Map<String, String> STATUS_LABELS = Map.of(
-            "PENDING", "Pending",
-            "CONFIRMED", "Confirmed",
-            "COOKING", "Preparing",
-            "READY", "Ready",
-            "OUT_FOR_DELIVERY", "Out for Delivery"
-    );
 
     @Autowired
     private FirebaseStorageService storageService;
@@ -43,7 +26,7 @@ public class FoodServiceImpl implements FoodService {
     private FoodRepository foodRepository;
 
     @Autowired
-    private OrderRepository orderRepository;
+    private OrderGuard orderGuard;
 
     @Override
     public String uploadFile(MultipartFile file) {
@@ -107,44 +90,22 @@ public class FoodServiceImpl implements FoodService {
         foodRepository.saveAll(matching);
     }
 
-    // Orders whose status means they're still being worked on (not delivered/cancelled
-    // yet), excluding PENDING+UNPAID orders — those are abandoned/incomplete carts that
-    // never became real orders, same convention OrderServiceImpl uses for "active" orders.
-    private List<OrderEntity> activeOrdersFor(List<String> foodIds) {
-        return orderRepository.findByItemsFoodIdInAndStatusIn(foodIds, ACTIVE_ORDER_STATUSES).stream()
-                .filter(o -> !("PENDING".equals(o.getStatus()) && "UNPAID".equals(o.getPaymentStatus())))
-                .collect(Collectors.toList());
-    }
-
     private void assertFoodHasNoActiveOrders(String foodId, String foodName) {
-        List<OrderEntity> blocking = activeOrdersFor(List.of(foodId));
+        List<OrderEntity> blocking = orderGuard.activeOrdersForFoodIds(List.of(foodId));
         if (!blocking.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "\"" + foodName + "\" is in " + statusPhrase(blocking) + ". Please complete or cancel those orders before deleting.");
+                    "\"" + foodName + "\" is in " + orderGuard.statusPhrase(blocking) + ". Please complete or cancel those orders before deleting.");
         }
     }
 
     private void assertCategoryHasNoActiveOrders(List<FoodEntity> foods) {
         if (foods.isEmpty()) return;
         List<String> foodIds = foods.stream().map(FoodEntity::getId).collect(Collectors.toList());
-        List<OrderEntity> blocking = activeOrdersFor(foodIds);
+        List<OrderEntity> blocking = orderGuard.activeOrdersForFoodIds(foodIds);
         if (!blocking.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "This category has foods in " + statusPhrase(blocking) + ". Please complete or cancel those orders before deleting.");
+                    "This category has foods in " + orderGuard.statusPhrase(blocking) + ". Please complete or cancel those orders before deleting.");
         }
-    }
-
-    // e.g. "Pending status" / "Pending and Confirmed statuses" / "Pending, Confirmed and
-    // Preparing statuses" — one label per distinct status among the blocking orders, in
-    // workflow order, deduplicated.
-    private String statusPhrase(List<OrderEntity> blocking) {
-        List<String> labels = ACTIVE_ORDER_STATUSES.stream()
-                .filter(status -> blocking.stream().anyMatch(o -> status.equals(o.getStatus())))
-                .map(status -> STATUS_LABELS.getOrDefault(status, status))
-                .collect(Collectors.toList());
-        if (labels.size() == 1) return labels.get(0) + " status";
-        String allButLast = String.join(", ", labels.subList(0, labels.size() - 1));
-        return allButLast + " and " + labels.get(labels.size() - 1) + " statuses";
     }
 
     @Override

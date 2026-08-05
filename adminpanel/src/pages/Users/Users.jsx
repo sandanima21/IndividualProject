@@ -43,8 +43,9 @@ const Users = () => {
         : await activateUser(user.id);
       setUsers(prev => prev.map(u => u.id === user.id ? updated : u));
       toast.success(user.active ? 'User deactivated.' : 'User activated.');
-    } catch {
-      toast.error('Failed to update status.');
+    } catch (err) {
+      const msg = err?.response?.data?.message;
+      toast.error(msg || 'Failed to update status.', msg ? { autoClose: 8000 } : undefined);
     }
   };
 
@@ -54,8 +55,9 @@ const Users = () => {
       await deleteUser(user.id);
       setUsers(prev => prev.filter(u => u.id !== user.id));
       toast.success('User deleted.');
-    } catch {
-      toast.error('Delete failed.');
+    } catch (err) {
+      const msg = err?.response?.data?.message;
+      toast.error(msg || 'Delete failed.', msg ? { autoClose: 8000 } : undefined);
     }
   };
 
