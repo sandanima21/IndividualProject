@@ -75,7 +75,6 @@ public class OrderEntity {
     private String refundReceiptUrl;
 
     private LocalDateTime paymentTime;
-    private LocalDateTime cancelableUntil; // paymentTime + 15 mins
 
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

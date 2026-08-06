@@ -45,7 +45,6 @@ const Payments = () => {
                 <th>Method</th>
                 <th>Status</th>
                 <th>Paid At</th>
-                <th>Cancelable Until</th>
               </tr>
             </thead>
             <tbody>
@@ -60,9 +59,6 @@ const Payments = () => {
                   </td>
                   <td className="align-middle small text-muted">
                     {formatColomboDateTime(p.paidAt)}
-                  </td>
-                  <td className="align-middle small text-muted">
-                    {formatColomboDateTime(p.cancelableUntil)}
                   </td>
                 </tr>
               ))}

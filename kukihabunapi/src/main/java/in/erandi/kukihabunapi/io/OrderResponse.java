@@ -49,7 +49,6 @@ public class OrderResponse {
     private String refundAccountHolderName;
     private String refundReceiptUrl;
     private LocalDateTime paymentTime;
-    private LocalDateTime cancelableUntil;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime deliveredAt;

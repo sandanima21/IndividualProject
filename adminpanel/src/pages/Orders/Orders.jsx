@@ -433,7 +433,16 @@ const Orders = () => {
     setDragOverCol(null);
   };
 
-  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  // Colombo's own midnight, not the browser's local midnight — a device/browser not set to
+  // Sri Lanka time would otherwise roll the Delivered column over at the wrong moment. Sri
+  // Lanka has a fixed UTC+5:30 offset with no DST, so shifting by that fixed amount and using
+  // the UTC getters/setters reads/writes as if they were Colombo's own wall clock, then
+  // shifting back gives the real UTC instant to compare against (same trick used in the rider
+  // dashboard's History tab — see DeliveryDashboard.jsx).
+  const COLOMBO_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  const todayStart = new Date(Date.now() + COLOMBO_OFFSET_MS);
+  todayStart.setUTCHours(0, 0, 0, 0);
+  todayStart.setTime(todayStart.getTime() - COLOMBO_OFFSET_MS);
 
   const colOrders = (col) => orders.filter(o => {
     if (!col.displayKeys.includes(o.status)) return false;

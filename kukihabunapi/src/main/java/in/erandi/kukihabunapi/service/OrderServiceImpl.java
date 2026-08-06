@@ -206,7 +206,6 @@ public class OrderServiceImpl implements OrderService {
         LocalDateTime now = LocalDateTime.now();
         order.setPaymentStatus("PAID");
         order.setPaymentTime(now);
-        order.setCancelableUntil(now.plusMinutes(15));
         order.setUpdatedAt(now);
         return toResponse(orderRepository.save(order));
     }
@@ -470,7 +469,6 @@ public class OrderServiceImpl implements OrderService {
                 .refundAccountHolderName(order.getRefundAccountHolderName())
                 .refundReceiptUrl(order.getRefundReceiptUrl())
                 .paymentTime(order.getPaymentTime())
-                .cancelableUntil(order.getCancelableUntil())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .deliveredAt(order.getDeliveredAt())
