@@ -171,8 +171,9 @@ const Offers = () => {
       toast.success('Offer deleted.');
       setOffers(prev => prev.filter(o => o.id !== id));
       if (editingId === id) resetForm();
-    } catch {
-      toast.error('Failed to delete offer.');
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.response?.data;
+      toast.error(msg || 'Failed to delete offer.', msg ? { autoClose: 8000 } : undefined);
     } finally {
       setDeletingId(null);
     }

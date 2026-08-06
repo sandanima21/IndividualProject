@@ -2,9 +2,11 @@ package in.erandi.kukihabunapi.controller;
 
 import in.erandi.kukihabunapi.config.JwtUtil;
 import in.erandi.kukihabunapi.entity.OfferEntity;
+import in.erandi.kukihabunapi.entity.OrderEntity;
 import in.erandi.kukihabunapi.repository.OfferRepository;
 import in.erandi.kukihabunapi.repository.UserRepository;
 import in.erandi.kukihabunapi.service.FirebaseStorageService;
+import in.erandi.kukihabunapi.service.OrderGuard;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +26,7 @@ public class OfferController {
     private final FirebaseStorageService storageService;
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
+    private final OrderGuard orderGuard;
 
     /** True only if the Authorization header carries a valid JWT belonging to an ADMIN account. */
     private boolean isAdmin(String authHeader) {
@@ -106,7 +109,19 @@ public class OfferController {
         if (!isAdmin(authHeader)) throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access required");
         OfferEntity offer = offerRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
+        assertOfferHasNoActiveOrders(id, offer.getTitle());
         if (offer.getImageUrl() != null) storageService.delete(offer.getImageUrl());
         offerRepository.deleteById(id);
+    }
+
+    // Mirrors FoodServiceImpl.assertFoodHasNoActiveOrders — an offer is placed on an order
+    // as a regular line item whose foodId is the offer's own id (see OrderServiceImpl.placeOrder),
+    // so the same items.foodId-based guard already finds it with no extra query needed.
+    private void assertOfferHasNoActiveOrders(String offerId, String offerTitle) {
+        List<OrderEntity> blocking = orderGuard.activeOrdersForFoodIds(List.of(offerId));
+        if (!blocking.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "\"" + offerTitle + "\" is in " + orderGuard.statusPhrase(blocking) + ". Please complete or cancel those orders before deleting.");
+        }
     }
 }
